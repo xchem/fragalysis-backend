@@ -1,7 +1,6 @@
 import contextlib
 import copy
 import functools
-import hashlib
 import logging
 import math
 import os
@@ -28,8 +27,9 @@ from django.contrib.auth import get_user_model
 from django.contrib.postgres.aggregates import ArrayAgg
 from django.core.exceptions import MultipleObjectsReturned
 from django.db import IntegrityError, transaction
-from django.db.models import Count, F, Model, Q
+from django.db.models import Count, Exists, F, Model, OuterRef, Q, Value
 from django.db.models.base import ModelBase
+from django.db.models.functions import Left, Length, Reverse, StrIndex
 from django.utils import timezone
 from rdkit import Chem
 
@@ -61,7 +61,17 @@ from viewer.models import (
     XtalformQuatAssembly,
     XtalformSite,
 )
-from viewer.utils import alphanumerator, clean_object_id, sanitize_directory_name
+from viewer.utils import (
+    alphanumerator,
+    calculate_sha256,
+    clean_object_id,
+    flatten_dict,
+    longcode_from_tag,
+    sanitize_directory_name,
+    set_directory_permissions,
+    strip_exp_code,
+    strip_version,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -291,79 +301,6 @@ def _validate_bundle_against_mode(config_yaml: Dict[str, Any]) -> Optional[str]:
 
     # OK if we get here
     return None
-
-
-def _flatten_dict_gen(d: dict, parent_key: tuple | str | int, depth: int):
-    for k, v in d.items():
-        if parent_key:
-            if isinstance(parent_key, tuple):
-                new_key = (*parent_key, k)
-            else:
-                new_key = (parent_key, k)
-        else:
-            new_key = k
-
-        try:
-            deep_enough = any([isinstance(x, dict) for x in v.values()])
-        except AttributeError:
-            continue
-
-        if deep_enough and depth > 1:
-            yield from flatten_dict(v, new_key, depth - 1)
-        else:
-            if isinstance(new_key, str):
-                yield new_key, v
-            else:
-                yield *new_key, v
-
-
-def flatten_dict(d: dict, parent_key: tuple | int | str = "", depth: int = 1):
-    """Flatten nested dict to specified depth."""
-    return _flatten_dict_gen(d, parent_key, depth)
-
-
-def set_directory_permissions(path, permissions) -> None:
-    for root, dirs, files in os.walk(path):
-        # Set permissions for directories
-        for directory in dirs:
-            dir_path = os.path.join(root, directory)
-            os.chmod(dir_path, permissions)
-
-        # Set permissions for files
-        for file in files:
-            file_path = os.path.join(root, file)
-            os.chmod(file_path, permissions)
-
-
-# borrowed from SO
-def calculate_sha256(filepath) -> str:
-    sha256_hash = hashlib.sha256()
-    with open(filepath, "rb") as f:
-        # Read the file in chunks of 4096 bytes
-        for chunk in iter(lambda: f.read(4096), b""):
-            sha256_hash.update(chunk)
-    return sha256_hash.hexdigest()
-
-
-def strip_version(s: str, separator: str = "/") -> Tuple[str, int]:
-    # format something like XX01ZVNS2B-x0673/B/501/1
-    # remove tailing '<separator>1'
-    return s[0 : s.rfind(separator)], int(s[s.rfind(separator) + 1 :])
-
-
-def longcode_from_tag(tag: str, separator: str = '/') -> str:
-    splits = tag.split(separator)
-    if splits:
-        splits[-1] = f"v{splits[-1]}"
-        return "_".join(splits)
-    return tag
-
-
-def strip_exp_code(code: str) -> str:
-    try:
-        return re.split(r"-\w{1}", code)[1]
-    except IndexError as exc:
-        raise ValueError(f"Non-standard experiment code {code}") from exc
 
 
 def create_objects(func=None, *, depth=math.inf):
@@ -2099,57 +2036,60 @@ class TargetLoader:
             canon_site_confs=canon_site_conf_objects,
         )
 
-        values = ["experiment"]
-        # fmt: off
-        qs = SiteObservation.objects.filter(
-                experiment__experiment_upload__target=self.target,
-                code__isnull=True,
-            ).values(
-                *values,
-            ).order_by(
-                *values,
-            ).annotate(
-                obvs=ArrayAgg("id"),
-            ).values_list("obvs", flat=True)
-        # fmt: on
+        # new shortcoder
+        # annotate ordering and filtering parameters
+        so_shortcode_qs = SiteObservation.objects.annotate(
+            sitecount=Count(
+                "canon_site_conf__canon_site__canonsiteconf__siteobservation"
+            ),
+            last_occur=StrIndex(Reverse(F('longcode')), Value('_')),
+            # longcode without version, this is how they're grouped
+            mediumcode=Left('longcode', Length('longcode') - F('last_occur')),
+        )
 
-        for elem in qs:
-            # fmt: off
-            subgroups = SiteObservation.objects.filter(
-                pk__in=elem,
-            ).order_by(
-                "canon_site_conf__canon_site",
-            ).annotate(
-                sites=Count("canon_site_conf__canon_site"),
-                obvs=ArrayAgg('id'),
-            ).order_by(
-                "-sites",
-                # adding these 2 seems to be taking care of 2003, wrong shortcodes
-                # is this sufficient?
-                'chain_id',
-                'seq_id'
-            ).values_list("obvs", flat=True)
-            # fmt: on
+        # only experiments with observations that have empty codes
+        exp_shortcode_qs = Experiment.objects.annotate(
+            has_empty_codes=Exists(
+                SiteObservation.objects.filter(
+                    experiment__in=OuterRef('pk'),
+                    code__isnull=True,
+                ),
+            ),
+        ).filter(
+            experiment_upload__target=self.target,
+            has_empty_codes=True,
+        )
 
+        for experiment in exp_shortcode_qs:
             suffix = alphanumerator()
-            for sub in subgroups:
-                # objects in this group should be named with same scheme
-                so_group = SiteObservation.objects.filter(pk__in=sub)
+            # fmt: off
+            qs = so_shortcode_qs.filter(
+                experiment=experiment,
+            ).order_by(
+                # abusing the fact that while conformer site can
+                # change, canon site won't (and doesn't at least in
+                # current database)
+                '-sitecount',
+                'mediumcode',
+            ).values(
+                'mediumcode',
+            ).annotate(
+                obvs=ArrayAgg('id', distinct=True),
+            )
+            # fmt: on
+            for group in qs:
+                so_group = SiteObservation.objects.filter(
+                    pk__in=group['obvs'],
+                ).order_by('version')
 
-                # memo to self: there used to be some code to test the
-                # position of the iterator in existing entries. This
-                # was because it was assumed, that when adding v2
-                # uploads, it can bring along new observations under
-                # existing experiment. Following discussions with
-                # Conor, it seems that this will not be the case. But
-                # should it agin be, this code was deleted on
-                # 2024-03-04, if you need to check
-
-                for so in so_group.filter(code__isnull=True):
-                    logger.debug("processing so: %s", so.longcode)
-                    if so.experiment.type == 1:
+                if so_group.first().code:
+                    # superseding
+                    code = so_group.first().code
+                else:
+                    # completely new instance
+                    if experiment.type == 1:
                         # manual. code is pdb code
-                        code = f"{so.experiment.code}-{next(suffix)}"
+                        code = f"{experiment.code}-{next(suffix)}"
                         # NB! at the time of writing this piece of
                         # code, I haven't seen an example of the data
                         # so I only have a very vague idea how this is
@@ -2159,20 +2099,14 @@ class TargetLoader:
                         # could be I need to split them up
                     else:
                         # model building. generate code
-                        code_prefix = experiment_objects[so.experiment.code].index_data[
-                            "code_prefix"
-                        ]
-                        # iter_pos = next(suffix)
-                        # code = f"{code_prefix}{so.experiment.code.split('-')[1]}{iter_pos}"
-                        # code = f"{code_prefix}{so.experiment.code.split('-')[1]}{next(suffix)}"
                         try:
-                            exp_code_no = strip_exp_code(so.experiment.code)
+                            exp_code_no = strip_exp_code(experiment.code)
                         except ValueError as exc:
                             self.report.log(logging.ERROR, exc.args[1])
                             # error, loading failed, use full code for demo
-                            exp_code_no = so.experiment.code
+                            exp_code_no = experiment.code
 
-                        code = f"{code_prefix}{exp_code_no}{next(suffix)}"
+                        code = f"{experiment.code_prefix}{exp_code_no}{next(suffix)}"
 
                         # test uniqueness for target
                         # TODO: this should ideally be solved by db engine, before
@@ -2184,17 +2118,116 @@ class TargetLoader:
                         )
                         # if code exists and the experiment is new
                         logger.debug(
-                            'checking code uniq: %s, %s', code, so.experiment.status
+                            'checking code uniq: %s, %s', code, experiment.status
                         )
-                        if code_qs.exists() and so.experiment.status.status_code == 0:
+                        if code_qs.exists() and experiment.status.status_code == 0:
                             msg = (
                                 f"short code {code} already exists for this target; "
                                 + "specify a code_prefix to resolve this conflict"
                             )
                             self.report.log(logging.ERROR, msg)
 
-                    so.code = code
-                    so.save()
+                # now I have the code for the group.
+                so_group.filter(code__isnull=True).update(code=code)
+
+        # # new shortcoder ends
+        # # old shortcoder begins
+        # values = ["experiment"]
+        # # fmt: off
+        # qs = SiteObservation.objects.filter(
+        #         experiment__experiment_upload__target=self.target,
+        #         code__isnull=True,
+        #     ).values(
+        #         *values,
+        #     ).order_by(
+        #         *values,
+        #     ).annotate(
+        #         obvs=ArrayAgg("id"),
+        #     ).values_list("obvs", flat=True)
+        # # fmt: on
+
+        # for elem in qs:
+        #     # fmt: off
+        #     subgroups = SiteObservation.objects.filter(
+        #         pk__in=elem,
+        #     ).order_by(
+        #         "canon_site_conf__canon_site",
+        #     ).annotate(
+        #         sites=Count("canon_site_conf__canon_site"),
+        #         obvs=ArrayAgg('id'),
+        #     ).order_by(
+        #         "-sites",
+        #         # adding these 2 seems to be taking care of 2003, wrong shortcodes
+        #         # is this sufficient?
+        #         'chain_id',
+        #         'seq_id'
+        #     ).values_list("obvs", flat=True)
+        #     # fmt: on
+
+        #     suffix = alphanumerator()
+        #     for sub in subgroups:
+        #         # objects in this group should be named with same scheme
+        #         so_group = SiteObservation.objects.filter(pk__in=sub)
+
+        #         # memo to self: there used to be some code to test the
+        #         # position of the iterator in existing entries. This
+        #         # was because it was assumed, that when adding v2
+        #         # uploads, it can bring along new observations under
+        #         # existing experiment. Following discussions with
+        #         # Conor, it seems that this will not be the case. But
+        #         # should it agin be, this code was deleted on
+        #         # 2024-03-04, if you need to check
+
+        #         for so in so_group.filter(code__isnull=True):
+        #             logger.debug("processing so: %s", so.longcode)
+        #             if so.experiment.type == 1:
+        #                 # manual. code is pdb code
+        #                 code = f"{so.experiment.code}-{next(suffix)}"
+        #                 # NB! at the time of writing this piece of
+        #                 # code, I haven't seen an example of the data
+        #                 # so I only have a very vague idea how this is
+        #                 # going to work. The way I understand it now,
+        #                 # they cannot belong to separate groups so
+        #                 # there's no need for different iterators. But
+        #                 # could be I need to split them up
+        #             else:
+        #                 # model building. generate code
+        #                 code_prefix = experiment_objects[so.experiment.code].index_data[
+        #                     "code_prefix"
+        #                 ]
+        #                 # iter_pos = next(suffix)
+        #                 # code = f"{code_prefix}{so.experiment.code.split('-')[1]}{iter_pos}"
+        #                 # code = f"{code_prefix}{so.experiment.code.split('-')[1]}{next(suffix)}"
+        #                 try:
+        #                     exp_code_no = strip_exp_code(so.experiment.code)
+        #                 except ValueError as exc:
+        #                     self.report.log(logging.ERROR, exc.args[1])
+        #                     # error, loading failed, use full code for demo
+        #                     exp_code_no = so.experiment.code
+
+        #                 code = f"{code_prefix}{exp_code_no}{next(suffix)}"
+
+        #                 # test uniqueness for target
+        #                 # TODO: this should ideally be solved by db engine, before
+        #                 # rushing to write the trigger, have think about the
+        #                 # loader concurrency situations
+        #                 code_qs = SiteObservation.objects.filter(
+        #                     experiment__experiment_upload__target=self.target,
+        #                     code=code,
+        #                 )
+        #                 # if code exists and the experiment is new
+        #                 logger.debug(
+        #                     'checking code uniq: %s, %s', code, so.experiment.status
+        #                 )
+        #                 if code_qs.exists() and so.experiment.status.status_code == 0:
+        #                     msg = (
+        #                         f"short code {code} already exists for this target; "
+        #                         + "specify a code_prefix to resolve this conflict"
+        #                     )
+        #                     self.report.log(logging.ERROR, msg)
+
+        #             so.code = code
+        #             so.save()
 
         for val in site_observation_objects.values():  # pylint: disable=no-member
             # instances modified, and will be modified down the line, refresh

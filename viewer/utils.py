@@ -1,4 +1,5 @@
 import fnmatch
+import hashlib
 import itertools
 import json
 import logging
@@ -9,7 +10,7 @@ import string
 import tempfile
 import uuid
 from pathlib import Path
-from typing import Dict, Generator, Optional
+from typing import Dict, Generator, Optional, Tuple
 from urllib.parse import urlparse
 
 import pandas as pd
@@ -677,3 +678,75 @@ def flattened_inchi_from_smiles(smiles: str):
     Chem.RemoveStereochemistry(mol)
     flat_inchi = Chem.inchi.MolToInchi(mol)
     return flat_inchi
+
+
+def _flatten_dict_gen(d: dict, parent_key: tuple | str | int, depth: int):
+    for k, v in d.items():
+        if parent_key:
+            if isinstance(parent_key, tuple):
+                new_key = (*parent_key, k)
+            else:
+                new_key = (parent_key, k)
+        else:
+            new_key = k
+
+        try:
+            deep_enough = any([isinstance(x, dict) for x in v.values()])
+        except AttributeError:
+            continue
+
+        if deep_enough and depth > 1:
+            yield from flatten_dict(v, new_key, depth - 1)
+        else:
+            if isinstance(new_key, str):
+                yield new_key, v
+            else:
+                yield *new_key, v
+
+
+def flatten_dict(d: dict, parent_key: tuple | int | str = "", depth: int = 1):
+    """Flatten nested dict to specified depth."""
+    return _flatten_dict_gen(d, parent_key, depth)
+
+
+def set_directory_permissions(path, permissions) -> None:
+    for root, dirs, files in os.walk(path):
+        # Set permissions for directories
+        for directory in dirs:
+            dir_path = os.path.join(root, directory)
+            os.chmod(dir_path, permissions)
+
+        # Set permissions for files
+        for file in files:
+            file_path = os.path.join(root, file)
+            os.chmod(file_path, permissions)
+
+
+def calculate_sha256(filepath) -> str:
+    sha256_hash = hashlib.sha256()
+    with open(filepath, "rb") as f:
+        # Read the file in chunks of 4096 bytes
+        for chunk in iter(lambda: f.read(4096), b""):
+            sha256_hash.update(chunk)
+    return sha256_hash.hexdigest()
+
+
+def strip_version(s: str, separator: str = "/") -> Tuple[str, int]:
+    # format something like XX01ZVNS2B-x0673/B/501/1
+    # remove tailing '<separator>1'
+    return s[0 : s.rfind(separator)], int(s[s.rfind(separator) + 1 :])
+
+
+def longcode_from_tag(tag: str, separator: str = '/') -> str:
+    splits = tag.split(separator)
+    if splits:
+        splits[-1] = f"v{splits[-1]}"
+        return "_".join(splits)
+    return tag
+
+
+def strip_exp_code(code: str) -> str:
+    try:
+        return re.split(r"-\w{1}", code)[1]
+    except IndexError as exc:
+        raise ValueError(f"Non-standard experiment code {code}") from exc
