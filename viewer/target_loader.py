@@ -500,8 +500,8 @@ def validate_data_version(
     if major != s_major:
         return (
             False,
-            f"Data major version mismatch: '{s_major}' "
-            + f"expected, '{major}' uploaded",
+            f"The upload is marked as version {major}, "
+            + f"but only version {s_major} is currently supported",
         )
 
     # alternatively, if target- and project name are given (likely pre-upload check):
