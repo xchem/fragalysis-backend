@@ -3765,7 +3765,7 @@ def check_decompress_progress(process, archive_path, update, frequency=1.0):
 
 def load_target(
     data_bundle,
-    proposal_ref=None,
+    proposal_ref: str,
     user_id=None,
     task=None,
 ):
