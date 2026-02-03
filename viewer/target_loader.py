@@ -1626,9 +1626,9 @@ class TargetLoader:
         supersede_fields = {
             "experiment": experiment,
             "cmpd": compound,
-            # "canon_site_conf": canon_site_conf,
             "seq_id": ligand,
             "chain_id": chain,
+            "altloc": altloc,
         }
 
         # smiles removed from check fields aand removed to defaults as
@@ -2824,10 +2824,12 @@ class TargetLoader:
                     canon_site_conf=val.instance.canon_site_conf,
                     seq_id=val.instance.seq_id,
                     chain_id=val.instance.chain_id,
+                    altloc=val.instance.altloc,
                     superseded=True,
                 ).order_by(
                     "-version",
                 )
+
                 # fmt: on
                 # older version(s) exist
                 if qs.exists():
