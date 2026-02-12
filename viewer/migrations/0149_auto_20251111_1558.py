@@ -7,8 +7,6 @@ from rdkit import Chem
 from django.db import migrations
 from django.conf import settings
 
-from viewer.models import ResultValueDataType
-
 
 class Migration(migrations.Migration):
 

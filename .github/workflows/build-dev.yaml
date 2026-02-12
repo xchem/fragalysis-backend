@@ -50,7 +50,7 @@ jobs:
       push: ${{ steps.vars.outputs.push }}
     steps:
     - name: Inject slug/short variables
-      uses: rlespinasse/github-slug-action@v4
+      uses: rlespinasse/github-slug-action@v5
     - name: Initialise workflow variables
       id: vars
       env:
@@ -67,13 +67,13 @@ jobs:
         echo push=${{ env.DOCKERHUB_USERNAME != '' }}
         echo "push=${{ env.DOCKERHUB_USERNAME != '' }}" >> $GITHUB_OUTPUT
     - name: Checkout
-      uses: actions/checkout@v4
+      uses: actions/checkout@v6
     - name: Lint Dockerfile
-      uses: hadolint/hadolint-action@v3.1.0
+      uses: hadolint/hadolint-action@v3.3.0
       with:
         dockerfile: Dockerfile
     - name: Set up Python
-      uses: actions/setup-python@v5
+      uses: actions/setup-python@v6
       with:
         python-version: '3.11'
     - name: Run pre-commit (all files)
@@ -85,8 +85,30 @@ jobs:
       with:
         context: .
         tags: ${{ steps.vars.outputs.BE_NAMESPACE }}/fragalysis-backend:${{ env.GITHUB_REF_SLUG }}
+    - name: Display
+      uses: docker/build-push-action@v6
+      with:
+        context: .
+        tags: ${{ steps.vars.outputs.BE_NAMESPACE }}/fragalysis-backend:${{ env.GITHUB_REF_SLUG }}
+    - name: Vulnerability Scan (OSV)
+      # The vulnerability scan (using Google's OSV)
+      # Allowed to fail (we force true) as it's used for information only
+      # The generated "Common Vulnerability Scoring System (CVSS)"" values
+      # are interpreted as...
+      #
+      # - None: 0.0 (No impact)
+      # - Low: 0.1–3.9 (Minor risk)
+      # - Medium: 4.0–6.9 (Moderate risk)
+      # - High: 7.0–8.9 (Serious risk)
+      # - Critical: 9.0–10.0 (Grave, severe risk)
+      run: |
+        wget https://github.com/google/osv-scanner/releases/latest/download/osv-scanner_linux_amd64 -O osv-scanner
+        chmod +x osv-scanner
+        ./osv-scanner scan image ${{ steps.vars.outputs.BE_NAMESPACE }}/fragalysis-backend:${{ env.GITHUB_REF_SLUG }} \
+            --format markdown --output scan.md || true
+        cat scan.md >> $GITHUB_STEP_SUMMARY
     - name: Test (docker compose)
-      uses: hoverkraft-tech/compose-action@v2.0.1
+      uses: hoverkraft-tech/compose-action@v2.4.2
       with:
         compose-file: ./docker-compose.test.yml
         up-flags: --build --exit-code-from tests --abort-on-container-exit

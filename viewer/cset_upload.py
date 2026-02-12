@@ -267,6 +267,7 @@ class MolOps:
             site_obvs = SiteObservation.objects.get(
                 code__contains=name,
                 experiment__experiment_upload__target__pk=target,
+                superseded=False,
             )
         except SiteObservation.DoesNotExist:
             # Initial SiteObservation lookup failed.
@@ -438,12 +439,13 @@ class MolOps:
                 result.float_value = value
             elif data_type.data_type == 'integer':
                 result.int_value = value
+
             else:
                 result.text_value = value
 
             result.save()
 
-        # return score_descriptions
+        return None
 
     def set_mol(
         self, mol, target, compound_set, filename, zfile=None, zfile_hashvals=None
@@ -474,10 +476,12 @@ class MolOps:
         insp_frags = []
         for i in insp:
             # try exact match first
+            logger.debug('looking for so code %s', str(i))
             try:
                 site_obvs = SiteObservation.objects.get(
                     code=str(i),
                     experiment__experiment_upload__target=compound_set.target,
+                    superseded=False,
                 )
                 ref = site_obvs
             except SiteObservation.DoesNotExist:

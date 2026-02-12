@@ -70,12 +70,6 @@ from datetime import timedelta
 from pathlib import Path
 from typing import List, Optional
 
-import sentry_sdk
-from sentry_sdk.integrations.celery import CeleryIntegration
-from sentry_sdk.integrations.django import DjangoIntegration
-from sentry_sdk.integrations.excepthook import ExcepthookIntegration
-from sentry_sdk.integrations.redis import RedisIntegration
-
 # --------------------------------------------------------------------------------------
 # DJANGO SETTINGS
 # --------------------------------------------------------------------------------------
@@ -204,21 +198,6 @@ ROOT_URLCONF = "fragalysis.urls"
 SECRET_KEY = os.environ.get(
     "WEB_DJANGO_SECRET_KEY", "8flmz)c9i!o&f1-moi5-p&9ak4r9=ck$3!0y1@%34p^(6i*^_9"
 )
-
-if SENTRY_DNS := os.environ.get("FRAGALYSIS_BACKEND_SENTRY_DNS"):
-    # By default only call sentry in staging/production
-    sentry_sdk.init(
-        dsn=SENTRY_DNS,
-        integrations=[
-            DjangoIntegration(),
-            CeleryIntegration(),
-            RedisIntegration(),
-            ExcepthookIntegration(always_run=True),
-        ],
-        # If you wish to associate users to errors (assuming you are using
-        # django.contrib.auth) you may enable sending PII data.
-        send_default_pii=True,
-    )
 
 # STATIC_ROOT = os.path.join(PROJECT_ROOT, "static")
 STATIC_ROOT = Path(PROJECT_ROOT).joinpath("code").joinpath("static")
@@ -517,6 +496,12 @@ DISCOURSE_API_KEY: str = os.environ.get("DISCOURSE_API_KEY", "")
 # dedicated Discourse server.
 DISCOURSE_DEV_POST_SUFFIX: str = os.environ.get("DISCOURSE_DEV_POST_SUFFIX", "")
 
+# The period of time allowed to elapse before recreating a Target download file.
+# This is used by download_structures.py as the length of time to keep records of dynamic links.
+DOWNLOAD_KEEP_UNTIL_DURATION_M: int = int(
+    os.environ.get("DOWNLOAD_KEEP_UNTIL_DURATION_M", "90")
+)
+
 # Some Squonk2 developer/debug variables.
 # Unused in production.
 DUMMY_TARGET_TITLE: str = os.environ.get("DUMMY_TARGET_TITLE", "")
@@ -670,7 +655,7 @@ STACK_NAMESPACE: str = os.environ.get("STACK_NAMESPACE", "undefined")
 STACK_VERSION: str = os.environ.get("STACK_VERSION", "undefined")
 
 # XChem Align data format
-XCA_DATA_FORMAT_VERSION = "2.2"
+XCA_DATA_FORMAT_VERSION = "3.0"
 
 # Minimum allowed XChem Align version
 XCA_MIN_VERSION = "2.2.4"

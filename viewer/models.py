@@ -203,13 +203,22 @@ class ExperimentUpload(models.Model):
         " Used for upload audit trail",
     )
     neighbourhood_transforms = models.FileField(
-        upload_to="experiment-upload/", max_length=255
+        upload_to="experiment-upload/", max_length=255, null=True
     )
     conformer_site_transforms = models.FileField(
-        upload_to="experiment-upload/", max_length=255
+        upload_to="experiment-upload/",
+        max_length=255,
+        null=True,
     )
     reference_structure_transforms = models.FileField(
-        upload_to="experiment-upload/", max_length=255
+        upload_to="experiment-upload/",
+        max_length=255,
+        null=True,
+    )
+    assembly_transforms = models.FileField(
+        upload_to="experiment-upload/",
+        max_length=255,
+        null=True,
     )
     upload_data_dir = models.TextField(null=True)
     upload_version = models.PositiveSmallIntegerField(default=1)
@@ -703,6 +712,7 @@ class SiteObservation(Versionable, models.Model):
         through="SiteObservationComputedMolecule",
         through_fields=("site_observation", "computed_molecule"),
     )
+    altloc = models.CharField(default='0', blank=True, max_length=1)
 
     # from the former ComputedMolecule
     # commented out fields will not be moved

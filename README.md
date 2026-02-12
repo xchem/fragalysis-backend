@@ -225,13 +225,6 @@ Exit the container and tear-down the deployment: -
     is mapped into the container as a volume at `/code`. You just need to commit the
     migrations that have been written to the corresponding migrations directory.
 
-## Sentry error logging
-[Sentry] can be used to log errors in the backend container image.
-
-In `settings.py`, this is controlled by setting the value of `FRAGALYSIS_BACKEND_SENTRY_DNS`,
-which is also exposed in the developer docker-compose file.
-To enable it, you need to set it to a valid Sentry DNS value.
-
 ## Deployment mode
 The stack can be deployed in one of tweo modes: - `DEVELOPMENT` or `PRODUCTION`.
 The mode is controlled by the `DEPLOYMENT_MODE` environment variable and is used
@@ -327,4 +320,3 @@ These include, but are not limit to: -
 [poetry]: https://python-poetry.org
 [pre-commit]: https://pre-commit.com
 [readthedocs]: https://fragalysis-backend.readthedocs.io/en/latest/index.html
-[sentry]: https://sentry.io/welcome/

@@ -1,7 +1,6 @@
 import contextlib
 import copy
 import functools
-import hashlib
 import logging
 import math
 import os
@@ -28,8 +27,9 @@ from django.contrib.auth import get_user_model
 from django.contrib.postgres.aggregates import ArrayAgg
 from django.core.exceptions import MultipleObjectsReturned
 from django.db import IntegrityError, transaction
-from django.db.models import Count, F, Model
+from django.db.models import Count, Exists, F, Model, OuterRef, Value
 from django.db.models.base import ModelBase
+from django.db.models.functions import Left, Length, Reverse, StrIndex
 from django.utils import timezone
 from rdkit import Chem
 
@@ -57,7 +57,16 @@ from viewer.models import (  # TagCategory,
     XtalformQuatAssembly,
     XtalformSite,
 )
-from viewer.utils import alphanumerator, longcode_from_tag, sanitize_directory_name
+from viewer.utils import (
+    alphanumerator,
+    calculate_sha256,
+    flatten_dict,
+    longcode_from_tag,
+    sanitize_directory_name,
+    set_directory_permissions,
+    strip_exp_code,
+    strip_version,
+)
 
 from .tags import TagManager
 
@@ -75,8 +84,8 @@ METADATA_FILE = "meta_aligner.yaml"
 
 # transformation matrices
 TRANS_NEIGHBOURHOOD = "neighbourhood_transforms.yaml"
-TRANS_CONF_SITE = "conformer_site_transforms.yaml"
 TRANS_REF_STRUCT = "reference_structure_transforms.yaml"
+TRANS_ASSEMBLY = "assembly_transforms.yaml"
 
 CUSTOM_IDENTIFIER_FILE = "compounds_manual.csv"
 
@@ -133,6 +142,8 @@ class ProcessedObject:
     key: str | tuple[str, str]
     defaults: dict = field(default_factory=dict)
     index_data: dict = field(default_factory=dict)
+    # fields used to search for an instance to supersede
+    supersede_fields: dict = field(default_factory=dict)
     versioned_key: Optional[str | tuple[str, str]] = ""
 
 
@@ -289,71 +300,6 @@ def _validate_bundle_against_mode(config_yaml: Dict[str, Any]) -> Optional[str]:
     return None
 
 
-def _flatten_dict_gen(d: dict, parent_key: tuple | str | int, depth: int):
-    for k, v in d.items():
-        if parent_key:
-            if isinstance(parent_key, tuple):
-                new_key = (*parent_key, k)
-            else:
-                new_key = (parent_key, k)
-        else:
-            new_key = k
-
-        try:
-            deep_enough = any([isinstance(x, dict) for x in v.values()])
-        except AttributeError:
-            continue
-
-        if deep_enough and depth > 1:
-            yield from flatten_dict(v, new_key, depth - 1)
-        else:
-            if isinstance(new_key, str):
-                yield new_key, v
-            else:
-                yield *new_key, v
-
-
-def flatten_dict(d: dict, parent_key: tuple | int | str = "", depth: int = 1):
-    """Flatten nested dict to specified depth."""
-    return _flatten_dict_gen(d, parent_key, depth)
-
-
-def set_directory_permissions(path, permissions) -> None:
-    for root, dirs, files in os.walk(path):
-        # Set permissions for directories
-        for directory in dirs:
-            dir_path = os.path.join(root, directory)
-            os.chmod(dir_path, permissions)
-
-        # Set permissions for files
-        for file in files:
-            file_path = os.path.join(root, file)
-            os.chmod(file_path, permissions)
-
-
-# borrowed from SO
-def calculate_sha256(filepath) -> str:
-    sha256_hash = hashlib.sha256()
-    with open(filepath, "rb") as f:
-        # Read the file in chunks of 4096 bytes
-        for chunk in iter(lambda: f.read(4096), b""):
-            sha256_hash.update(chunk)
-    return sha256_hash.hexdigest()
-
-
-def strip_version(s: str, separator: str = "/") -> Tuple[str, int]:
-    # format something like XX01ZVNS2B-x0673/B/501/1
-    # remove tailing '<separator>1'
-    return s[0 : s.rfind(separator)], int(s[s.rfind(separator) + 1 :])
-
-
-def strip_exp_code(code: str) -> str:
-    try:
-        return re.split(r"-\w{1}", code)[1]
-    except IndexError as exc:
-        raise ValueError(f"Non-standard experiment code {code}") from exc
-
-
 def create_objects(func=None, *, depth=math.inf):
     """Wrapper function for saving database objects.
 
@@ -465,10 +411,9 @@ def create_objects(func=None, *, depth=math.inf):
             if new:
                 created = created + 1
                 # check if old versions exist and mark them as superseded
-                if "version" in instance_data.fields.keys():
-                    del instance_data.fields["version"]
+                if instance_data.supersede_fields:
                     superseded = instance_data.model_class.objects.filter(
-                        **instance_data.fields,
+                        **instance_data.supersede_fields,
                     ).exclude(
                         pk=obj.pk,
                     )
@@ -552,8 +497,8 @@ def validate_data_version(
     if major != s_major:
         return (
             False,
-            f"Data major version mismatch: '{s_major}' "
-            + f"expected, '{major}' uploaded",
+            f"The upload is marked as version {major}, "
+            + f"but only version {s_major} is currently supported",
         )
 
     # alternatively, if target- and project name are given (likely pre-upload check):
@@ -1004,7 +949,9 @@ class TargetLoader:
 
         map_info_paths = []
         if map_info_files:
-            map_info_paths = [str(self._get_final_path(k)) for k in map_info_files]
+            map_info_paths = list(
+                set([str(self._get_final_path(k)) for k in map_info_files])
+            )
 
         defaults = {
             # overwrites exp upload in old instances, there's a hack
@@ -1019,7 +966,7 @@ class TargetLoader:
             "mtz_info_source_file": mtz_info_source_file,
             "cif_info_source_file": cif_info_source_file,
             "map_info": map_info_paths,
-            "map_info_source_files": map_info_source_files,
+            "map_info_source_files": list(set(map_info_source_files)),
             "prefix_tooltip": prefix_tooltip,
             "code_prefix": code_prefix,
             # this doesn't seem to be present
@@ -1362,6 +1309,7 @@ class TargetLoader:
             index_data=index_data,
             key=canon_site_id,
             versioned_key=v_canon_site_id,
+            supersede_fields=fields,
             defaults=defaults,
         )
 
@@ -1406,6 +1354,11 @@ class TargetLoader:
             "version": version,
         }
 
+        supersede_fields = {
+            "name": conf_site_name,
+            "canon_site": canon_site,
+        }
+
         defaults = {
             "residues": residues,
         }
@@ -1425,6 +1378,7 @@ class TargetLoader:
             index_data=index_fields,
             key=conf_site_name,
             versioned_key=v_conf_site_name,
+            supersede_fields=supersede_fields,
             defaults=defaults,
         )
 
@@ -1476,6 +1430,12 @@ class TargetLoader:
             "version": version,
         }
 
+        supersede_fields = {
+            "xtalform_site_id": xtalform_site_name,
+            "xtalform": xtalform,
+            "canon_site": canon_site,
+        }
+
         defaults = {
             "lig_chain": lig_chain,
             "residues": residues,
@@ -1491,22 +1451,27 @@ class TargetLoader:
             defaults=defaults,
             key=xtalform_site_name,
             versioned_key=v_xtalform_site_name,
+            supersede_fields=supersede_fields,
             index_data=index_data,
         )
 
-    @create_objects(depth=6)
+    @create_objects(depth=7)
     def process_site_observation(
         self,
         experiments: dict[int | str, MetadataObject],
         compounds: dict[int | str, MetadataObject],
         xtalform_sites: dict[str, Model],
         canon_site_confs: dict[int | str, MetadataObject],
-        item_data: tuple[str, str, str, int | str, int, str, dict] | None = None,
-        # chain: str,
-        # ligand: str,
-        # version: int,
-        # idx: int | str,
-        # data: dict,
+        item_data: tuple[str, str, str, int | str, str, int, str, dict] | None = None,
+        # item data structure:
+        # 1: crystal name: str
+        # 2: aligned_files: const
+        # 3: chain: str,
+        # 4: ligand: str,
+        # 5: altloc: str
+        # 6: version: int,
+        # 7: idx: int | str,
+        # 8: data: dict,
         validate_files: bool = True,
         **kwargs,
     ) -> ProcessedObject | None:
@@ -1530,10 +1495,20 @@ class TargetLoader:
         del kwargs
         assert item_data
         try:
-            experiment_id, _, chain, ligand, version, v_idx, data = item_data
+            experiment_id, _, chain, ligand, altloc, version, v_idx, data = item_data
         except ValueError:
             # wrong data item
             return None
+
+        logger.debug(
+            'incoming_data: %s; %s; %s; %s; %s; %s',
+            experiment_id,
+            chain,
+            ligand,
+            altloc,
+            version,
+            v_idx,
+        )
 
         extract = functools.partial(
             self._extract,
@@ -1545,12 +1520,9 @@ class TargetLoader:
 
         experiment = experiments[experiment_id].instance
 
-        longcode = (
-            # f"{experiment.code}_{chain}_{str(ligand)}_{str(version)}_{str(v_idx)}"
-            f"{experiment.code}_{chain}_{str(ligand)}_v{str(version)}"
-        )
-        key = f"{experiment.code}/{chain}/{str(ligand)}"
-        v_key = f"{experiment.code}/{chain}/{str(ligand)}/{version}"
+        longcode = f"{experiment.code}_{chain}_{str(ligand)}_{altloc}_v{str(version)}"
+        key = f"{experiment.code}/{chain}/{str(ligand)}/{altloc}"
+        v_key = f"{experiment.code}/{chain}/{str(ligand)}/{altloc}/{version}"
 
         smiles = extract(key="ligand_smiles_string")
         ligand_name = extract(key="ligand_name")
@@ -1643,9 +1615,17 @@ class TargetLoader:
             "cmpd": compound,
             "xtalform_site": xtalform_site,
             "canon_site_conf": canon_site_conf,
-            # "smiles": smiles,
             "seq_id": ligand,
             "chain_id": chain,
+            "altloc": altloc,
+        }
+
+        supersede_fields = {
+            "experiment": experiment,
+            "cmpd": compound,
+            "seq_id": ligand,
+            "chain_id": chain,
+            "altloc": altloc,
         }
 
         # smiles removed from check fields aand removed to defaults as
@@ -1685,6 +1665,7 @@ class TargetLoader:
             defaults=defaults,
             key=key,
             versioned_key=v_key,
+            supersede_fields=supersede_fields,
             index_data={'mol': mol},
         )
 
@@ -1877,23 +1858,27 @@ class TargetLoader:
         # check transformation matrix files
         (  # pylint: disable=unbalanced-tuple-unpacking
             trans_neighbourhood,
-            trans_conf_site,
             trans_ref_struct,
+            trans_assembly,
         ) = self.validate_files(
             obj_identifier="trans_matrices",
             # since the paths are given if file as strings, I think I
             # can get away with compiling them as strings here
             file_struct={
                 TRANS_NEIGHBOURHOOD: f"{self.version_dir}/{TRANS_NEIGHBOURHOOD}",
-                TRANS_CONF_SITE: f"{self.version_dir}/{TRANS_CONF_SITE}",
                 TRANS_REF_STRUCT: f"{self.version_dir}/{TRANS_REF_STRUCT}",
+                TRANS_ASSEMBLY: f"{self.version_dir}/{TRANS_ASSEMBLY}",
             },
-            required=(TRANS_NEIGHBOURHOOD, TRANS_CONF_SITE, TRANS_REF_STRUCT),
+            required=(
+                TRANS_NEIGHBOURHOOD,
+                TRANS_REF_STRUCT,
+                TRANS_ASSEMBLY,
+            ),
         )
 
         trans_neighbourhood = trans_neighbourhood[0]
-        trans_conf_site = trans_conf_site[0]
         trans_ref_struct = trans_ref_struct[0]
+        trans_assembly = trans_assembly[0]
 
         self.experiment_upload.project = self.project
         self.experiment_upload.target = self.target
@@ -1901,11 +1886,11 @@ class TargetLoader:
         self.experiment_upload.neighbourhood_transforms = str(
             self._get_final_path(trans_neighbourhood)
         )
-        self.experiment_upload.conformer_site_transforms = str(
-            self._get_final_path(trans_conf_site)
-        )
         self.experiment_upload.reference_structure_transforms = str(
             self._get_final_path(trans_ref_struct)
+        )
+        self.experiment_upload.assembly_transforms = str(
+            self._get_final_path(trans_assembly)
         )
         self.experiment_upload.upload_data_dir = self.version_dir
         self.experiment_upload.upload_version = self.version_number
@@ -1918,7 +1903,6 @@ class TargetLoader:
             xtalform_assemblies,
         ) = self._get_yaml_blocks(
             yaml_data=xtalforms_yaml,
-            # blocks=("assemblies", "xtalforms"),
             blocks=("assemblies", "crystalforms"),
         )
 
@@ -2076,53 +2060,60 @@ class TargetLoader:
             canon_site_confs=canon_site_conf_objects,
         )
 
-        values = ["experiment"]
-        # fmt: off
-        qs = SiteObservation.objects.filter(
-                experiment__experiment_upload__target=self.target,
-                code__isnull=True,
-            ).values(
-                *values,
-            ).order_by(
-                *values,
-            ).annotate(
-                obvs=ArrayAgg("id"),
-            ).values_list("obvs", flat=True)
-        # fmt: on
+        # new shortcoder
+        # annotate ordering and filtering parameters
+        so_shortcode_qs = SiteObservation.objects.annotate(
+            sitecount=Count(
+                "canon_site_conf__canon_site__canonsiteconf__siteobservation"
+            ),
+            last_occur=StrIndex(Reverse(F('longcode')), Value('_')),
+            # longcode without version, this is how they're grouped
+            mediumcode=Left('longcode', Length('longcode') - F('last_occur')),
+        )
 
-        for elem in qs:
-            # fmt: off
-            subgroups = SiteObservation.objects.filter(
-                pk__in=elem,
-            ).order_by(
-                "canon_site_conf__canon_site",
-            ).annotate(
-                sites=Count("canon_site_conf__canon_site"),
-                obvs=ArrayAgg('id'),
-            ).order_by(
-                "-sites",
-            ).values_list("obvs", flat=True)
-            # fmt: on
+        # only experiments with observations that have empty codes
+        exp_shortcode_qs = Experiment.objects.annotate(
+            has_empty_codes=Exists(
+                SiteObservation.objects.filter(
+                    experiment__in=OuterRef('pk'),
+                    code__isnull=True,
+                ),
+            ),
+        ).filter(
+            experiment_upload__target=self.target,
+            has_empty_codes=True,
+        )
 
+        for experiment in exp_shortcode_qs:
             suffix = alphanumerator()
-            for sub in subgroups:
-                # objects in this group should be named with same scheme
-                so_group = SiteObservation.objects.filter(pk__in=sub)
+            # fmt: off
+            qs = so_shortcode_qs.filter(
+                experiment=experiment,
+            ).order_by(
+                # abusing the fact that while conformer site can
+                # change, canon site won't (and doesn't at least in
+                # current database)
+                '-sitecount',
+                'mediumcode',
+            ).values(
+                'mediumcode',
+            ).annotate(
+                obvs=ArrayAgg('id', distinct=True),
+            )
+            # fmt: on
+            for group in qs:
+                so_group = SiteObservation.objects.filter(
+                    pk__in=group['obvs'],
+                ).order_by('version')
 
-                # memo to self: there used to be some code to test the
-                # position of the iterator in existing entries. This
-                # was because it was assumed, that when adding v2
-                # uploads, it can bring along new observations under
-                # existing experiment. Following discussions with
-                # Conor, it seems that this will not be the case. But
-                # should it agin be, this code was deleted on
-                # 2024-03-04, if you need to check
-
-                for so in so_group.filter(code__isnull=True):
-                    logger.debug("processing so: %s", so.longcode)
-                    if so.experiment.type == 1:
+                if so_group.first().code:
+                    # superseding
+                    code = so_group.first().code
+                else:
+                    # completely new instance
+                    if experiment.type == 1:
                         # manual. code is pdb code
-                        code = f"{so.experiment.code}-{next(suffix)}"
+                        code = f"{experiment.code}-{next(suffix)}"
                         # NB! at the time of writing this piece of
                         # code, I haven't seen an example of the data
                         # so I only have a very vague idea how this is
@@ -2132,20 +2123,14 @@ class TargetLoader:
                         # could be I need to split them up
                     else:
                         # model building. generate code
-                        code_prefix = experiment_objects[so.experiment.code].index_data[
-                            "code_prefix"
-                        ]
-                        # iter_pos = next(suffix)
-                        # code = f"{code_prefix}{so.experiment.code.split('-')[1]}{iter_pos}"
-                        # code = f"{code_prefix}{so.experiment.code.split('-')[1]}{next(suffix)}"
                         try:
-                            exp_code_no = strip_exp_code(so.experiment.code)
+                            exp_code_no = strip_exp_code(experiment.code)
                         except ValueError as exc:
                             self.report.log(logging.ERROR, exc.args[1])
                             # error, loading failed, use full code for demo
-                            exp_code_no = so.experiment.code
+                            exp_code_no = experiment.code
 
-                        code = f"{code_prefix}{exp_code_no}{next(suffix)}"
+                        code = f"{experiment.code_prefix}{exp_code_no}{next(suffix)}"
 
                         # test uniqueness for target
                         # TODO: this should ideally be solved by db engine, before
@@ -2157,17 +2142,116 @@ class TargetLoader:
                         )
                         # if code exists and the experiment is new
                         logger.debug(
-                            'checking code uniq: %s, %s', code, so.experiment.status
+                            'checking code uniq: %s, %s', code, experiment.status
                         )
-                        if code_qs.exists() and so.experiment.status.status_code == 0:
+                        if code_qs.exists() and experiment.status.status_code == 0:
                             msg = (
                                 f"short code {code} already exists for this target; "
                                 + "specify a code_prefix to resolve this conflict"
                             )
                             self.report.log(logging.ERROR, msg)
 
-                    so.code = code
-                    so.save()
+                # now I have the code for the group.
+                so_group.filter(code__isnull=True).update(code=code)
+
+        # # new shortcoder ends
+        # # old shortcoder begins
+        # values = ["experiment"]
+        # # fmt: off
+        # qs = SiteObservation.objects.filter(
+        #         experiment__experiment_upload__target=self.target,
+        #         code__isnull=True,
+        #     ).values(
+        #         *values,
+        #     ).order_by(
+        #         *values,
+        #     ).annotate(
+        #         obvs=ArrayAgg("id"),
+        #     ).values_list("obvs", flat=True)
+        # # fmt: on
+
+        # for elem in qs:
+        #     # fmt: off
+        #     subgroups = SiteObservation.objects.filter(
+        #         pk__in=elem,
+        #     ).order_by(
+        #         "canon_site_conf__canon_site",
+        #     ).annotate(
+        #         sites=Count("canon_site_conf__canon_site"),
+        #         obvs=ArrayAgg('id'),
+        #     ).order_by(
+        #         "-sites",
+        #         # adding these 2 seems to be taking care of 2003, wrong shortcodes
+        #         # is this sufficient?
+        #         'chain_id',
+        #         'seq_id'
+        #     ).values_list("obvs", flat=True)
+        #     # fmt: on
+
+        #     suffix = alphanumerator()
+        #     for sub in subgroups:
+        #         # objects in this group should be named with same scheme
+        #         so_group = SiteObservation.objects.filter(pk__in=sub)
+
+        #         # memo to self: there used to be some code to test the
+        #         # position of the iterator in existing entries. This
+        #         # was because it was assumed, that when adding v2
+        #         # uploads, it can bring along new observations under
+        #         # existing experiment. Following discussions with
+        #         # Conor, it seems that this will not be the case. But
+        #         # should it agin be, this code was deleted on
+        #         # 2024-03-04, if you need to check
+
+        #         for so in so_group.filter(code__isnull=True):
+        #             logger.debug("processing so: %s", so.longcode)
+        #             if so.experiment.type == 1:
+        #                 # manual. code is pdb code
+        #                 code = f"{so.experiment.code}-{next(suffix)}"
+        #                 # NB! at the time of writing this piece of
+        #                 # code, I haven't seen an example of the data
+        #                 # so I only have a very vague idea how this is
+        #                 # going to work. The way I understand it now,
+        #                 # they cannot belong to separate groups so
+        #                 # there's no need for different iterators. But
+        #                 # could be I need to split them up
+        #             else:
+        #                 # model building. generate code
+        #                 code_prefix = experiment_objects[so.experiment.code].index_data[
+        #                     "code_prefix"
+        #                 ]
+        #                 # iter_pos = next(suffix)
+        #                 # code = f"{code_prefix}{so.experiment.code.split('-')[1]}{iter_pos}"
+        #                 # code = f"{code_prefix}{so.experiment.code.split('-')[1]}{next(suffix)}"
+        #                 try:
+        #                     exp_code_no = strip_exp_code(so.experiment.code)
+        #                 except ValueError as exc:
+        #                     self.report.log(logging.ERROR, exc.args[1])
+        #                     # error, loading failed, use full code for demo
+        #                     exp_code_no = so.experiment.code
+
+        #                 code = f"{code_prefix}{exp_code_no}{next(suffix)}"
+
+        #                 # test uniqueness for target
+        #                 # TODO: this should ideally be solved by db engine, before
+        #                 # rushing to write the trigger, have think about the
+        #                 # loader concurrency situations
+        #                 code_qs = SiteObservation.objects.filter(
+        #                     experiment__experiment_upload__target=self.target,
+        #                     code=code,
+        #                 )
+        #                 # if code exists and the experiment is new
+        #                 logger.debug(
+        #                     'checking code uniq: %s, %s', code, so.experiment.status
+        #                 )
+        #                 if code_qs.exists() and so.experiment.status.status_code == 0:
+        #                     msg = (
+        #                         f"short code {code} already exists for this target; "
+        #                         + "specify a code_prefix to resolve this conflict"
+        #                     )
+        #                     self.report.log(logging.ERROR, msg)
+
+        #             so.code = code
+        #             so.save()
 
         for val in site_observation_objects.values():  # pylint: disable=no-member
             # instances modified, and will be modified down the line, refresh
@@ -2564,10 +2648,12 @@ class TargetLoader:
                     canon_site_conf=val.instance.canon_site_conf,
                     seq_id=val.instance.seq_id,
                     chain_id=val.instance.chain_id,
+                    altloc=val.instance.altloc,
                     superseded=True,
                 ).order_by(
                     "-version",
                 )
+
                 # fmt: on
                 # older version(s) exist
                 if qs.exists():
