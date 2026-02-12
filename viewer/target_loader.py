@@ -3855,9 +3855,15 @@ def _move_and_save_target_experiment(target_loader):
         str(target_loader.raw_data.joinpath(target_loader.version_dir)),
         str(target_loader.abs_final_path),
     )
-    Path(target_loader.bundle_path).rename(
-        target_loader.abs_final_path.joinpath(target_loader.data_bundle)
-    )
+    final_bundle_path = target_loader.abs_final_path.joinpath(target_loader.data_bundle)
+    if final_bundle_path.exists():
+        # don't overwrite if user uses the same name
+        final_bundle_path = Path(
+            *final_bundle_path.parts[:-1],
+            f'{final_bundle_path.stem}_{target_loader.version_dir}{final_bundle_path.suffix}',
+        )
+
+    Path(target_loader.bundle_path).rename(final_bundle_path)
 
     set_directory_permissions(target_loader.abs_final_path, 0o755)
 
