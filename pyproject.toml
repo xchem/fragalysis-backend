@@ -24,6 +24,7 @@ openpyxl = "^3.1"
 pandas = "^2.3"
 pandoc = "^2.3"
 psycopg = { version = "^3.2", extras = ["binary", "pool"] }
+pyjwt = "~=2.10.0"
 redis = "^7.0"
 shortuuid = "^1.0"
 sshtunnel = "^0.4"
