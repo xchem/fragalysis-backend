@@ -14,8 +14,8 @@ class KeycloakOIDCAuthenticationBackend(OIDCAuthenticationBackend):
         # We define our own OIDC_RP_SCOPES, and need to implement our own
         # 'verify_claims()' method.
         # Implemented as part of #2054
-        logger.info('OIDC_RP_SCOPES="%s" claims=%s', settings.OIDC_RP_SCOPES, claims)
         required_scopes: str = self.get_settings(settings.OIDC_RP_SCOPES, '')
+        logger.info('OIDC_RP_SCOPES="%s" claims=%s', required_scopes, claims)
 
         verified: bool = True
         for scope in required_scopes.split():
@@ -29,12 +29,11 @@ class KeycloakOIDCAuthenticationBackend(OIDCAuthenticationBackend):
     def create_user(self, claims):
         user = super(KeycloakOIDCAuthenticationBackend, self).create_user(claims)
         # Get 'expected' properties from the claims, some are optional.
-        # The main property we need is the 'preferred_username'.
-        user.email = claims.get('email')
-        assert user.email
-        user.username = claims.get('preferred_username')
-        assert user.username
+        username = claims.get(settings.SCOPE_USERNAME_FIELD)
+        assert username
+        user.username = username
         # Optional...
+        user.email = claims.get('email', '')
         user.first_name = claims.get('given_name', '')
         user.last_name = claims.get('family_name', '')
         user.save()
@@ -45,29 +44,25 @@ class KeycloakOIDCAuthenticationBackend(OIDCAuthenticationBackend):
         If nothing found matching the email, then try the username
         """
         email = claims.get('email')
-        preferred_username = claims.get('preferred_username')
+        username = claims.get(settings.SCOPE_USERNAME_FIELD)
 
-        if not email:
-            return self.UserModel.objects.none()
-        users = self.UserModel.objects.filter(email__iexact=email)
-
-        if len(users) < 1:
-            if not preferred_username:
+        if email:
+            users = self.UserModel.objects.filter(email__iexact=email)
+        else:
+            if not username:
                 return self.UserModel.objects.none()
-            users = self.UserModel.objects.filter(username__iexact=preferred_username)
+            users = self.UserModel.objects.filter(username__iexact=username)
         return users
 
     def update_user(self, user, claims):
         """Update a user from a claim.
-        We need email and preferred_username.
+        We need the expected username field.
         """
-        email = claims.get('email')
-        assert email
-        username = claims.get('preferred_username')
+        username = claims.get(settings.SCOPE_USERNAME_FIELD)
         assert username
 
-        user.email = email
         user.username = username
+        user.email = claims.get('email', '')
         user.first_name = claims.get('given_name', '')
         user.last_name = claims.get('family_name', '')
         user.save()
