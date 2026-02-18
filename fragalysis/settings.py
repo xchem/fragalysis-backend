@@ -299,7 +299,7 @@ OIDC_OP_LOGOUT_URL_METHOD = os.environ.get("OIDC_OP_LOGOUT_URL_METHOD")
 # Claims required in the token scope.
 # A space-separated list of keys expected in the token scope/claim.
 # See 'auth.py' in this package.
-# OIDC_RP_SCOPES = os.environ.get("OIDC_RP_SCOPES", "fedid")
+OIDC_RP_SCOPES = os.environ.get("OIDC_RP_SCOPES", "fedid")
 # The OIDC scope field we use to obtain a user's username.
 # Like "preferred_username" or "fedid"?
 SCOPE_USERNAME_FIELD = os.environ.get("SCOPE_USERNAME_FIELD", "fedid")
