@@ -17,12 +17,12 @@ class KeycloakOIDCAuthenticationBackend(OIDCAuthenticationBackend):
 
         # The designated username field
         # must be in the token's claims map.
-        if settings.SCOPE_USERNAME_FIELD not in claims:
+        if settings.OIDC_CLAIM_USERNAME_FIELD not in claims:
             logger.info("Given claims=%s", claims)
             logger.error(
                 "The '%s' field is missing from the given token's claims."
                 " Without this field the login cannot be considered valid.",
-                settings.SCOPE_USERNAME_FIELD,
+                settings.OIDC_CLAIM_USERNAME_FIELD,
             )
             return False
 
@@ -34,7 +34,7 @@ class KeycloakOIDCAuthenticationBackend(OIDCAuthenticationBackend):
         logger.debug("claims=%s", claims)
 
         # Get 'required' properties from the claims
-        username = claims.get(settings.SCOPE_USERNAME_FIELD)
+        username = claims.get(settings.OIDC_CLAIM_USERNAME_FIELD)
         assert username
         user.username = username
         # Optional fields...
@@ -55,7 +55,7 @@ class KeycloakOIDCAuthenticationBackend(OIDCAuthenticationBackend):
         if email:
             users = self.UserModel.objects.filter(email__iexact=email)
         else:
-            username = claims.get(settings.SCOPE_USERNAME_FIELD)
+            username = claims.get(settings.OIDC_CLAIM_USERNAME_FIELD)
             if not username:
                 return self.UserModel.objects.none()
             users = self.UserModel.objects.filter(username__iexact=username)
@@ -68,7 +68,7 @@ class KeycloakOIDCAuthenticationBackend(OIDCAuthenticationBackend):
         """
         logger.debug("user=%s claims=%s", user, claims)
 
-        username = claims.get(settings.SCOPE_USERNAME_FIELD)
+        username = claims.get(settings.OIDC_CLAIM_USERNAME_FIELD)
         assert username
 
         user.username = username
