@@ -262,10 +262,8 @@ TIME_ZONE = "UTC"
 # Keycloak mozilla_django_oidc settings (openid provider = OP).
 # These should be environment variables - not checked in
 OIDC_RP_CLIENT_ID = os.environ.get("OIDC_RP_CLIENT_ID", "fragalysis-local")
-OIDC_RP_CLIENT_SECRET = os.environ.get("OIDC_RP_CLIENT_SECRET")
-OIDC_KEYCLOAK_REALM = os.environ.get(
-    "OIDC_KEYCLOAK_REALM", "https://keycloak.xchem-dev.diamond.ac.uk/auth/realms/xchem"
-)
+OIDC_RP_CLIENT_SECRET = os.environ.get("OIDC_RP_CLIENT_SECRET", "")
+OIDC_KEYCLOAK_REALM = os.environ.get("OIDC_KEYCLOAK_REALM", "")
 
 # Squonk2 Account Server and Data Manager Client IDs
 OIDC_AS_CLIENT_ID: str = os.environ.get("OIDC_AS_CLIENT_ID", "")
