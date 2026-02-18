@@ -2,7 +2,6 @@
 """
 import logging
 
-from django.conf import settings
 from mozilla_django_oidc.auth import OIDCAuthenticationBackend
 
 logger = logging.getLogger(__name__)
@@ -16,7 +15,7 @@ class KeycloakOIDCAuthenticationBackend(OIDCAuthenticationBackend):
         logger.info("claims=%s", claims)
 
         # Get 'expected' properties from the claims, some are optional.
-        username = claims.get(settings.SCOPE_USERNAME_FIELD)
+        username = claims.get('fedid')
         assert username
         user.username = username
         # Optional...
@@ -33,7 +32,7 @@ class KeycloakOIDCAuthenticationBackend(OIDCAuthenticationBackend):
         logger.info("claims=%s", claims)
 
         email = claims.get('email')
-        username = claims.get(settings.SCOPE_USERNAME_FIELD)
+        username = claims.get('fedid')
 
         if email:
             users = self.UserModel.objects.filter(email__iexact=email)
@@ -49,7 +48,7 @@ class KeycloakOIDCAuthenticationBackend(OIDCAuthenticationBackend):
         """
         logger.info("user=%s claims=%s", user, claims)
 
-        username = claims.get(settings.SCOPE_USERNAME_FIELD)
+        username = claims.get('fedid')
         assert username
 
         user.username = username
