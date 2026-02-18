@@ -302,7 +302,7 @@ OIDC_OP_LOGOUT_URL_METHOD = os.environ.get("OIDC_OP_LOGOUT_URL_METHOD")
 # OIDC_RP_SCOPES = os.environ.get("OIDC_RP_SCOPES", "fedid")
 # The OIDC scope field we use to obtain a user's username.
 # Like "preferred_username" or "fedid"?
-# SCOPE_USERNAME_FIELD = os.environ.get("SCOPE_USERNAME_FIELD", "fedid")
+SCOPE_USERNAME_FIELD = os.environ.get("SCOPE_USERNAME_FIELD", "fedid")
 
 # After much trial and error
 # Using RS256 + JWKS Endpoint seems to work with no value for OIDC_RP_IDP_SIGN_KEY
