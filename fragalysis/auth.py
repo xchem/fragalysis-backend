@@ -10,6 +10,7 @@ logger = logging.getLogger(__name__)
 
 class KeycloakOIDCAuthenticationBackend(OIDCAuthenticationBackend):
     def verify_claims(self, claims):
+        _ = super(KeycloakOIDCAuthenticationBackend, self).verify_claims(claims)
         # The default implementation insists on  an email in the token's scopes.
         # We define our own OIDC_RP_SCOPES, and need to implement our own
         # 'verify_claims()' method.
