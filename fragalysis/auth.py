@@ -9,27 +9,39 @@ logger = logging.getLogger(__name__)
 
 
 class KeycloakOIDCAuthenticationBackend(OIDCAuthenticationBackend):
-    # Overrides Authentication Backend so that Django users are created with the keycloak preferred_username
     def verify_claims(self, claims):
+        # Call the super-class method
+        # We don't care about the result,
+        # we do our own validation.
         _ = super(KeycloakOIDCAuthenticationBackend, self).verify_claims(claims)
 
-        logger.info("claims=%s", claims)
+        # The designated username field
+        # must be in the token's claims map.
+        if settings.SCOPE_USERNAME_FIELD not in claims:
+            logger.info("Given claims=%s", claims)
+            logger.error(
+                "The '%s' field is missing from the given token's claims."
+                " Without this field the login cannot be considered valid.",
+                settings.SCOPE_USERNAME_FIELD,
+            )
+            return False
 
         return True
 
     def create_user(self, claims):
         user = super(KeycloakOIDCAuthenticationBackend, self).create_user(claims)
 
-        logger.info("claims=%s", claims)
+        logger.debug("claims=%s", claims)
 
-        # Get 'expected' properties from the claims, some are optional.
+        # Get 'required' properties from the claims
         username = claims.get(settings.SCOPE_USERNAME_FIELD)
         assert username
         user.username = username
-        # Optional...
+        # Optional fields...
         user.email = claims.get('email', '')
         user.first_name = claims.get('given_name', '')
         user.last_name = claims.get('family_name', '')
+
         user.save()
         return user
 
@@ -37,24 +49,24 @@ class KeycloakOIDCAuthenticationBackend(OIDCAuthenticationBackend):
         """Return all users matching the specified email.
         If nothing found matching the email, then try the username
         """
-        logger.info("claims=%s", claims)
+        logger.debug("claims=%s", claims)
 
         email = claims.get('email')
-        username = claims.get(settings.SCOPE_USERNAME_FIELD)
-
         if email:
             users = self.UserModel.objects.filter(email__iexact=email)
         else:
+            username = claims.get(settings.SCOPE_USERNAME_FIELD)
             if not username:
                 return self.UserModel.objects.none()
             users = self.UserModel.objects.filter(username__iexact=username)
+
         return users
 
     def update_user(self, user, claims):
         """Update a user from a claim.
         We need the expected username field.
         """
-        logger.info("user=%s claims=%s", user, claims)
+        logger.debug("user=%s claims=%s", user, claims)
 
         username = claims.get(settings.SCOPE_USERNAME_FIELD)
         assert username
@@ -63,5 +75,6 @@ class KeycloakOIDCAuthenticationBackend(OIDCAuthenticationBackend):
         user.email = claims.get('email', '')
         user.first_name = claims.get('given_name', '')
         user.last_name = claims.get('family_name', '')
+
         user.save()
         return user
