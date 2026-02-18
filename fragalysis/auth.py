@@ -10,6 +10,13 @@ logger = logging.getLogger(__name__)
 
 class KeycloakOIDCAuthenticationBackend(OIDCAuthenticationBackend):
     # Overrides Authentication Backend so that Django users are created with the keycloak preferred_username
+    def verify_claims(self, claims):
+        _ = super(KeycloakOIDCAuthenticationBackend, self).verify_claims(claims)
+
+        logger.info("claims=%s", claims)
+
+        return True
+
     def create_user(self, claims):
         user = super(KeycloakOIDCAuthenticationBackend, self).create_user(claims)
 
