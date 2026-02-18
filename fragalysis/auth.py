@@ -9,23 +9,6 @@ logger = logging.getLogger(__name__)
 
 
 class KeycloakOIDCAuthenticationBackend(OIDCAuthenticationBackend):
-    def verify_claims(self, claims):
-        _ = super(KeycloakOIDCAuthenticationBackend, self).verify_claims(claims)
-        # The default implementation insists on  an email in the token's scopes.
-        # We define our own OIDC_RP_SCOPES, and need to implement our own
-        # 'verify_claims()' method.
-        # Implemented as part of #2054
-        required_scopes: str = self.get_settings(settings.OIDC_RP_SCOPES, '')
-        logger.info('OIDC_RP_SCOPES="%s" claims=%s', required_scopes, claims)
-
-        verified: bool = True
-        for scope in required_scopes.split():
-            if scope not in claims:
-                logger.error('Claim has no "%s" (required by OIDC_RP_SCOPES)', scope)
-                verified = False
-
-        return verified
-
     # Overrides Authentication Backend so that Django users are created with the keycloak preferred_username
     def create_user(self, claims):
         user = super(KeycloakOIDCAuthenticationBackend, self).create_user(claims)
