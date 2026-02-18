@@ -298,6 +298,11 @@ OIDC_OP_LOGOUT_ENDPOINT = os.path.join(
 # If desired, this should be set to "fragalysis.views.keycloak_logout"
 OIDC_OP_LOGOUT_URL_METHOD = os.environ.get("OIDC_OP_LOGOUT_URL_METHOD")
 
+# Claims required in the token scope.
+# A space-separated list of keys expected in the token scope/claim.
+# See 'auth.py' in this package.
+OIDC_RP_SCOPES = "preferred_username email"
+
 # After much trial and error
 # Using RS256 + JWKS Endpoint seems to work with no value for OIDC_RP_IDP_SIGN_KEY
 # seems to work for authentication. Trying HS256 produces a "JWS token verification failed"
