@@ -13,7 +13,7 @@ class KeycloakOIDCAuthenticationBackend(OIDCAuthenticationBackend):
     def create_user(self, claims):
         user = super(KeycloakOIDCAuthenticationBackend, self).create_user(claims)
 
-        logger.debug("claims=%s", claims)
+        logger.info("claims=%s", claims)
 
         # Get 'expected' properties from the claims, some are optional.
         username = claims.get(settings.SCOPE_USERNAME_FIELD)
@@ -30,7 +30,7 @@ class KeycloakOIDCAuthenticationBackend(OIDCAuthenticationBackend):
         """Return all users matching the specified email.
         If nothing found matching the email, then try the username
         """
-        logger.debug("claims=%s", claims)
+        logger.info("claims=%s", claims)
 
         email = claims.get('email')
         username = claims.get(settings.SCOPE_USERNAME_FIELD)
@@ -47,7 +47,7 @@ class KeycloakOIDCAuthenticationBackend(OIDCAuthenticationBackend):
         """Update a user from a claim.
         We need the expected username field.
         """
-        logger.debug("user=%s claims=%s", user, claims)
+        logger.info("user=%s claims=%s", user, claims)
 
         username = claims.get(settings.SCOPE_USERNAME_FIELD)
         assert username
