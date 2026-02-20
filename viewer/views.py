@@ -54,6 +54,7 @@ from viewer.target_loader import (
 )
 from viewer.utils import (
     CSV_TO_DICT_DOWNLOAD_ROOT,
+    calculate_sha256,
     create_csv_from_dict,
     create_squonk_job_request_url,
     handle_uploaded_file,
@@ -1763,6 +1764,19 @@ class UploadExperimentUploadView(viewsets.ViewSet):
         target_file = temp_path.joinpath(filename.name)
         handle_uploaded_file(target_file, filename)
 
+        if file_hash := serializer.validated_data.get('sha256checksum', None):
+            checksum = calculate_sha256(str(target_file))
+            if checksum != file_hash:
+                return Response(
+                    {
+                        "filename": [
+                            "Uploaded file checksum does not match the supplied checksum, "
+                            + "file was likely corrupt during the transfer.",
+                        ]
+                    },
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
         celery_app = Celery("fragalysis")
         celery_app.config_from_object("django.conf:settings", namespace="CELERY")
         inspect = celery_app.control.inspect()
@@ -2230,7 +2244,7 @@ class JobFileTransferView(viewsets.ModelViewSet):
         )
         sq2a_rv = _SQ2A.can_send(sq2a_send_params)
         if not sq2a_rv.success:
-            content = {'error': f'You cannot do this ({sq2a_rv.msg})'}
+            content = {'error': str(sq2a_rv.msg)}
             return Response(content, status=status.HTTP_403_FORBIDDEN)
 
         target = models.Target.objects.get(id=target_id)
@@ -2636,7 +2650,7 @@ class JobRequestView(viewsets.ModelViewSet):
         )
         sq2a_rv = _SQ2A.can_run_job(sq2a_run_job_params)
         if not sq2a_rv.success:
-            content = {'error': f'You cannot do this ({sq2a_rv.msg})'}
+            content = {'error': str(sq2a_rv.msg)}
             return Response(content, status=status.HTTP_403_FORBIDDEN)
 
         try:

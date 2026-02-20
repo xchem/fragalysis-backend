@@ -262,10 +262,8 @@ TIME_ZONE = "UTC"
 # Keycloak mozilla_django_oidc settings (openid provider = OP).
 # These should be environment variables - not checked in
 OIDC_RP_CLIENT_ID = os.environ.get("OIDC_RP_CLIENT_ID", "fragalysis-local")
-OIDC_RP_CLIENT_SECRET = os.environ.get("OIDC_RP_CLIENT_SECRET")
-OIDC_KEYCLOAK_REALM = os.environ.get(
-    "OIDC_KEYCLOAK_REALM", "https://keycloak.xchem-dev.diamond.ac.uk/auth/realms/xchem"
-)
+OIDC_RP_CLIENT_SECRET = os.environ.get("OIDC_RP_CLIENT_SECRET", "")
+OIDC_KEYCLOAK_REALM = os.environ.get("OIDC_KEYCLOAK_REALM", "")
 
 # Squonk2 Account Server and Data Manager Client IDs
 OIDC_AS_CLIENT_ID: str = os.environ.get("OIDC_AS_CLIENT_ID", "")
@@ -297,6 +295,28 @@ OIDC_OP_LOGOUT_ENDPOINT = os.path.join(
 # Override method to also log user out from Keycloak as well as Django.
 # If desired, this should be set to "fragalysis.views.keycloak_logout"
 OIDC_OP_LOGOUT_URL_METHOD = os.environ.get("OIDC_OP_LOGOUT_URL_METHOD")
+
+# The OIDC scope field we use to obtain a user's username,
+# like "preferred_username" or "fedid"?
+# The field value is extracted using our implementation of
+# the OIDCAuthenticationBackend in 'auth.py'.
+#
+# A typical OIDC claims map might look like: -
+#
+# claims={
+#   'sub': 'fe1fbf14-ed4d-47f1-9927-1b2e53a6fb76',
+#   'name': 'Alan Christie',
+#   'given_name': 'Alan',
+#   'family_name': 'Christie',
+#   'email': 'someone@example.com'
+#   'email_verified': False,
+#   'preferred_username': 'aaa00000',
+#   'fedid': 'aaa00000',
+# }
+#
+# For us the only important field in the token claims map is the one we
+# have in OIDC_CLAIM_USERNAME_FIELD, all others are considered 'optional'.
+OIDC_CLAIM_USERNAME_FIELD = os.environ.get("OIDC_CLAIM_USERNAME_FIELD", "fedid")
 
 # After much trial and error
 # Using RS256 + JWKS Endpoint seems to work with no value for OIDC_RP_IDP_SIGN_KEY

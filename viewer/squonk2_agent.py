@@ -727,8 +727,8 @@ class Squonk2Agent:
         )
         if not target_access_string in proposal_list:
             msg = (
-                f'The user ({user.username}) cannot modify "{target_access_string}"'
-                f' (access_id={access_id}). Only {proposal_list})'
+                f'This method requires membership of "{target_access_string}",'
+                ' and you are not a member.'
             )
             _LOGGER.warning(msg)
             return Squonk2AgentRv(success=False, msg=msg)
