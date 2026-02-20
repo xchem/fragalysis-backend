@@ -2244,7 +2244,7 @@ class JobFileTransferView(viewsets.ModelViewSet):
         )
         sq2a_rv = _SQ2A.can_send(sq2a_send_params)
         if not sq2a_rv.success:
-            content = {'error': f'You cannot do this ({sq2a_rv.msg})'}
+            content = {'error': str(sq2a_rv.msg)}
             return Response(content, status=status.HTTP_403_FORBIDDEN)
 
         target = models.Target.objects.get(id=target_id)
@@ -2650,7 +2650,7 @@ class JobRequestView(viewsets.ModelViewSet):
         )
         sq2a_rv = _SQ2A.can_run_job(sq2a_run_job_params)
         if not sq2a_rv.success:
-            content = {'error': f'You cannot do this ({sq2a_rv.msg})'}
+            content = {'error': str(sq2a_rv.msg)}
             return Response(content, status=status.HTTP_403_FORBIDDEN)
 
         try:
