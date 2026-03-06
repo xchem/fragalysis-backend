@@ -2533,7 +2533,7 @@ class TargetLoader:
         # re-pose them
         datestr = timezone.now().date().strftime('%Y-%m-%d')
         self._tag_observations(
-            f"{self.version_dir} {datestr}",
+            f"{self.version_dir} {datestr}_v{major}.{minor}",
             "",
             TagCategory.objects.get(category="Other"),
             [
