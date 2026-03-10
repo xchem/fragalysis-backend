@@ -1662,6 +1662,12 @@ class TargetLoader:
             if molpath.exists():
                 mol = Chem.MolFromMolFile(str(molpath))
 
+        if mol is None:
+            msg = f'No ligand in observation {longcode}'
+            logger.error(msg)
+            self.report.log(logging.ERROR, msg)
+            return None
+
         return ProcessedObject(
             model_class=SiteObservation,
             fields=fields,
