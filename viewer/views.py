@@ -849,7 +849,7 @@ class UploadTaskView(View):
                     validate_dict = results[1]
 
                     # set pandas options to display all column data
-                    pd.set_option('display.max_colwidth', -1)
+                    pd.set_option('display.max_colwidth', None)
                     table = pd.DataFrame.from_dict(validate_dict)
                     html_table = table.to_html()
                     html_table += '''<p> Your data was <b>not</b> validated. The table above shows errors</p>'''
