@@ -1662,6 +1662,12 @@ class TargetLoader:
             if molpath.exists():
                 mol = Chem.MolFromMolFile(str(molpath))
 
+        if mol is None:
+            msg = f'No ligand in observation {longcode}'
+            logger.error(msg)
+            self.report.log(logging.ERROR, msg)
+            return None
+
         return ProcessedObject(
             model_class=SiteObservation,
             fields=fields,
@@ -2533,7 +2539,7 @@ class TargetLoader:
         # re-pose them
         datestr = timezone.now().date().strftime('%Y-%m-%d')
         self._tag_observations(
-            f"{self.version_dir} {datestr}",
+            f"{self.version_dir} {datestr}_v{major}.{minor}",
             "",
             TagCategory.objects.get(category="Other"),
             [
