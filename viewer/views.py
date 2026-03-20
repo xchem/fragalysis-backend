@@ -1964,6 +1964,7 @@ class TaskStatusView(APIView):
         del args, kwargs
 
         logger.debug("task_id=%s", task_id)
+        task_status = "UNKNOWN"
 
         # task_id is a UUID, but Celery expects a string
         task_id_str = str(task_id)
@@ -1983,19 +1984,24 @@ class TaskStatusView(APIView):
         messages = []
         if hasattr(result, 'info'):
             if isinstance(result.info, dict):
-                # check if user is allowed to view task info
                 proposal = result.info.get('proposal_ref', '')
                 messages = result.info.get('description', [])
-
             else:
-                # this path should never materialize
-                logger.error(
-                    'result.info attribute %s instead of dict', type(result.info)
+                # The result should have 'info' but potential race conditions
+                # mean it isn't there. Here we 'assume" the task has yet to start,
+                # so we return an UNKNOWN. A future call may have the 'info' property.
+                logger.warning(
+                    'AsyncResult info for %s is %s instead of dict',
+                    task_id_str,
+                    type(result.info),
                 )
-                return Response(
-                    {'error': f'Unexpected messages format: {result.info}'},
-                    status=status.HTTP_403_FORBIDDEN,
-                )
+                data = {
+                    'started': False,
+                    'finished': False,
+                    'status': task_status,
+                    'messages': messages,
+                }
+                return JsonResponse(data)
         else:
             error = {'error': 'Task messages not found. Try again later'}
             return Response(error, status=status.HTTP_404_NOT_FOUND)
@@ -2027,7 +2033,6 @@ class TaskStatusView(APIView):
 
         started = result.state != 'PENDING'
         finished = result.ready()
-        task_status = "UNKNOWN"
         if finished and messages:
             # The task is considered to have failed if the word 'FAILED'
             # is in the last line of the message (regardless of case)
