@@ -2028,7 +2028,7 @@ class TaskStatusView(APIView):
                 request.user
             ):
                 return Response(
-                    {'error': 'You are not a member of the proposal f"proposal"'},
+                    {'error': f'You are not a member of the proposal {proposal}'},
                     status=status.HTTP_403_FORBIDDEN,
                 )
 
