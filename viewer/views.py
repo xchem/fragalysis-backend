@@ -1987,9 +1987,10 @@ class TaskStatusView(APIView):
                 proposal = result.info.get('proposal_ref', '')
                 messages = result.info.get('description', [])
             else:
-                # The result should have 'info' but potential race conditions
-                # mean it isn't there. Here we 'assume" the task has yet to start,
-                # so we return an UNKNOWN. A future call may have the 'info' property.
+                # The result 'info' should be a 'dict' but suspected race conditions
+                # occasionally mean it's 'None'. Here we 'assume" the task has yet
+                # to be handled internally, so we log a warning and return an
+                # UNKNOWN status.
                 logger.warning(
                     'AsyncResult info for %s is %s instead of dict',
                     task_id_str,
