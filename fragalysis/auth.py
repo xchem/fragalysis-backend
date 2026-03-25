@@ -66,15 +66,37 @@ class KeycloakOIDCAuthenticationBackend(OIDCAuthenticationBackend):
         """Update a user from a claim.
         We need the expected username field.
         """
-        logger.debug("user=%s claims=%s", user, claims)
+        logger.debug("user=%s (username=%s) claims=%s", user, user.username, claims)
 
         username = claims.get(settings.OIDC_CLAIM_USERNAME_FIELD)
         assert username
 
+        # Log the existing user record values we're about to change (m2ms-2116)
+        logger.info(
+            "[-] id=%s username=%s email=%s given_name=%s family_name=%s",
+            user.id,
+            user.username,
+            user.email,
+            user.first_name,
+            user.last_name,
+        )
+        # And the incoming values...
+        new_email = claims.get('email', '')
+        new_given_name = claims.get('given_name', '')
+        new_last_name = claims.get('family_name', '')
+        logger.info(
+            "[+] id=%s username=%s email=%s given_name=%s family_name=%s",
+            user.id,
+            username,
+            new_email,
+            new_given_name,
+            new_last_name,
+        )
+
         user.username = username
-        user.email = claims.get('email', '')
-        user.first_name = claims.get('given_name', '')
-        user.last_name = claims.get('family_name', '')
+        user.email = new_email
+        user.first_name = new_given_name
+        user.last_name = new_last_name
 
         user.save()
         return user
