@@ -4,12 +4,12 @@ import os
 from pathlib import Path
 from wsgiref.util import FileWrapper
 
+import ta_auth_connector
 from django.conf import settings
 from django.db.models import Q
 from django.http import Http404, HttpResponse
 from rest_framework import viewsets
 
-import api.ta_auth_connector as ta_auth_connector
 from viewer.models import Project
 
 from .utils import deployment_mode_is_production
