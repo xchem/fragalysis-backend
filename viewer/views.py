@@ -26,14 +26,10 @@ from rest_framework.decorators import action
 from rest_framework.parsers import BaseParser
 from rest_framework.response import Response
 from rest_framework.views import APIView
+from ta_auth_connector import get_auth_ping, get_auth_target_access, get_auth_version
 
 from api.infections import INFECTION_STRUCTURE_DOWNLOAD, have_infection
 from api.security import ISPyBSafeQuerySet
-from api.ta_auth_connector import (
-    get_auth_ping,
-    get_auth_target_access,
-    get_auth_version,
-)
 from api.utils import get_highlighted_diffs, get_img_from_smiles, pretty_request
 from service_status.models import Service
 from viewer import filters, models, serializers
