@@ -51,7 +51,7 @@ def test_query() -> str:
     return state.name
 
 
-@shared_task(soft_time_limit=SERVICE_QUERY_TIMEOUT_S)
+@shared_task(rate_limit="6/m", soft_time_limit=SERVICE_QUERY_TIMEOUT_S)
 @service_query
 def ispyb() -> str:
     """Access control (ISPyB)"""
@@ -59,7 +59,7 @@ def ispyb() -> str:
     return State.OK if ping_configured_connector() else State.DEGRADED
 
 
-@shared_task(soft_time_limit=SERVICE_QUERY_TIMEOUT_S)
+@shared_task(rate_limit="7/m", soft_time_limit=SERVICE_QUERY_TIMEOUT_S)
 @service_query
 def discourse() -> str:
     """Discourse"""
@@ -78,7 +78,7 @@ def discourse() -> str:
     return State.DEGRADED if client is None else State.OK
 
 
-@shared_task(soft_time_limit=SERVICE_QUERY_TIMEOUT_S)
+@shared_task(rate_limit="8/m", soft_time_limit=SERVICE_QUERY_TIMEOUT_S)
 @service_query
 def squonk() -> str:
     """Squonk"""
@@ -86,7 +86,7 @@ def squonk() -> str:
     return State.OK if get_squonk2_agent().configured().success else State.DEGRADED
 
 
-@shared_task(soft_time_limit=SERVICE_QUERY_TIMEOUT_S)
+@shared_task(rate_limit="9/m", soft_time_limit=SERVICE_QUERY_TIMEOUT_S)
 @service_query
 def fragmentation_graph() -> str:
     """Fragmentation graph"""
@@ -101,7 +101,7 @@ def fragmentation_graph() -> str:
             return State.DEGRADED
 
 
-@shared_task(soft_time_limit=SERVICE_QUERY_TIMEOUT_S)
+@shared_task(rate_limit="10/m", soft_time_limit=SERVICE_QUERY_TIMEOUT_S)
 @service_query
 def keycloak() -> str:
     """Keycloak"""
