@@ -127,23 +127,10 @@ def init_services():
             service.last_state = ServiceState.objects.get(state=State.NOT_CONFIGURED)
             service.save()
 
-    # Get a list of existing (registered) tasks. We don't start a service task
-    # if it's already known. This prevents a stack duplicating service tasks
-    # after a reboot (which it will do without this check).
-    #
-    # We get returns something like: -
-    #   dict_keys(['service_status.services.ispyb', ...])
-    registered_tasks = celery_app.tasks.keys()
-
     # Now launch tasks.
     # TODO: this could potentially be an actual check if beat is running
     if not settings.CELERY_TASK_ALWAYS_EAGER:
         for s in requested_services:
-            # Skip any that appear to be registered
-            if f"service_status.services.{s}" in registered_tasks:
-                logger.warning('Not launching service: %s (already registered)', s)
-                continue
-
             logger.debug('Trying to launch service: %s', s)
             try:
                 service = Service.objects.get(service=s)
