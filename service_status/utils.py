@@ -1,6 +1,7 @@
 import functools
 import inspect
 import logging
+import os
 from enum import Enum
 
 from celery.exceptions import SoftTimeLimitExceeded
@@ -10,6 +11,11 @@ from django.utils import timezone
 from fragalysis.celery import app as celery_app
 
 from .models import Service, ServiceState
+
+# What's our HOSTNAME?
+# If it's _SERVICE_CHECK_HOSTNAME then we start services, otherwise we don't
+_HOSTNAME: str = os.environ.get('HOSTNAME', '')
+_SERVICE_CHECK_HOSTNAME: str = 'stack-0'
 
 logger = logging.getLogger('service_status')
 
@@ -67,6 +73,17 @@ def service_query(func):
 
 def init_services():
     logger.debug('+ init_services')
+
+    # Do nothing if we're not the service check Pod.
+    # Only one Pod needs to check the service status.
+    if _HOSTNAME != _SERVICE_CHECK_HOSTNAME:
+        logger.warning(
+            'This host (%s) is not the service check host (%s) - skipping initialisation',
+            _HOSTNAME,
+            _SERVICE_CHECK_HOSTNAME,
+        )
+        return
+
     service_string = settings.ENABLE_SERVICE_STATUS
     requested_services = [k for k in service_string.split(":") if k != ""]
 
