@@ -77,8 +77,10 @@ def init_services():
     # Do nothing if we're not the service check Pod.
     # Only one Pod needs to check the service status.
     if _HOSTNAME != _SERVICE_CHECK_HOSTNAME:
-        logger.debug(
-            '- Not the service check host (%s) - skipping', _SERVICE_CHECK_HOSTNAME
+        logger.warning(
+            'This host (%s) is not the service check host (%s) - skipping initialisation',
+            _HOSTNAME,
+            _SERVICE_CHECK_HOSTNAME,
         )
         return
 
