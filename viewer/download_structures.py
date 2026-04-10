@@ -1187,12 +1187,12 @@ def return_download_link(
     logger.debug('proteins_list: %s', proteins_list)
 
     try:
-        existing_link = DownloadLinks.objects.get(
+        existing_link = DownloadLinks.objects.filter(
             target_id=target.id,
             proteins=proteins_list,
             protein_params=protein_params,
             other_params=other_params,
-        )
+        ).first()
     except DownloadLinks.DoesNotExist as exc:
         # TODO: no need for exception
         raise ValueError() from exc
