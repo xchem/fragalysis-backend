@@ -54,6 +54,7 @@ from viewer.target_loader import (
 )
 from viewer.utils import (
     CSV_TO_DICT_DOWNLOAD_ROOT,
+    calculate_sha256,
     create_csv_from_dict,
     create_squonk_job_request_url,
     handle_uploaded_file,
@@ -848,7 +849,7 @@ class UploadTaskView(View):
                     validate_dict = results[1]
 
                     # set pandas options to display all column data
-                    pd.set_option('display.max_colwidth', -1)
+                    pd.set_option('display.max_colwidth', None)
                     table = pd.DataFrame.from_dict(validate_dict)
                     html_table = table.to_html()
                     html_table += '''<p> Your data was <b>not</b> validated. The table above shows errors</p>'''
@@ -1765,6 +1766,19 @@ class UploadExperimentUploadView(viewsets.ViewSet):
         target_file = temp_path.joinpath(filename.name)
         handle_uploaded_file(target_file, filename)
 
+        if file_hash := serializer.validated_data.get('sha256checksum', None):
+            checksum = calculate_sha256(str(target_file))
+            if checksum != file_hash:
+                return Response(
+                    {
+                        "filename": [
+                            "Uploaded file checksum does not match the supplied checksum, "
+                            + "file was likely corrupt during the transfer.",
+                        ]
+                    },
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
         celery_app = Celery("fragalysis")
         celery_app.config_from_object("django.conf:settings", namespace="CELERY")
         inspect = celery_app.control.inspect()
@@ -1952,6 +1966,7 @@ class TaskStatusView(APIView):
         del args, kwargs
 
         logger.debug("task_id=%s", task_id)
+        task_status = "UNKNOWN"
 
         # task_id is a UUID, but Celery expects a string
         task_id_str = str(task_id)
@@ -1971,19 +1986,25 @@ class TaskStatusView(APIView):
         messages = []
         if hasattr(result, 'info'):
             if isinstance(result.info, dict):
-                # check if user is allowed to view task info
                 proposal = result.info.get('proposal_ref', '')
                 messages = result.info.get('description', [])
-
             else:
-                # this path should never materialize
-                logger.error(
-                    'result.info attribute %s instead of dict', type(result.info)
+                # The result 'info' should be a 'dict' but suspected race conditions
+                # occasionally mean it's 'None'. Here we assume the task has yet
+                # to be handled internally and info will be populated soon.
+                # For now we log a warning and return an UNKNOWN status.
+                logger.warning(
+                    'AsyncResult info for %s is %s instead of dict',
+                    task_id_str,
+                    type(result.info),
                 )
-                return Response(
-                    {'error': f'Unexpected messages format: {result.info}'},
-                    status=status.HTTP_403_FORBIDDEN,
-                )
+                data = {
+                    'started': False,
+                    'finished': False,
+                    'status': task_status,
+                    'messages': messages,
+                }
+                return JsonResponse(data)
         else:
             error = {'error': 'Task messages not found. Try again later'}
             return Response(error, status=status.HTTP_404_NOT_FOUND)
@@ -2009,13 +2030,12 @@ class TaskStatusView(APIView):
                 request.user
             ):
                 return Response(
-                    {'error': 'You are not a member of the proposal f"proposal"'},
+                    {'error': f'You are not a member of the proposal {proposal}'},
                     status=status.HTTP_403_FORBIDDEN,
                 )
 
         started = result.state != 'PENDING'
         finished = result.ready()
-        task_status = "UNKNOWN"
         if finished and messages:
             # The task is considered to have failed if the word 'FAILED'
             # is in the last line of the message (regardless of case)
@@ -2235,7 +2255,7 @@ class JobFileTransferView(viewsets.ModelViewSet):
         )
         sq2a_rv = _SQ2A.can_send(sq2a_send_params)
         if not sq2a_rv.success:
-            content = {'error': f'You cannot do this ({sq2a_rv.msg})'}
+            content = {'error': str(sq2a_rv.msg)}
             return Response(content, status=status.HTTP_403_FORBIDDEN)
 
         target = models.Target.objects.get(id=target_id)
@@ -2641,7 +2661,7 @@ class JobRequestView(viewsets.ModelViewSet):
         )
         sq2a_rv = _SQ2A.can_run_job(sq2a_run_job_params)
         if not sq2a_rv.success:
-            content = {'error': f'You cannot do this ({sq2a_rv.msg})'}
+            content = {'error': str(sq2a_rv.msg)}
             return Response(content, status=status.HTTP_403_FORBIDDEN)
 
         try:

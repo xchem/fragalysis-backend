@@ -991,6 +991,7 @@ class TargetExperimentReadSerializer(ValidateProjectMixin, serializers.ModelSeri
 class TargetExperimentWriteSerializer(serializers.ModelSerializer):
     target_access_string = serializers.CharField(label='Target Access String')
     file = serializers.FileField(required=False)
+    sha256checksum = serializers.CharField(required=False)
 
     def validate(self, data):
         """Verify TAS is correctly formed."""
@@ -1001,10 +1002,7 @@ class TargetExperimentWriteSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = models.ExperimentUpload
-        fields = (
-            'target_access_string',
-            'file',
-        )
+        fields = ('target_access_string', 'file', 'sha256checksum')
 
 
 class TargetExperimentValidateSerializer(serializers.ModelSerializer):

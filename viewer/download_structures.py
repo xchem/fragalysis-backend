@@ -1196,16 +1196,15 @@ def return_download_link(
     )
     logger.debug('proteins_list: %s', proteins_list)
 
-    try:
-        existing_link = DownloadLinks.objects.get(
-            target_id=target.id,
-            proteins=proteins_list,
-            protein_params=protein_params,
-            other_params=other_params,
-        )
-    except DownloadLinks.DoesNotExist as exc:
-        # TODO: no need for exception
-        raise ValueError() from exc
+    existing_link = DownloadLinks.objects.filter(
+        target_id=target.id,
+        proteins=proteins_list,
+        protein_params=protein_params,
+        other_params=other_params,
+    ).first()
+    # Leave if 'first()' returns None
+    if not existing_link:
+        raise ValueError()
 
     # Dynamic to static?
     # Static link records are never removed.

@@ -1659,6 +1659,12 @@ class TargetLoader:
             if molpath.exists():
                 mol = Chem.MolFromMolFile(str(molpath))
 
+        if mol is None:
+            msg = f'No ligand in observation {longcode}'
+            logger.error(msg)
+            self.report.log(logging.ERROR, msg)
+            return None
+
         return ProcessedObject(
             model_class=SiteObservation,
             fields=fields,
@@ -3545,7 +3551,7 @@ def check_decompress_progress(process, archive_path, update, frequency=1.0):
 
 def load_target(
     data_bundle,
-    proposal_ref=None,
+    proposal_ref: str,
     user_id=None,
     task=None,
 ):
@@ -3635,9 +3641,15 @@ def _move_and_save_target_experiment(target_loader):
         str(target_loader.raw_data.joinpath(target_loader.version_dir)),
         str(target_loader.abs_final_path),
     )
-    Path(target_loader.bundle_path).rename(
-        target_loader.abs_final_path.joinpath(target_loader.data_bundle)
-    )
+    final_bundle_path = target_loader.abs_final_path.joinpath(target_loader.data_bundle)
+    if final_bundle_path.exists():
+        # don't overwrite if user uses the same name
+        final_bundle_path = Path(
+            *final_bundle_path.parts[:-1],
+            f'{final_bundle_path.stem}_{target_loader.version_dir}{final_bundle_path.suffix}',
+        )
+
+    Path(target_loader.bundle_path).rename(final_bundle_path)
 
     set_directory_permissions(target_loader.abs_final_path, 0o755)
 
