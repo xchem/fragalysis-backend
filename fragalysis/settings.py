@@ -453,6 +453,7 @@ if not DISABLE_LOGGING_FRAMEWORK:
         },
         'loggers': {
             'api.security': {'level': 'INFO'},
+            'apscheduler': {'level': 'WARNING'},
             'asyncio': {'level': 'WARNING'},
             'celery': {'level': 'INFO'},
             'django': {'level': 'ERROR'},
@@ -461,7 +462,7 @@ if not DISABLE_LOGGING_FRAMEWORK:
             'paramiko': {'level': 'WARNING'},
             'service_status': {
                 'handlers': ['service_status', 'console'],
-                'level': 'DEBUG',
+                'level': 'INFO',
                 'propagate': False,
             },
         },
