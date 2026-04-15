@@ -33,7 +33,13 @@ from viewer.models import (
     Target,
     User,
 )
-from viewer.utils import add_props_to_sdf_molecule, alphanumerator, is_url, word_count
+from viewer.utils import (
+    add_props_to_sdf_molecule,
+    alphanumerator,
+    is_url,
+    set_directory_permissions,
+    word_count,
+)
 
 from .sdf_check import add_warning
 from .tags import TagManager
@@ -60,8 +66,6 @@ HEADER_MOL_FIELDS = (
     "submitter_email",
     "generation_date",
 )
-
-SDF_ROOT = Path(settings.MEDIA_ROOT).joinpath(settings.COMPUTED_SET_MEDIA_DIRECTORY)
 
 
 # How do we get the 'prefix' and 'version' from the MOL Name.
@@ -198,6 +202,37 @@ class MolOps:
         }
 
         self.result_properties = {}
+
+        # This is now the third time the target is resolved. a bit
+        # stupid. fix
+        try:
+            target = Target.objects.get(pk=self.target_id)
+        except Target.DoesNotExist as exc:
+            # target's existance should be validated in the view,
+            # this could hardly happen
+            msg = f"Target {self.target_id} does not exist"
+            logger.error(msg)
+            raise IntegrityError(msg) from exc
+
+        last_upload = target.experimentupload_set.order_by('commit_datetime').last()
+
+        # create directory for virtual files
+        self.virtual_root = (
+            Path(settings.TARGET_LOADER_MEDIA_DIRECTORY)
+            .joinpath(
+                str(target.zip_archive),
+            )
+            .joinpath(
+                last_upload.upload_data_dir,
+            )
+            .joinpath(
+                'virtual_files',
+            )
+        )
+
+        Path(settings.MEDIA_ROOT).joinpath(self.virtual_root).mkdir(
+            parents=True, exist_ok=True
+        )
 
     def process_pdb(self, pdb_code, zfile, zfile_hashvals) -> str | None:
         for key in zfile_hashvals.keys():
@@ -629,17 +664,17 @@ class MolOps:
         new_so.save()
 
         # identifier is auto-generated, doesn't exist until saved
-        filename = (
+        filename = self.virtual_root.joinpath(
             f"{compound_set.name}_upload_{compound_set.md_ordinal}_"
             + f"{name}_{molecule_name}_{new_so.virtual_identifier}.mol"
         )
 
         new_so_mol = Chem.MolToMolBlock(mol)
-        sdf_filename = SDF_ROOT.joinpath(filename)
+        sdf_filename = Path(settings.MEDIA_ROOT).joinpath(filename)
         with open(sdf_filename, "w", encoding='utf-8') as f:
             f.write(new_so_mol)
 
-        new_so.virtual_ligand_mol = filename
+        new_so.virtual_ligand_mol = str(filename)
         new_so.save()
         # computed_molecule.sdf_info = Chem.MolToMolBlock(mol)
 
@@ -652,7 +687,7 @@ class MolOps:
 
         # existing_computed_molecules = []
         for so in qs:
-            filepath = SDF_ROOT.joinpath(str(so.virtual_ligand_mol))
+            filepath = Path(settings.MEDIA_ROOT).joinpath(str(so.virtual_ligand_mol))
             so_mol = Chem.MolFromMolFile(str(filepath))
             if so_mol:
                 # find distances between corresponding atoms of the
@@ -984,6 +1019,12 @@ class MolOps:
                 tagger.tag_new_site_observations(
                     site_observations=so_qs,
                     new_observation_tag=f"{computed_set.name} {datestr}",
+                )
+
+                # adjust permissions for any files created
+                set_directory_permissions(
+                    Path(settings.MEDIA_ROOT).joinpath(self.virtual_root),
+                    0o755,
                 )
 
         except IntegrityError as exc:
