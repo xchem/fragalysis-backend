@@ -68,7 +68,7 @@ echo "Testing nginx config..."
 nginx -tq
 
 echo "Launching service health check queries"
-python manage.py start_service_queries
+python manage.py start_service_queries &
 
 echo "Running nginx..."
 nginx

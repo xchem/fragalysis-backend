@@ -1,23 +1,20 @@
+import concurrent.futures
 import functools
 import inspect
 import logging
-import os
 from enum import Enum
 
-from celery.exceptions import SoftTimeLimitExceeded
 from django.conf import settings
 from django.utils import timezone
 
-from fragalysis.celery import app as celery_app
-
 from .models import Service, ServiceState
 
-# What's our HOSTNAME?
-# If it's _SERVICE_CHECK_HOSTNAME then we start services, otherwise we don't
-_HOSTNAME: str = os.environ.get('HOSTNAME', '')
-_SERVICE_CHECK_HOSTNAME: str = 'stack-0'
-
 logger = logging.getLogger('service_status')
+
+# Soft timeout for individual service query calls
+SERVICE_QUERY_TIMEOUT_S = 28
+
+_executor = concurrent.futures.ThreadPoolExecutor(max_workers=10)
 
 
 # this is a bit redundant because they're all in database, but it's
@@ -34,15 +31,19 @@ def service_query(func):
 
     @functools.wraps(func)
     def wrapper_service_query(*args, **kwargs):  # pylint: disable=unused-argument
-        import service_status.services as services_module
+        service = Service.objects.get(service=func.__name__)
+
+        # If the service has been disabled, skip the check
+        if service.last_state_id == State.NOT_CONFIGURED:
+            logger.debug('Service %s is NOT_CONFIGURED, skipping', func.__name__)
+            return
 
         try:
-            state_pk = func()
-        except SoftTimeLimitExceeded:
+            future = _executor.submit(func)
+            state_pk = future.result(timeout=SERVICE_QUERY_TIMEOUT_S)
+        except concurrent.futures.TimeoutError:
             logger.warning('Query time limit exceeded, setting result as DEGRADED')
             state_pk = State.DEGRADED
-
-        service = Service.objects.get(service=func.__name__)
 
         state = ServiceState.objects.get(state=state_pk)
         if service.last_state == state:
@@ -64,51 +65,30 @@ def service_query(func):
 
         service.save()
 
-        # get the task function from this module
-        task = getattr(services_module, func.__name__)
-        task.apply_async(countdown=service.frequency)
-
+    wrapper_service_query.is_service_query = True
     return wrapper_service_query
 
 
 def init_services():
     logger.debug('+ init_services')
 
-    # Do nothing if we're not the service check Pod.
-    # Only one Pod needs to check the service status.
-    if _HOSTNAME != _SERVICE_CHECK_HOSTNAME:
-        logger.warning(
-            'This host (%s) is not the service check host (%s) - skipping initialisation',
-            _HOSTNAME,
-            _SERVICE_CHECK_HOSTNAME,
-        )
-        return
-
     service_string = settings.ENABLE_SERVICE_STATUS
     requested_services = [k for k in service_string.split(":") if k != ""]
 
     import service_status.services as services_module
 
-    # gather all test functions from services.py and make sure they're
-    # in db
+    # gather all service functions from services.py and make sure they're
+    # in db; identified by the _is_service_query marker set by @service_query
     defined = []
-    for name, body in inspect.getmembers(services_module):
-        # doesn't seem to have a neat way to test if object is task,
-        # have to check them manually
-        try:
-            src = inspect.getsource(body)
-        except TypeError:
-            # uninteresting propery
-            continue
-
-        if src.find('@shared_task') >= 0 and src.find('@service_query') >= 0:
+    for name, obj in inspect.getmembers(services_module, inspect.isfunction):
+        if getattr(obj, 'is_service_query', False):
             defined.append(name)
             # ensure all defined services are in db
             try:
                 service = Service.objects.get(service=name)
             except Service.DoesNotExist:
                 # add if missing
-                docs = inspect.getdoc(body)
+                docs = inspect.getdoc(obj)
                 display_name = docs.splitlines()[0] if docs else ''
                 Service(
                     service=name,
@@ -127,29 +107,31 @@ def init_services():
             service.last_state = ServiceState.objects.get(state=State.NOT_CONFIGURED)
             service.save()
 
-    # Now launch tasks.
-    # TODO: this could potentially be an actual check if beat is running
-    if not settings.CELERY_TASK_ALWAYS_EAGER:
+    # Now start the scheduler and add jobs for requested services
+    if settings.SERVICE_STATUS_SCHEDULER_ENABLED:
+        import service_status.scheduler as scheduler_module
+
+        scheduler_module.start()
         for s in requested_services:
-            logger.debug('Trying to launch service: %s', s)
+            logger.debug('Trying to schedule service: %s', s)
             try:
                 service = Service.objects.get(service=s)
             except Service.DoesNotExist:
                 logger.error(
-                    'Service %s requested but test function missing in services.py',
+                    'Service %s requested but function missing in services.py',
                     s,
                 )
                 continue
 
-            # launch query task
-            task = getattr(services_module, service.service)
-            logger.debug('trying to launch task: %s', task)
-            task.delay()
+            func = getattr(services_module, service.service)
+            logger.debug(
+                'Adding scheduler job for: %s (every %ds)', s, service.frequency
+            )
+            scheduler_module.add_service_job(service.service, func, service.frequency)
 
 
 def services(enable=(), disable=()):
-    logger.debug('+ init_services')
-    import service_status.services as services_module
+    logger.debug('+ services')
 
     if enable is None:
         enable = []
@@ -168,11 +150,13 @@ def services(enable=(), disable=()):
             logger.error('Unknown service: %s', name)
             continue
 
-        task = getattr(services_module, service.service)
-        task.delay()
-        logger.info('Starting service query %s', name)
+        if service.last_state_id == State.NOT_CONFIGURED:
+            service.last_state = ServiceState.objects.get(state=State.DEGRADED)
+            service.save()
+            logger.info('Enabled service %s', name)
+        else:
+            logger.info('Service %s is already enabled', name)
 
-    inquisitor = celery_app.control.inspect()
     for name in to_disable:
         try:
             service = Service.objects.get(service=name)
@@ -180,15 +164,11 @@ def services(enable=(), disable=()):
             logger.error('Unknown service: %s', name)
             continue
 
-        task = getattr(services_module, service.service)
-        for tasklist in inquisitor.active().values():
-            for worker_task in tasklist:
-                if worker_task['name'] == task.name:
-                    logger.info('Terminating task: %s', task.name)
-                    celery_app.control.revoke(worker_task['id'], terminate=True)
+        service.last_state = ServiceState.objects.get(state=State.NOT_CONFIGURED)
+        service.save()
+        logger.info('Disabled service %s', name)
 
-    # task name in both enable and disable, figure out if running or
-    # not and either stop or start
+    # service name in both enable and disable: toggle based on current state
     for name in confusables:
         try:
             service = Service.objects.get(service=name)
@@ -196,15 +176,11 @@ def services(enable=(), disable=()):
             logger.error('Unknown service: %s', name)
             continue
 
-        task = getattr(services_module, service.service)
-        is_active = False
-        for tasklist in inquisitor.active().values():
-            for worker_task in tasklist:
-                if worker_task['name'] == task.name:
-                    logger.info('Terminating task: %s', task.name)
-                    is_active = True
-                    celery_app.control.revoke(worker_task['id'], terminate=True)
-        if is_active:
-            # task not found in queue, wasn't running, activate
-            logger.info('Starting service query %s', name)
-            task.delay()
+        if service.last_state_id == State.NOT_CONFIGURED:
+            service.last_state = ServiceState.objects.get(state=State.DEGRADED)
+            service.save()
+            logger.info('Enabled service %s (was NOT_CONFIGURED)', name)
+        else:
+            service.last_state = ServiceState.objects.get(state=State.NOT_CONFIGURED)
+            service.save()
+            logger.info('Disabled service %s', name)
