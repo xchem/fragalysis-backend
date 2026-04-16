@@ -3,7 +3,6 @@ import time
 from random import random
 
 import requests
-from celery import shared_task
 from django.conf import settings
 from frag.utils.network_utils import get_driver
 from pydiscourse import DiscourseClient
@@ -18,9 +17,6 @@ logger = logging.getLogger("service_status")
 # Default timeout for any request calls
 # Used for keycloak atm.
 REQUEST_TIMEOUT_S = 5
-
-# Service query timeout
-SERVICE_QUERY_TIMEOUT_S = 28
 
 
 # service status test functions
@@ -51,7 +47,6 @@ def test_query() -> str:
     return state.name
 
 
-@shared_task(soft_time_limit=SERVICE_QUERY_TIMEOUT_S)
 @service_query
 def ispyb() -> str:
     """Access control (ISPyB)"""
@@ -59,7 +54,6 @@ def ispyb() -> str:
     return State.OK if ping_configured_connector() else State.DEGRADED
 
 
-@shared_task(soft_time_limit=SERVICE_QUERY_TIMEOUT_S)
 @service_query
 def discourse() -> str:
     """Discourse"""
@@ -78,7 +72,6 @@ def discourse() -> str:
     return State.DEGRADED if client is None else State.OK
 
 
-@shared_task(soft_time_limit=SERVICE_QUERY_TIMEOUT_S)
 @service_query
 def squonk() -> str:
     """Squonk"""
@@ -86,7 +79,6 @@ def squonk() -> str:
     return State.OK if get_squonk2_agent().configured().success else State.DEGRADED
 
 
-@shared_task(soft_time_limit=SERVICE_QUERY_TIMEOUT_S)
 @service_query
 def fragmentation_graph() -> str:
     """Fragmentation graph"""
@@ -101,7 +93,6 @@ def fragmentation_graph() -> str:
             return State.DEGRADED
 
 
-@shared_task(soft_time_limit=SERVICE_QUERY_TIMEOUT_S)
 @service_query
 def keycloak() -> str:
     """Keycloak"""
