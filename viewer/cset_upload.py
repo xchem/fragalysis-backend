@@ -43,6 +43,7 @@ from viewer.utils import (
 
 from .sdf_check import add_warning
 from .tags import TagManager
+from .target_loader import assign_observation_quality_status
 
 logger = logging.getLogger(__name__)
 
@@ -676,6 +677,7 @@ class MolOps:
 
         new_so.virtual_ligand_mol = str(filename)
         new_so.save()
+        assign_observation_quality_status(new_so)
         # computed_molecule.sdf_info = Chem.MolToMolBlock(mol)
 
         # find similar observations (former computedmolecules) and

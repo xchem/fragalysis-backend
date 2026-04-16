@@ -563,6 +563,19 @@ def validate_upload_version(
     return True, ""
 
 
+def assign_observation_quality_status(site_observation) -> None:
+    status = QualityStatusType.objects.get(status="NONE")
+
+    SiteObservationQualityStatus(
+        site_observation=site_observation,
+        status=status,
+        user=None,
+        auto_assigned=True,
+        main_status=False,
+        comment="Created on load",
+    ).save()
+
+
 class TargetLoader:
     def __init__(
         self,
@@ -2389,7 +2402,7 @@ class TargetLoader:
         # TODO: remove
         for val in site_observation_objects.values():  # pylint: disable=no-member
             if val.new:
-                self._assign_observation_quality_status(
+                assign_observation_quality_status(
                     val.instance,
                     # val.index_data["auto_build_score"],
                 )
@@ -2705,18 +2718,6 @@ class TargetLoader:
         except TypeError:
             # received invalid path
             return None
-
-    def _assign_observation_quality_status(self, site_observation) -> None:
-        status = QualityStatusType.objects.get(status="NONE")
-
-        SiteObservationQualityStatus(
-            site_observation=site_observation,
-            status=status,
-            user=None,
-            auto_assigned=True,
-            main_status=False,
-            comment="Created on load",
-        ).save()
 
     def link_compounds_to_computedmolecules(
         self, site_observation_objects: dict[str, MetadataObject]

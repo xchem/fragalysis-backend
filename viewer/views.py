@@ -3114,7 +3114,10 @@ class SiteObservationQualityStatusView(
     queryset = models.SiteObservationQualityStatus.filter_manager.annotated_qs()
     serializer_class = serializers.SiteObservationQualityStatusSerializer
     filterset_class = filters.SiteObservationQualityStatusFilter
-    filter_permissions = "site_observation__experiment__experiment_upload__project"
+    filter_permissions = (
+        "site_observation__computed_set__target__project",
+        "site_observation__experiment__experiment_upload__target__project",
+    )
 
 
 class UploadAssayDataView(ISPyBSafeQuerySet):
