@@ -24,6 +24,7 @@ from rdkit import Chem
 
 from viewer.models import (
     Compound,
+    ComputedInspiration,
     ComputedSet,
     ComputedSetSubmitter,
     Result,
@@ -509,6 +510,7 @@ class MolOps:
         insp = mol.GetProp("ref_mols")
         insp = insp.split(",")
         insp = [i.strip() for i in insp]
+        logger.debug('got inspirations: %s', insp)
         insp_frags = []
         for i in insp:
             # try exact match first
@@ -721,12 +723,20 @@ class MolOps:
                     new_so.pose = so.pose
                     new_so.save()
 
-        for insp_frag in insp_frags:
-            new_so.computed_inspirations.add(insp_frag)
-        # Done
-        new_so.save()
-
         compound_set.site_observations.add(new_so)
+
+        logger.debug('got insp_frags: %s', insp_frags)
+        ComputedInspiration.objects.bulk_create(
+            [
+                ComputedInspiration(
+                    site_observation=new_so,
+                    computed_inspiration=inspiration,
+                    computed_set=compound_set,
+                )
+                for inspiration in insp_frags
+            ],
+            ignore_conflicts=True,
+        )
 
         # No update the molecule in the original file...
         add_props_to_sdf_molecule(

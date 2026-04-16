@@ -748,7 +748,6 @@ class SiteObservation(Versionable, models.Model):
         null=True,
         blank=True,
     )
-    computed_inspirations = models.ManyToManyField('self', blank=True)
 
     # An optional url linking to the reference for this molecule
     virtual_ref_url = models.TextField(null=True, blank=True)
@@ -779,6 +778,14 @@ class SiteObservation(Versionable, models.Model):
     )
 
     computed_observations = models.ManyToManyField('self', blank=True)
+
+    computed_inspirations = models.ManyToManyField(
+        'self',
+        through='ComputedInspiration',
+        through_fields=("site_observation", "computed_inspiration"),
+        symmetrical=False,
+        related_name='inspired_observation',
+    )
 
     objects = models.Manager()
     # causes problems with trigger func and don't really need it in
@@ -1364,6 +1371,36 @@ class ComputedSet(models.Model):
         return "<ComputedSet %r %r %r>" % (self.id, self.name, self.target)
 
 
+class ComputedInspiration(models.Model):
+    site_observation = models.ForeignKey(
+        SiteObservation,
+        on_delete=models.CASCADE,
+        related_name='+',
+    )
+    computed_inspiration = models.ForeignKey(
+        SiteObservation,
+        on_delete=models.CASCADE,
+        related_name='+',
+    )
+    computed_set = models.ForeignKey(
+        ComputedSet,
+        on_delete=models.CASCADE,
+    )
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=[
+                    "site_observation",
+                    "computed_inspiration",
+                    "computed_set",
+                ],
+                name="unique_inspirations_computed_set",
+            ),
+        ]
+
+
+# TODO: to be obsoleted
 class ComputedMolecule(models.Model):
     """The 3D information for a computed set molecule"""
 
