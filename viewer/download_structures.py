@@ -1096,8 +1096,8 @@ class DownloadStructures:
                     stdout=subprocess.PIPE,
                 )
                 self._logger.info(
-                    'Invoking Popen("pigz ...") (output_file=%s)...',
-                    output_file,
+                    'Invoking Popen("pigz ...") (tarball_path=%s)...',
+                    tarball_path,
                 )
                 compress_process = subprocess.Popen(
                     ['pigz', '-4', "-c"],
@@ -1118,8 +1118,8 @@ class DownloadStructures:
                     tar_process.returncode,
                 )
                 self._logger.info(
-                    'Finished Popen("pigz ...") (output_file=%s) retruncode=%s',
-                    output_file,
+                    'Finished Popen("pigz ...") (tarball_path=%s) retruncode=%s',
+                    tarball_path,
                     compress_process.returncode,
                 )
 
