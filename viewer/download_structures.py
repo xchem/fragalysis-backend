@@ -649,7 +649,7 @@ class DownloadStructures:
                 )
                 return True
 
-        self._logger.warning('filepath "%s" is not a file', filepath)
+        self._logger.debug('filepath "%s" is not a file', filepath)
         self._add_empty_file(archive_file.archive_path)
 
         return False
@@ -677,7 +677,7 @@ class DownloadStructures:
                 f_out.write(patched_sdf_content)
             return True
         else:
-            self._logger.warning('filepath "%s" is not a file', archive_file.path)
+            self._logger.debug('filepath "%s" is not a file', archive_file.path)
 
         return False
 
@@ -778,7 +778,7 @@ class DownloadStructures:
             if filepath.is_file():
                 self.write_symlink(filepath, archive_path)
             else:
-                self._logger.warning('File %s does not exist', Path(str(tmf)).name)
+                self._logger.debug('File %s does not exist', Path(str(tmf)).name)
                 self._add_empty_file(archive_path)
 
     def _metadata_file_zip(self, target, site_observations):
