@@ -712,26 +712,13 @@ def erase_compound_set_job_material(task_params, job_request_id=0):
 @celery_app.task(bind=True)
 def task_create_download_link(
     self,
-    *,
-    original_search,
-    validated_data,
-    target_id,
-    site_observation_ids,
-    user_id,
-    target_access_string,
+    download_link_id: int,
+    use_zip: bool = False,
 ):
     logger.info(
-        'TASK %s create_download_link launched, target_zip=%s',
+        'TASK %s create_download_link launched, download_link=%s',
         self.request.id,
-        validated_data,
+        download_link_id,
     )
-    create_download_link(
-        original_search=original_search,
-        validated_data=validated_data,
-        target_id=target_id,
-        site_observation_ids=site_observation_ids,
-        user_id=user_id,
-        task=self,
-        target_access_string=target_access_string,
-    )
+    create_download_link(download_link_id, task=self, use_zip=use_zip)
     logger.info('TASK %s create_download_link completed', self.request.id)

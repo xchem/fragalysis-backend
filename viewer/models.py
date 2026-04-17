@@ -1710,11 +1710,10 @@ class DiscourseTopic(models.Model):
 class DownloadLinks(models.Model):
     """Searches made with the download_structures api."""
 
-    file_url = models.CharField(
-        max_length=200,
+    file_url = models.TextField(
         unique=True,
         db_index=True,
-        help_text="Contains the complete link to the zip file including the uuid",
+        null=True,
     )
     user = models.ForeignKey(User, null=True, on_delete=models.CASCADE)
     target = models.ForeignKey(
@@ -1723,7 +1722,8 @@ class DownloadLinks(models.Model):
     # list of sorted observation shortcodes. Changed in 1982, used to
     # be JSONfield but this didn't work with .get(). The same fate may
     # wait for the other json fields, they're only needed for
-    # comparison and the content's isn't really used.
+    # comparison and the content's isn't really
+    # Update: changed again in 2142 to contain ids instead of names
     proteins = models.TextField(null=True)
     protein_params = models.JSONField(
         encoder=DjangoJSONEncoder,
@@ -1749,6 +1749,7 @@ class DownloadLinks(models.Model):
     create_date = models.DateTimeField()
     keep_zip_until = models.DateTimeField(
         db_index=True,
+        null=True,
         help_text="The datetime when the tag was created"
         " plus the retention time"
         " (1 hour at the time of writing)",
@@ -1756,6 +1757,8 @@ class DownloadLinks(models.Model):
     # TODO - zip_file is no longer Used (A.Christie 2024-01-19)
     zip_file = models.BooleanField(default=False)
     original_search = models.JSONField(encoder=DjangoJSONEncoder, null=True)
+    request_ip = models.TextField(null=True)
+    request_location = models.TextField(null=True)
 
     def __str__(self):
         return str(self.file_url)

@@ -4,7 +4,7 @@ import logging
 import os
 import shutil
 import zipfile
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from io import BytesIO
 from pathlib import Path
 from typing import Any, Dict, List, Optional
@@ -21,6 +21,7 @@ from django.http import FileResponse, HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.views import View
+from python_ipware import IpWare
 from rest_framework import generics, mixins, permissions, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.parsers import BaseParser
@@ -67,10 +68,7 @@ from .discourse import (
     create_discourse_post,
     list_discourse_posts_for_topic,
 )
-from .download_structures import (  # create_or_return_download_link,
-    erase_out_of_date_download_records,
-    return_download_link,
-)
+from .download_structures import erase_out_of_date_download_records, get_download_params
 from .forms import CSetForm
 from .squonk_job_file_transfer import (
     TfrFileNotFoundError,
@@ -1526,11 +1524,15 @@ class DownloadStructuresView(
         The user is permitted to download Targets they have access to (whether
         authenticated or not), and this is handled by the queryset logic later in
         this method.
+
+        Update: major change with 2142 DownloadLink objects are no
+        longer deleted, they're kept for stats collection. Handling
+        out of date records now means deleting the files and clearing
+        the file_url field in the instance.
+
         """
         logger.info('+ DownloadStructures.post')
         logger.debug('DownloadStructures.post.data: %s', request.data)
-
-        erase_out_of_date_download_records()
 
         serializer = self.serializer_class(data=request.data)
         if not serializer.is_valid():
@@ -1539,9 +1541,40 @@ class DownloadStructuresView(
 
         logger.debug('serializer validated data: %s', serializer.validated_data)
 
+        ipw = IpWare()
+        # request is valid, create download link right away:
+        protein_params, other_params, static_link = get_download_params(
+            serializer.validated_data,
+        )
+        original_search = copy.deepcopy(request.data)
+        original_search.pop('csrfmiddlewaretoken', None)
+        ip, _ = ipw.get_client_ip(request.META)
+        location = ''  # TODO: extract from request
+
+        if request.user.is_authenticated:
+            user = request.user
+        else:
+            user = get_user_model().objects.get(pk=settings.ANONYMOUS_USER)
+
+        logger.debug('user resolved: %s', user)
+
+        # save new download link to record an attempt
+        download_link = models.DownloadLinks(
+            user=user,
+            create_date=datetime.now(timezone.utc),
+            original_search=original_search,
+            protein_params=protein_params,
+            other_params=other_params,
+            static_link=static_link,
+            request_ip=ip,
+            request_location=location,
+        )
+        download_link.save()
+
         # Static files (i.e. links not removed)
         # I don't understand this bit.. what is it doing?
         # in any case, can I move it to DownloadLinks instance method?
+        # is it for older downloads, those with static link?
         if serializer.validated_data['file_url']:
             file_url = serializer.validated_data['file_url']
             logger.info('Given file_url "%s"', file_url)
@@ -1554,6 +1587,10 @@ class DownloadStructuresView(
                 file_url = existing_link.file_url
                 logger.info('Existing static link found for file_url "%s"', file_url)
                 assert os.path.isfile(file_url)
+                # download was still needed, bump the keep time
+                existing_link.keep_zip_until = existing_link.keep_zip_until + timedelta(
+                    minutes=settings.DOWNLOAD_KEEP_UNTIL_DURATION_M
+                )
                 return Response(
                     {"file_url": file_url},
                     status=status.HTTP_200_OK,
@@ -1563,6 +1600,9 @@ class DownloadStructuresView(
             logger.warning(msg)
             content = {'message': msg}
             return Response(content, status=status.HTTP_400_BAD_REQUEST)
+
+        # moving this here because if exists, why not just serve it
+        erase_out_of_date_download_records()
 
         # Dynamic files
         if 'target_access_string' not in serializer.validated_data.keys():
@@ -1608,12 +1648,14 @@ class DownloadStructuresView(
             return Response(content, status=status.HTTP_404_NOT_FOUND)
 
         logger.info('Found Target record %r', target)
+        download_link.target = target
+        download_link.save()
 
         proteins_list = [
             p.strip() for p in request.data.get('proteins', '').split(',') if p
         ]
         if proteins_list:
-            logger.info('Given %s Proteins %s', len(proteins_list), proteins_list)
+            # logger.info('Given %s Proteins %s', len(proteins_list), proteins_list)
             logger.info('Looking for SiteObservation records for given Proteins...')
 
             site_obvs = models.SiteObservation.objects.filter(
@@ -1646,31 +1688,46 @@ class DownloadStructuresView(
             }
             return Response(content, status=status.HTTP_404_NOT_FOUND)
 
+        download_link.proteins = ','.join(
+            [str(k) for k in site_obvs.order_by('pk').values_list('pk', flat=True)],
+        )
+        download_link.save()
+
         # Forced errors?
         if have_infection(INFECTION_STRUCTURE_DOWNLOAD):
             content = {'message': f'Download Error! ({INFECTION_STRUCTURE_DOWNLOAD})'}
             return Response(content, status=status.HTTP_404_NOT_FOUND)
 
-        try:
-            filename_url = return_download_link(
-                serializer.validated_data, target, site_obvs
+        existing_link = models.DownloadLinks.objects.filter(
+            target=target,
+            proteins=proteins_list,
+            protein_params=protein_params,
+            other_params=other_params,
+        )
+        # found a download attempt with exact same parameters
+        if existing_link:
+            # still useful, bump keep time
+            existing_link.keep_zip_until = existing_link.keep_zip_until + timedelta(
+                minutes=settings.DOWNLOAD_KEEP_UNTIL_DURATION_M
             )
-            return Response({"file_url": filename_url})
-        except ValueError:
+            if not existing_link.static_link:
+                logger.info(
+                    'Converting dynamic link to static link (%s)',
+                    existing_link.file_url,
+                )
+                existing_link.static_link = True
+            existing_link.save()
+
+            return Response({"file_url": existing_link.file_url})
+        else:
             # download with these parameters does not exist, launch a
             # task to create it
-            original_search = copy.deepcopy(request.data)
-            original_search.pop('csrfmiddlewaretoken', None)
+            # original_search = copy.deepcopy(request.data)
+            # original_search.pop('csrfmiddlewaretoken', None)
 
             task = task_create_download_link.delay(
-                original_search=original_search,
-                validated_data=serializer.validated_data,
-                target_id=target.pk,
-                site_observation_ids=list(site_obvs.values_list('id', flat=True)),
-                user_id=request.user.pk
-                if request.user.is_authenticated
-                else settings.ANONYMOUS_USER,
-                target_access_string=project_name,
+                download_link_id=download_link.pk,
+                use_zip=serializer.validated_data.get('use_zip', False),
             )
             logger.info(
                 "+ UploadTargetExperiments.create got Celery id %s", task.task_id
