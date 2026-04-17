@@ -1528,7 +1528,7 @@ class DownloadStructuresView(
         this method.
         """
         logger.debug('request.data=%s', request.data)
-        username: str = request.user.username
+        username: str = request.user.username if request.user.username else "|anon|"
 
         erase_out_of_date_download_records()
 
@@ -1691,11 +1691,10 @@ class DownloadStructuresView(
         )
 
         logger.info(
-            "New task started to build a download (user=%s target=%s task=%s task_status_url=%s)",
+            "Task started to build a download (user=%s target=%s task=%s)",
             username,
             target.title,
             task.task_id,
-            task_status_url,
         )
 
         return Response(
