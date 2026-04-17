@@ -42,6 +42,10 @@ touch /srv/logs/gunicorn.log
 touch /srv/logs/access.log
 touch /code/logs/logfile.log
 
+tmpdir="${TMPDIR:-/code/media/tmp}"
+echo "Preparing tmp ($tmpdir)..."
+mkdir -p ${tmpdir}
+
 CONCURRENCY=${STACK_CONCURRENCY:-4}
 
 echo "Starting Gunicorn (CONCURRENCY=${CONCURRENCY})..."

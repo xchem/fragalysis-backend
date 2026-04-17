@@ -1016,7 +1016,11 @@ class DownloadStructures:
                 time.sleep(frequency)
 
         estimated_total_size = get_total_size(str(data_path))
-        logger.debug('estimated data dir size: %s', estimated_total_size)
+        logger.info(
+            '/%s/ Creating tarball (estimated_total_size=%s)...',
+            self.task,
+            estimated_total_size,
+        )
         poll_frequency = 2
 
         if self.use_zip:
@@ -1031,20 +1035,39 @@ class DownloadStructures:
                 # - this way there's the additional efficiency of
                 #   handling things in bulk
 
+                logger.info(
+                    '/%s/ Invoking run("rsync ...") (data_path=%s tmpdir=%s)...',
+                    self.task,
+                    str(data_path.absolute()),
+                    str(tmpdir),
+                )
                 self.update_task(ProcessState.PROCESSING, 'Resolving symlinks...')
                 subprocess.run(
                     ["rsync", "-aL", str(data_path.absolute()) + "/", str(tmpdir)],
                     check=True,
                 )
 
+                logger.info(
+                    '/%s/ Invoking Popen("7z ...") (tmpdir=%s)...',
+                    self.task,
+                    str(tmpdir),
+                )
                 self.update_task(ProcessState.PROCESSING, 'Compressing tarball...')
                 compress_process = subprocess.Popen(
                     ["7z", "a", "-tzip", '-mmt=on', "-mx=4", tarball_path, "."],
                     cwd=str(tmpdir),
                 )
-                check_popen_progress(compress_process, poll_frequency)
 
+                check_popen_progress(compress_process, poll_frequency)
                 compress_process.wait()
+
+                logger.info(
+                    '/%s/ Finished Popen("7z ...") (tmpdir=%s) returncode=%s',
+                    self.task,
+                    str(tmpdir),
+                    compress_process.returncode,
+                )
+
         else:
             with open(tarball_path, "wb") as output_file:
                 # due to the way gzip and pigz work, specifically, not
@@ -1053,6 +1076,12 @@ class DownloadStructures:
                 # stream and sends it to stdout, the other one catches it
                 # and creates the file
                 self.update_task(ProcessState.PROCESSING, 'Compressing tarball...')
+                logger.info(
+                    '/%s/ Invoking Popen("tar ...") (data_path=%s name=%s)...',
+                    self.task,
+                    str(data_path.absolute()),
+                    data_path.name,
+                )
                 tar_process = subprocess.Popen(
                     [
                         "tar",
@@ -1067,6 +1096,11 @@ class DownloadStructures:
                     ],
                     stdout=subprocess.PIPE,
                 )
+                logger.info(
+                    '/%s/ Invoking Popen("pigz ...") (output_file=%s)...',
+                    self.task,
+                    output_file,
+                )
                 compress_process = subprocess.Popen(
                     ['pigz', '-4', "-c"],
                     stdin=tar_process.stdout,
@@ -1079,7 +1113,21 @@ class DownloadStructures:
                 tar_process.wait()
                 compress_process.wait()
 
-        logger.info("Tarball saved at: %s", tarball_path)
+                logger.info(
+                    '/%s/ Finished Popen("tar ...") (data_path=%s name=%s) returncode=%s',
+                    self.task,
+                    str(data_path.absolute()),
+                    data_path.name,
+                    tar_process.returncode,
+                )
+                logger.info(
+                    '/%s/ Finished Popen("pigz ...") (output_file=%s) retruncode=%s',
+                    self.task,
+                    output_file,
+                    compress_process.returncode,
+                )
+
+        logger.info("/%s/ Created tarball (tarball_path=%s)", self.task, tarball_path)
 
 
 def _is_mol_or_sdf(path):
