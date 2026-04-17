@@ -1208,8 +1208,8 @@ def return_download_link(
     validated_data,
     target,
     site_observations,
-):
-    """Return a link to existing downloadable zip file.
+) -> str | None:
+    """Return a link to existing downloadable zip file, or None if one does not exist.
 
     Downloads are located in <MEDIA_ROOT>/downloads/ using a subdirectory
     using a UUID-4 value, with the file located in it, using the target title.
@@ -1218,7 +1218,7 @@ def return_download_link(
     Returns:
         [file]: [URL to the file in the media directory]
     """
-    logger.info('+ Handling download for Target "%s"', target.title)
+    logger.debug('Getting DownloadLink (target="%s")...', target.title)
     # Log the provided SiteObservations
     logger.debug(
         'Given %s SiteObservation records: %s',
@@ -1243,7 +1243,8 @@ def return_download_link(
     ).first()
     # Leave if 'first()' returns None
     if not existing_link:
-        raise ValueError()
+        logger.debug('No DownloadLink (target="%s")...', target.title)
+        return None
 
     # Dynamic to static?
     # Static link records are never removed.
@@ -1256,7 +1257,7 @@ def return_download_link(
     # Now return the file...
     file_url = existing_link.file_url
     # assert os.path.isfile(file_url)
-    logger.info('- Handled existing download (file_url=%s)', file_url)
+    logger.debug('Got DownloadLink (target="%s" file_url=%s)', target.title, file_url)
 
     return file_url
 
