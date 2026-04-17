@@ -171,7 +171,7 @@ class TargetSerializer(serializers.ModelSerializer):
                 if media_ref_path.is_file():
                     return ref_path
                 else:
-                    logger.error(
+                    logger.debug(
                         "Reference pdb file doesn't exist (%s)", media_ref_path
                     )
                     return None
