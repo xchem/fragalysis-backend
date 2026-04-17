@@ -783,7 +783,7 @@ class DownloadStructures:
 
     def _metadata_file_zip(self, target, site_observations):
         """Compile and add metadata file to archive."""
-        self._logger.info('+ Processing metadata')
+        self._logger.info('Processing metadata...')
 
         header, annotations, values = get_metadata_fields(target)
 
@@ -827,7 +827,6 @@ class DownloadStructures:
         )
         buff.seek(0)
         self.write_file(buff.getvalue(), _METADATA_FILE)
-        self._logger.info('- Processing metadata')
 
     def _extra_files_zip(self, target, soakdb_files=True):
         """If an extra info folder exists at the target root level, then
@@ -1038,7 +1037,7 @@ class DownloadStructures:
                 #   handling things in bulk
 
                 self._logger.info(
-                    'Invoking run("rsync ...") (data_path=%s tmpdir=%s)...',
+                    'Invoking run("rsync ...") data_path=%s tmpdir=%s...',
                     str(data_path.absolute()),
                     str(tmpdir),
                 )
@@ -1049,7 +1048,7 @@ class DownloadStructures:
                 )
 
                 self._logger.info(
-                    'Invoking Popen("7z ...") (tmpdir=%s)...',
+                    'Invoking Popen("7z ...") tmpdir=%s...',
                     str(tmpdir),
                 )
                 self.update_task(ProcessState.PROCESSING, 'Compressing tarball...')
@@ -1062,7 +1061,7 @@ class DownloadStructures:
                 compress_process.wait()
 
                 self._logger.info(
-                    'Finished Popen("7z ...") (tmpdir=%s) returncode=%s',
+                    'Finished Popen("7z ...") tmpdir=%s returncode=%s',
                     str(tmpdir),
                     compress_process.returncode,
                 )
@@ -1076,7 +1075,7 @@ class DownloadStructures:
                 # and creates the file
                 self.update_task(ProcessState.PROCESSING, 'Compressing tarball...')
                 self._logger.info(
-                    'Invoking Popen("tar ...") (data_path=%s)...',
+                    'Invoking Popen("tar ...") data_path=%s...',
                     data_path.absolute(),
                 )
                 tar_process = subprocess.Popen(
@@ -1093,7 +1092,7 @@ class DownloadStructures:
                     stdout=subprocess.PIPE,
                 )
                 self._logger.info(
-                    'Invoking Popen("pigz ...")...',
+                    'Invoking Popen("pigz ...") output=%s...',
                     tarball_path,
                 )
                 compress_process = subprocess.Popen(
@@ -1109,20 +1108,20 @@ class DownloadStructures:
                 compress_process.wait()
 
                 self._logger.info(
-                    'Finished Popen("tar ...") (data_path=%s name=%s) returncode=%s',
+                    'Finished Popen("tar ...") data_path=%s name=%s returncode=%s',
                     str(data_path.absolute()),
                     data_path.name,
                     tar_process.returncode,
                 )
                 self._logger.info(
-                    'Finished Popen("pigz ...") (tarball_path=%s) retruncode=%s',
+                    'Finished Popen("pigz ...") tarball_path=%s retruncode=%s',
                     tarball_path,
                     compress_process.returncode,
                 )
 
         tarball_size_bytes: int = os.path.getsize(tarball_path)
         self._logger.info(
-            "Created tarball (tarball_path=%s size=%s)",
+            "Created tarball %s (size=%s)",
             tarball_path,
             humanize.naturalsize(tarball_size_bytes, binary=True),
         )
