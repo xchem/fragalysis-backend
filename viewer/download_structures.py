@@ -1016,9 +1016,8 @@ class DownloadStructures:
                 time.sleep(frequency)
 
         estimated_total_size = get_total_size(str(data_path))
-        logger.info(
-            '/%s/ Creating tarball (estimated_total_size=%s)...',
-            self.task,
+        self._logger.info(
+            'Creating tarball (estimated_total_size=%s)...',
             estimated_total_size,
         )
         poll_frequency = 2
@@ -1035,9 +1034,8 @@ class DownloadStructures:
                 # - this way there's the additional efficiency of
                 #   handling things in bulk
 
-                logger.info(
-                    '/%s/ Invoking run("rsync ...") (data_path=%s tmpdir=%s)...',
-                    self.task,
+                self._logger.info(
+                    'Invoking run("rsync ...") (data_path=%s tmpdir=%s)...',
                     str(data_path.absolute()),
                     str(tmpdir),
                 )
@@ -1047,9 +1045,8 @@ class DownloadStructures:
                     check=True,
                 )
 
-                logger.info(
-                    '/%s/ Invoking Popen("7z ...") (tmpdir=%s)...',
-                    self.task,
+                self._logger.info(
+                    'Invoking Popen("7z ...") (tmpdir=%s)...',
                     str(tmpdir),
                 )
                 self.update_task(ProcessState.PROCESSING, 'Compressing tarball...')
@@ -1061,9 +1058,8 @@ class DownloadStructures:
                 check_popen_progress(compress_process, poll_frequency)
                 compress_process.wait()
 
-                logger.info(
-                    '/%s/ Finished Popen("7z ...") (tmpdir=%s) returncode=%s',
-                    self.task,
+                self._logger.info(
+                    'Finished Popen("7z ...") (tmpdir=%s) returncode=%s',
                     str(tmpdir),
                     compress_process.returncode,
                 )
@@ -1076,9 +1072,8 @@ class DownloadStructures:
                 # stream and sends it to stdout, the other one catches it
                 # and creates the file
                 self.update_task(ProcessState.PROCESSING, 'Compressing tarball...')
-                logger.info(
-                    '/%s/ Invoking Popen("tar ...") (data_path=%s name=%s)...',
-                    self.task,
+                self._logger.info(
+                    'Invoking Popen("tar ...") (data_path=%s name=%s)...',
                     str(data_path.absolute()),
                     data_path.name,
                 )
@@ -1096,9 +1091,8 @@ class DownloadStructures:
                     ],
                     stdout=subprocess.PIPE,
                 )
-                logger.info(
-                    '/%s/ Invoking Popen("pigz ...") (output_file=%s)...',
-                    self.task,
+                self._logger.info(
+                    'Invoking Popen("pigz ...") (output_file=%s)...',
                     output_file,
                 )
                 compress_process = subprocess.Popen(
@@ -1113,21 +1107,19 @@ class DownloadStructures:
                 tar_process.wait()
                 compress_process.wait()
 
-                logger.info(
-                    '/%s/ Finished Popen("tar ...") (data_path=%s name=%s) returncode=%s',
-                    self.task,
+                self._logger.info(
+                    'Finished Popen("tar ...") (data_path=%s name=%s) returncode=%s',
                     str(data_path.absolute()),
                     data_path.name,
                     tar_process.returncode,
                 )
-                logger.info(
-                    '/%s/ Finished Popen("pigz ...") (output_file=%s) retruncode=%s',
-                    self.task,
+                self._logger.info(
+                    'Finished Popen("pigz ...") (output_file=%s) retruncode=%s',
                     output_file,
                     compress_process.returncode,
                 )
 
-        logger.info("/%s/ Created tarball (tarball_path=%s)", self.task, tarball_path)
+        self._logger.info("Created tarball (tarball_path=%s)", tarball_path)
 
 
 def _is_mol_or_sdf(path):
