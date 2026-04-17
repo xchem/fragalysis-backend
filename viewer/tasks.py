@@ -734,4 +734,4 @@ def task_create_download_link(
         task=self,
         target_access_string=target_access_string,
     )
-    logger.info('TASK %s create_download_link completed', self.request.id)
+    logger.info('TASK %s completed', self.request.id)

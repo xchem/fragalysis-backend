@@ -22,6 +22,7 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 from typing import Any, Dict
 
+import humanize
 import pandas as pd
 import pandoc
 import requests
@@ -200,7 +201,11 @@ class DownloadStructures:
         # by adding lightweight context to the messages we log
         self._logger = TaskLoggerAdapter(
             logger,
-            {'task': task, 'target': target, 'tas': target_access_string},
+            {
+                'task': str(task.request.id),
+                'target': target,
+                'tas': target_access_string,
+            },
         )
 
     @property
@@ -456,7 +461,6 @@ class DownloadStructures:
     ):
         """Write a ZIP file containing data from an input dictionary."""
 
-        self._logger.info('+ _create_structures_zip(%s)', self.target.title)
         self._logger.info('file_url="%s"', file_url)
         self._logger.info(
             'single_sdf_file="%s"', zip_contents['molecules']['single_sdf_file']
@@ -645,7 +649,7 @@ class DownloadStructures:
                 )
                 return True
 
-        self._logger.warning('filepath "%s" is not a file', filepath)
+        self._logger.debug('filepath "%s" is not a file', filepath)
         self._add_empty_file(archive_file.archive_path)
 
         return False
@@ -673,7 +677,7 @@ class DownloadStructures:
                 f_out.write(patched_sdf_content)
             return True
         else:
-            self._logger.warning('filepath "%s" is not a file', archive_file.path)
+            self._logger.debug('filepath "%s" is not a file', archive_file.path)
 
         return False
 
@@ -774,7 +778,7 @@ class DownloadStructures:
             if filepath.is_file():
                 self.write_symlink(filepath, archive_path)
             else:
-                self._logger.warning('File %s does not exist', Path(str(tmf)).name)
+                self._logger.debug('File %s does not exist', Path(str(tmf)).name)
                 self._add_empty_file(archive_path)
 
     def _metadata_file_zip(self, target, site_observations):
@@ -1009,16 +1013,16 @@ class DownloadStructures:
                 except FileNotFoundError:
                     current_size = 0
 
-                progress = min(current_size / estimated_total_size, 1.0)
+                progress = min(current_size / estimated_total_size_bytes, 1.0)
                 self.update_task(
                     ProcessState.PROCESSING, f'Compressing tarball: {progress:.1%}'
                 )
                 time.sleep(frequency)
 
-        estimated_total_size = get_total_size(str(data_path))
+        estimated_total_size_bytes = get_total_size(str(data_path))
         self._logger.info(
             'Creating tarball (estimated_total_size=%s)...',
-            estimated_total_size,
+            humanize.naturalsize(estimated_total_size_bytes, binary=True),
         )
         poll_frequency = 2
 
@@ -1092,8 +1096,8 @@ class DownloadStructures:
                     stdout=subprocess.PIPE,
                 )
                 self._logger.info(
-                    'Invoking Popen("pigz ...") (output_file=%s)...',
-                    output_file,
+                    'Invoking Popen("pigz ...") (tarball_path=%s)...',
+                    tarball_path,
                 )
                 compress_process = subprocess.Popen(
                     ['pigz', '-4', "-c"],
@@ -1114,8 +1118,8 @@ class DownloadStructures:
                     tar_process.returncode,
                 )
                 self._logger.info(
-                    'Finished Popen("pigz ...") (output_file=%s) retruncode=%s',
-                    output_file,
+                    'Finished Popen("pigz ...") (tarball_path=%s) retruncode=%s',
+                    tarball_path,
                     compress_process.returncode,
                 )
 
@@ -1401,13 +1405,15 @@ def erase_out_of_date_download_records():
     with the file-system the model should continue to reflect the current state
     of the world.
     """
+    logger.info('Erasing...')
+
     num_removed = 0
     out_of_date_dynamic_records = DownloadLinks.objects.filter(
         keep_zip_until__lt=datetime.now(timezone.utc)
     ).filter(static_link=False)
     for out_of_date_dynamic_record in out_of_date_dynamic_records:
         file_url = out_of_date_dynamic_record.file_url
-        logger.info(
+        logger.debug(
             '+ Attempting to remove download link record (file_url=%s)...', file_url
         )
 
@@ -1422,13 +1428,12 @@ def erase_out_of_date_download_records():
         # only delete the originating record if the file has been removed.
         if os.path.isdir(dir_name):
             logger.warning(
-                'Failed removal of file_url directory (%s), leaving record',
+                'Failed removal of file_url directory (%s), leaving DownloadLinks record',
                 dir_name,
             )
         else:
             logger.info(
-                'Removed file_url directory (%s), removing DownloadLinks record...',
-                dir_name,
+                'Removing out-of-date DownloadLinks record (file_url=%s)...', file_url
             )
             out_of_date_dynamic_record.delete()
             num_removed += 1
