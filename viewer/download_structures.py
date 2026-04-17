@@ -909,9 +909,7 @@ class DownloadStructures:
                 if f.is_file() and f.name not in transforms
             ]
 
-            self._logger.info(
-                '/%s/ Processing yaml files (%s)...', self.task, yaml_files
-            )
+            self._logger.debug('Processing yaml files (%s)...', yaml_files)
 
             for file in yaml_files:
                 self._logger.debug('Adding yaml file "%s"...', file)
@@ -923,7 +921,7 @@ class DownloadStructures:
     def _compound_sets_zip(self, target) -> None:
         """Add compound sets to download"""
 
-        self._logger.info('Processing computed sets')
+        self._logger.info('Processing computed sets...')
         for cset in target.computedset_set.all():
             archive_path = Path('virtual_hits').joinpath(cset.submitted_sdf.name)
             buff = StringIO()
@@ -1013,16 +1011,17 @@ class DownloadStructures:
                 except FileNotFoundError:
                     current_size = 0
 
-                progress = min(current_size / estimated_total_size_bytes, 1.0)
+                progress = min(current_size / directory_total_size_bytes, 1.0)
                 self.update_task(
                     ProcessState.PROCESSING, f'Compressing tarball: {progress:.1%}'
                 )
                 time.sleep(frequency)
 
-        estimated_total_size_bytes = get_total_size(str(data_path))
+        directory_total_size_bytes = get_total_size(str(data_path))
         self._logger.info(
-            'Creating tarball (estimated_total_size=%s)...',
-            humanize.naturalsize(estimated_total_size_bytes, binary=True),
+            'Creating tarball from %s (directory_total_size_bytes=%s)...',
+            data_path,
+            humanize.naturalsize(directory_total_size_bytes, binary=True),
         )
         poll_frequency = 2
 
@@ -1077,9 +1076,8 @@ class DownloadStructures:
                 # and creates the file
                 self.update_task(ProcessState.PROCESSING, 'Compressing tarball...')
                 self._logger.info(
-                    'Invoking Popen("tar ...") (data_path=%s name=%s)...',
-                    str(data_path.absolute()),
-                    data_path.name,
+                    'Invoking Popen("tar ...") (data_path=%s)...',
+                    data_path.absolute(),
                 )
                 tar_process = subprocess.Popen(
                     [
@@ -1091,12 +1089,11 @@ class DownloadStructures:
                         "-cf",
                         "-",
                         ".",
-                        data_path.name,
                     ],
                     stdout=subprocess.PIPE,
                 )
                 self._logger.info(
-                    'Invoking Popen("pigz ...") (tarball_path=%s)...',
+                    'Invoking Popen("pigz ...")...',
                     tarball_path,
                 )
                 compress_process = subprocess.Popen(
@@ -1123,7 +1120,12 @@ class DownloadStructures:
                     compress_process.returncode,
                 )
 
-        self._logger.info("Created tarball (tarball_path=%s)", tarball_path)
+        tarball_size_bytes: int = os.path.getsize(tarball_path)
+        self._logger.info(
+            "Created tarball (tarball_path=%s size=%s)",
+            tarball_path,
+            humanize.naturalsize(tarball_size_bytes, binary=True),
+        )
 
 
 def _is_mol_or_sdf(path):
@@ -1292,8 +1294,14 @@ def create_download_link(
         [file]: [URL to the file in the media directory]
 
     """
-    logger.info('+ Handling download for Target "%s"', target_id)
-    logger.debug('site observations "%s"', site_observation_ids)
+    task_id: str = str(task.request.id)
+    logger.info(
+        '/%s/ Handling download (target_id=%s TAS=%s)"',
+        task_id,
+        target_id,
+        target_access_string,
+    )
+    logger.debug('/%s/ site observations "%s"', task_id, site_observation_ids)
     import timeit
 
     t_0 = timeit.default_timer()
@@ -1313,15 +1321,16 @@ def create_download_link(
     )
 
     logger.debug(
-        'Given %s SiteObservation records: %r',
+        '/%s/ Given %s SiteObservation records: %r',
+        task_id,
         site_observations.count(),
         site_observation_ids,
     )
 
     protein_params, other_params, static_link = get_download_params(validated_data)
-    logger.debug('proteins_params: %s', protein_params)
-    logger.debug('other_params: %s', other_params)
-    logger.debug('static_link: %s', static_link)
+    logger.debug('/%s/ proteins_params: %s', task_id, protein_params)
+    logger.debug('/%s/ other_params: %s', task_id, other_params)
+    logger.debug('/%s/ static_link: %s', task_id, static_link)
 
     # No existing Download record - create one,
     # which requires construction of the file prior to creating the record.
@@ -1335,7 +1344,9 @@ def create_download_link(
     file_url = os.path.join(
         settings.MEDIA_ROOT, 'downloads', str(uuid.uuid4()), filename
     )
-    logger.info('Creating new download (file_url=%s)...', file_url)
+    logger.info(
+        '/%s/ Creating new DownloadLinks record (file_url=%s)...', task_id, file_url
+    )
 
     with TemporaryDirectory() as tempdir:
         downloader = DownloadStructures(
@@ -1389,9 +1400,9 @@ def create_download_link(
             "description": file_url,
         },
     )
-    logger.info('- Handled new record (file_url=%s)', file_url)
+    logger.info('/%s/ New DownloadLinks record (file_url=%s)', task_id, file_url)
     t_end = timeit.default_timer()
-    logger.debug('timings, zipcompile: %s', t_end - t_0)
+    logger.debug('/%s/ Timings zipcompile: %s', task_id, t_end - t_0)
 
     return file_url
 
