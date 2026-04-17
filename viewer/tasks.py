@@ -28,7 +28,7 @@ from viewer.models import Compound, DesignSet
 from viewer.target_loader import load_target
 
 from .cset_upload import MolOps, PdbOps, blank_mol_vals
-from .download_structures import create_download_link
+from .download_structures import create_download
 from .models import ComputedSet, JobFileTransfer, JobRequest, SiteObservation
 from .sdf_check import (  # check_refmol,
     add_warning,
@@ -710,7 +710,7 @@ def erase_compound_set_job_material(task_params, job_request_id=0):
 
 
 @celery_app.task(bind=True)
-def task_create_download_link(
+def task_create_download(
     self,
     download_link_id: int,
     use_zip: bool = False,
@@ -720,5 +720,5 @@ def task_create_download_link(
         self.request.id,
         download_link_id,
     )
-    create_download_link(download_link_id, task=self, use_zip=use_zip)
+    create_download(download_link_id, task=self, use_zip=use_zip)
     logger.info('TASK %s create_download_link completed', self.request.id)

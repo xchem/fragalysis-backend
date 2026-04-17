@@ -731,7 +731,7 @@ class DownloadStructures:
         num_smiles = 0
         with open(smiles_filename, 'w', encoding='utf-8') as smilesfile:
             for smi in zip_contents['molecules']['smiles_info']:
-                logger.debug('Adding "%s"...', smi)
+                # logger.debug('Adding "%s"...', smi)
                 smilesfile.write(f'{smi},')
                 num_smiles += 1
 
@@ -854,7 +854,7 @@ class DownloadStructures:
                     if soakdb_files or (
                         not soakdb_files and filepath.find('soakdb_') < 0
                     ):
-                        logger.info('Adding extra file "%s"...', filepath)
+                        # logger.info('Adding extra file "%s"...', filepath)
                         self.write_symlink(
                             filepath,
                             os.path.join(
@@ -903,7 +903,7 @@ class DownloadStructures:
             logger.info('Processing yaml files (%s)...', yaml_files)
 
             for file in yaml_files:
-                logger.info('Adding yaml file "%s"...', file)
+                # logger.info('Adding yaml file "%s"...', file)
                 if not transforms_requested and file.name == 'neighbourhoods.yaml':
                     # don't add this file if transforms are not requested
                     continue
@@ -1163,67 +1163,7 @@ def get_download_params(validated_data):
     return protein_params, other_params, static_link
 
 
-# def return_download_link(
-#     target,
-#     site_observations,
-#     protein_params,
-#     other_params,
-#     static_link,
-# ):
-#     """Return a link to existing downloadable zip file.
-
-#     Downloads are located in <MEDIA_ROOT>/downloads/ using a subdirectory
-#     using a UUID-4 value, with the file located in it, using the target title.
-#     For example: "/code/media/downloads/4c3afc69-bca9-4fb1-a76e-56c85a85899f/XX01ZVNS2B.zip".
-
-#     Returns:
-#         [file]: [URL to the file in the media directory]
-#     """
-#     logger.info('+ Handling download for Target "%s"', target.title)
-#     # Log the provided SiteObservations
-#     logger.debug(
-#         'Given %s SiteObservation records: %s',
-#         site_observations.count(),
-#         site_observations.values_list('pk', flat=True),
-#     )
-
-#     logger.debug('proteins_params: %s', protein_params)
-#     logger.debug('other_params: %s', other_params)
-#     logger.debug('static_link: %s', static_link)
-
-#     # Save the list of protein codes - this is the ispybsafe set for this user.
-#     proteins_list = ','.join(
-#         list(site_observations.order_by('code').values_list('code', flat=True)),
-#     )
-#     # logger.debug('proteins_list: %s', proteins_list)
-
-#     existing_link = DownloadLinks.objects.filter(
-#         target_id=target.id,
-#         proteins=proteins_list,
-#         protein_params=protein_params,
-#         other_params=other_params,
-#     ).first()
-#     # Leave if 'first()' returns None
-#     if not existing_link:
-#         raise ValueError()
-
-#     # Dynamic to static?
-#     # Static link records are never removed.
-#     if static_link and not existing_link.static_link:
-#         logger.info(
-#             'Converting dynamic link to static link (%s)', existing_link.file_url
-#         )
-#         existing_link.static_link = True
-#         existing_link.save()
-#     # Now return the file...
-#     file_url = existing_link.file_url
-#     # assert os.path.isfile(file_url)
-#     logger.info('- Handled existing download (file_url=%s)', file_url)
-
-#     return file_url
-
-
-def create_download_link(download_link_id: int, task, use_zip: bool = False):
+def create_download(download_link_id: int, task, use_zip: bool = False):
     """Check/create a download zip file.
 
     This function is being ran inside a celery task, hence the object
@@ -1262,11 +1202,6 @@ def create_download_link(download_link_id: int, task, use_zip: bool = False):
             "description": 'Start processing',
         },
     )
-
-    # protein_params, other_params, static_link = get_download_params(validated_data)
-    # logger.debug('proteins_params: %s', protein_params)
-    # logger.debug('other_params: %s', other_params)
-    # logger.debug('static_link: %s', static_link)
 
     # No existing Download record - create one,
     # which requires construction of the file prior to creating the record.
@@ -1310,6 +1245,7 @@ def create_download_link(download_link_id: int, task, use_zip: bool = False):
         },
     )
 
+    download_link.file_url = file_url
     download_link.keep_zip_until = datetime.now() + KEEP_UNTIL_DURATION
     download_link.save()
 

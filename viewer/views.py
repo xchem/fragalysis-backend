@@ -85,7 +85,7 @@ from .tags import load_tags_from_file
 from .tasks import (
     process_compound_set,
     process_job_file_transfer,
-    task_create_download_link,
+    task_create_download,
     task_load_target,
     validate_compound_set,
 )
@@ -1575,6 +1575,9 @@ class DownloadStructuresView(
         # I don't understand this bit.. what is it doing?
         # in any case, can I move it to DownloadLinks instance method?
         # is it for older downloads, those with static link?
+        # update: still don't understand this bit.
+        # getting a feeling it shouldn't be here
+        # just with file_url you can bypass authentication
         if serializer.validated_data['file_url']:
             file_url = serializer.validated_data['file_url']
             logger.info('Given file_url "%s"', file_url)
@@ -1698,12 +1701,19 @@ class DownloadStructuresView(
             content = {'message': f'Download Error! ({INFECTION_STRUCTURE_DOWNLOAD})'}
             return Response(content, status=status.HTTP_404_NOT_FOUND)
 
-        existing_link = models.DownloadLinks.objects.filter(
-            target=target,
-            proteins=proteins_list,
-            protein_params=protein_params,
-            other_params=other_params,
+        existing_link = (
+            models.DownloadLinks.objects.filter(
+                target=download_link.target,
+                proteins=download_link.proteins,
+                protein_params=download_link.protein_params,
+                other_params=download_link.other_params,
+            )
+            .exclude(
+                pk=download_link.pk,
+            )
+            .first()
         )
+
         # found a download attempt with exact same parameters
         if existing_link:
             # still useful, bump keep time
@@ -1725,7 +1735,7 @@ class DownloadStructuresView(
             # original_search = copy.deepcopy(request.data)
             # original_search.pop('csrfmiddlewaretoken', None)
 
-            task = task_create_download_link.delay(
+            task = task_create_download.delay(
                 download_link_id=download_link.pk,
                 use_zip=serializer.validated_data.get('use_zip', False),
             )
