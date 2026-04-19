@@ -185,12 +185,15 @@ _METADATA_FILE = 'metadata.csv'
 
 
 class DownloadStructures:
-    def __init__(self, *, tempdir, task, target, use_zip, target_access_string):
+    def __init__(
+        self, *, tempdir, task, target, use_zip, target_access_string, username
+    ):
         self.task = task
         self.use_zip = use_zip
         self.tempdir = tempdir
         self.target_access_string = target_access_string
         self.target = target
+        self.username = username
 
         self._temp_path = Path(self.tempdir)
         self._combined_sdf_path = self._temp_path.joinpath(
@@ -205,6 +208,7 @@ class DownloadStructures:
                 'task': str(task.request.id),
                 'target': target,
                 'tas': target_access_string,
+                'username': username,
             },
         )
 
@@ -1354,6 +1358,7 @@ def create_download_link(
             target=target,
             use_zip=validated_data['use_zip'],
             target_access_string=target_access_string,
+            username=user.username,
         )
         zip_contents = downloader.create_content_dict(
             site_obvs=site_observations,
