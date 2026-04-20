@@ -721,7 +721,7 @@ def task_create_download_link(
     target_access_string,
 ):
     logger.info(
-        'TASK %s create_download_link launched, target_zip=%s',
+        'TASK %s launched - target_zip=%s',
         self.request.id,
         validated_data,
     )
