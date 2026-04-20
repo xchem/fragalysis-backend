@@ -212,6 +212,7 @@ class DownloadStructures:
             logger,
             {
                 'task': str(task.request.id),
+                'marker': 'DOWNLOAD',
             },
         )
 
@@ -1311,6 +1312,7 @@ def create_download_link(
         logger,
         {
             'task': str(task.request.id),
+            'marker': 'DOWNLOAD',
             'target': target,
             'tas': target_access_string,
             'username': user.username,
