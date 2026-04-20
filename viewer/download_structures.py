@@ -1297,23 +1297,29 @@ def create_download_link(
         [file]: [URL to the file in the media directory]
 
     """
-    task_id: str = str(task.request.id)
-    logger.info(
-        '/%s/ Handling download (target_id=%s TAS=%s)"',
-        task_id,
-        target_id,
-        target_access_string,
-    )
-    logger.debug('/%s/ site observations "%s"', task_id, site_observation_ids)
-    import timeit
-
-    t_0 = timeit.default_timer()
-
     # error checking is not necessary because all these objects are
     # already resolved in the view and then passed through task
     target = Target.objects.get(pk=target_id)
     site_observations = SiteObservation.objects.filter(pk__in=site_observation_ids)
     user = get_user_model().objects.get(pk=user_id)
+
+    # A custom logging adapter to refine the standard logger
+    # by adding lightweight Task context to the messages we log
+    _logger = TaskLoggerAdapter(
+        logger,
+        {
+            'task': str(task.request.id),
+            'target': target,
+            'tas': target_access_string,
+            'username': user.username,
+        },
+    )
+
+    _logger.info('Handling download (target_id=%s)', target_id)
+    _logger.debug('site_observation_ids=%s', site_observation_ids)
+    import timeit
+
+    t_0 = timeit.default_timer()
 
     task.update_state(
         state=ProcessState.PROCESSING,
@@ -1323,17 +1329,16 @@ def create_download_link(
         },
     )
 
-    logger.debug(
-        '/%s/ Given %s SiteObservation records: %r',
-        task_id,
+    _logger.debug(
+        'Given %s SiteObservation records: %r',
         site_observations.count(),
         site_observation_ids,
     )
 
     protein_params, other_params, static_link = get_download_params(validated_data)
-    logger.debug('/%s/ proteins_params: %s', task_id, protein_params)
-    logger.debug('/%s/ other_params: %s', task_id, other_params)
-    logger.debug('/%s/ static_link: %s', task_id, static_link)
+    _logger.debug('proteins_params: %s', protein_params)
+    _logger.debug('other_params: %s', other_params)
+    _logger.debug('static_link: %s', static_link)
 
     # No existing Download record - create one,
     # which requires construction of the file prior to creating the record.
@@ -1347,9 +1352,7 @@ def create_download_link(
     file_url = os.path.join(
         settings.MEDIA_ROOT, 'downloads', str(uuid.uuid4()), filename
     )
-    logger.info(
-        '/%s/ Creating new DownloadLinks record (file_url=%s)...', task_id, file_url
-    )
+    _logger.info('Creating new DownloadLinks record (file_url=%s)...', file_url)
 
     with TemporaryDirectory() as tempdir:
         downloader = DownloadStructures(
@@ -1404,9 +1407,9 @@ def create_download_link(
             "description": file_url,
         },
     )
-    logger.info('/%s/ New DownloadLinks record (file_url=%s)', task_id, file_url)
+    _logger.info('New DownloadLinks record (file_url=%s)', file_url)
     t_end = timeit.default_timer()
-    logger.debug('/%s/ Timings zipcompile: %s', task_id, t_end - t_0)
+    _logger.debug('Timings zipcompile: %s', t_end - t_0)
 
     return file_url
 
