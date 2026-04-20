@@ -201,14 +201,17 @@ class DownloadStructures:
         )
         self._error_file = self._temp_path.joinpath(_ERROR_FILE)
         # A custom logging adapter to refine the standard logger
-        # by adding lightweight context to the messages we log
+        # by adding lightweight context to the messages we log.
+        # We don't add Target, TAS, or Username.
+        #
+        # The assumption is that it's already logged by the outer
+        # 'create_download_link()' function and probably unnecessary to add this
+        # information on every line - the Task ID should be enough to find matching
+        # lines.
         self._logger = TaskLoggerAdapter(
             logger,
             {
                 'task': str(task.request.id),
-                'target': target,
-                'tas': target_access_string,
-                'username': username,
             },
         )
 
@@ -617,10 +620,9 @@ class DownloadStructures:
         Returns:
             [boolean]: [True of record added to archive]
         """
-        self._logger.debug('+_add_file_to_zip_aligned: %s, %s', code, archive_file)
         if not archive_file:
             # Odd - assume success
-            self._logger.error('No filepath value')
+            self._logger.debug('No archive_file')
             return True
 
         # calling str on archive_file.path because could be None
@@ -670,7 +672,7 @@ class DownloadStructures:
         """
         if not archive_file.path:
             # Odd - assume success
-            self._logger.error('No filepath value')
+            self._logger.debug('No archive_file.path value')
             return True
 
         if archive_file.path and archive_file.path != 'None':
@@ -1315,8 +1317,15 @@ def create_download_link(
         },
     )
 
+    # Always issue an INFO - we're one of the first functions to run
+    # for this task. Here we provide the Task, Target, TAS and Username.
+    # Other users of TaskLoggerAdapter can omit properties other than
+    # the Task in order to shorten lines. The Task gives uas a key
+    # correaltion value so that we can find matching lines.
     _logger.info('Handling download (target_id=%s)', target_id)
+
     _logger.debug('site_observation_ids=%s', site_observation_ids)
+
     import timeit
 
     t_0 = timeit.default_timer()
