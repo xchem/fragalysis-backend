@@ -1441,9 +1441,8 @@ def erase_out_of_date_download_records():
     for out_of_date_dynamic_record in out_of_date_dynamic_records:
         file_url = out_of_date_dynamic_record.file_url
         logger.info(
-            'DownloadLinks record is too old (file_url=%s create_date=%s keep_zip_until=%s)...',
+            'Too old (file_url=%s keep_zip_until=%s)...',
             file_url,
-            out_of_date_dynamic_record.create_date,
             out_of_date_dynamic_record.keep_zip_until,
         )
 
@@ -1454,23 +1453,27 @@ def erase_out_of_date_download_records():
                 shutil.rmtree(dir_name)
                 logger.debug('Removed %s', dir_name)
             except Exception as ex:
-                logger.warning('Failed to remove %s (%s)', dir_name, ex)
+                # Avoid potential race condition deleting the directory.
+                # It's possible another call or stack Pod has deleted the directory
+                # since we checked on line 1450. Issue a warning if the error
+                # does not look like 'No such file or directory'...
+                if 'No such file' not in str(ex):
+                    logger.warning('Failed to remove %s (%s)', dir_name, ex)
 
         # Does the file directory exist now?
-        # Hopefully not - but cater for 'cosmic-ray-effect' and
-        # only delete the originating record if the directory has been removed.
+        # Only delete the originating record if the directory has been removed.
         if os.path.isdir(dir_name):
             logger.warning(
-                'Failed to remove %s, leaving record alone',
+                'Failed to remove %s, leaving it alone until next time',
                 dir_name,
             )
         else:
             out_of_date_dynamic_record.delete()
             num_removed += 1
-            logger.debug('DownloadLinks record deleted (file_url=%s)...', file_url)
+            logger.debug('DownloadLinks deleted (file_url=%s)...', file_url)
 
     if num_removed:
-        logger.info('Erased %d out of date DownloadLinks records', num_removed)
+        logger.info('Erased %d old DownloadLinks records', num_removed)
 
 
 # TODO: issue with single_sdf file
