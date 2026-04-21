@@ -13,7 +13,7 @@ def file_download(request, file_path):
     :param file_path: the file path we're getting from the static
     :return: the response (a redirect to nginx internal)
     """
-    logger.info("+ Received file_download file path: %s", file_path)
+    logger.debug("+ Received file_download file path: %s", file_path)
     ispy_b_static = ISPyBSafeStaticFiles2()
     # ispy_b_static = ISpyBSafeStaticFiles()
     ispy_b_static.model = SiteObservation
@@ -38,7 +38,7 @@ def tld_download(request, file_path):
     :param file_path: the file path we're getting from the static
     :return: the response (a redirect to nginx internal)
     """
-    logger.info("+ Received tld_download file path: %s", file_path)
+    logger.debug("+ Received tld_download file path: %s", file_path)
     ispy_b_static = ISPyBSafeStaticFiles2()
     # ispy_b_static = ISpyBSafeStaticFiles()
     ispy_b_static.model = SiteObservation
@@ -59,7 +59,7 @@ def cspdb_download(request, file_path):
     :param file_path: the file path we're getting from the static
     :return: the response (a redirect to nginx internal)
     """
-    logger.info("+ Received cspdb_download file path: %s", file_path)
+    logger.debug("+ Received cspdb_download file path: %s", file_path)
     ispy_b_static = ISPyBSafeStaticFiles2()
     ispy_b_static.model = SiteObservation
     ispy_b_static.request = request
