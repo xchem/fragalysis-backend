@@ -989,7 +989,7 @@ class TargetExperimentReadSerializer(ValidateProjectMixin, serializers.ModelSeri
 
 class TargetExperimentWriteSerializer(serializers.ModelSerializer):
     target_access_string = serializers.CharField(label='Target Access String')
-    file = serializers.FileField(required=False)
+    file = serializers.FileField()
     sha256checksum = serializers.CharField(required=False)
 
     def validate(self, data):
