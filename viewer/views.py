@@ -3517,3 +3517,17 @@ class TASStatsView(viewsets.ViewSet):
         }
 
         return JsonResponse(result)
+
+
+class ComputedInspirationView(ISPyBSafeQuerySet):
+    """Set up/retrieve information about tags relating to Session Projects."""
+
+    queryset = models.ComputedInspiration.objects.all()
+    filter_permissions = "computed_set__target__project"
+    serializer_class = serializers.ComputedInspirationSerializer
+    filterset_fields = (
+        'site_observation',
+        'computed_inspiration',
+        'computed_set',
+        'computed_set__target',
+    )

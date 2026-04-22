@@ -1509,3 +1509,9 @@ class PlotDataSerializer(serializers.ModelSerializer):
             "last_name": {"read_only": True},
             "upload_time": {"read_only": True},
         }
+
+
+class ComputedInspirationSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = models.ComputedInspiration
+        fields = '__all__'

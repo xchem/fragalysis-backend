@@ -186,6 +186,12 @@ router.register(
     basename='activity_data_curation',
 )
 
+router.register(
+    "computed_inspirations",
+    viewer_views.ComputedInspirationView,
+    basename='computed_inspirations',
+)
+
 router.register("plot_data", viewer_views.PlotDataView, basename='plot_data')
 
 router.register("user", viewer_views.TASStatsView, basename='user')
