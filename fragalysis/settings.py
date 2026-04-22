@@ -343,9 +343,9 @@ DATABASES = {
         "USER": os.environ.get("POSTGRESQL_USER", "fragalysis"),
         "PASSWORD": os.environ.get("POSTGRESQL_PASSWORD", "fragalysis"),
         "HOST": os.environ.get("POSTGRESQL_HOST", "database"),
-        "PORT": os.environ.get("POSTGRESQL_PORT", 5432),
-        # If using a connection poller (like pgBouncer),
-        # DISABLE_SERVER_SIDE_CURSORS must be True (yes)...
+        "PORT": int(os.environ.get("POSTGRESQL_PORT", 5432)),
+        # If using a DB connection pooler (like pgBouncer),
+        # DISABLE_SERVER_SIDE_CURSORS must be True (yes).
         "DISABLE_SERVER_SIDE_CURSORS": os.environ.get(
             "POSTGRESQL_DISABLE_SERVER_SIDE_CURSORS", "yes"
         ).lower()
