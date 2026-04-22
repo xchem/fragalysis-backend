@@ -22,6 +22,7 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 from typing import Any, Dict
 
+import humanize
 import pandas as pd
 import pandoc
 import requests
@@ -35,6 +36,7 @@ from rdkit import Chem
 from viewer.models import DownloadLinks, SiteObservation, Target
 from viewer.utils import clean_filename
 
+from .logger_adapters import TaskLoggerAdapter
 from .tags import get_metadata_fields
 from .target_loader import strip_exp_code
 from .utils import profile
@@ -183,18 +185,36 @@ _METADATA_FILE = 'metadata.csv'
 
 
 class DownloadStructures:
-    def __init__(self, *, tempdir, task, target, use_zip, target_access_string):
+    def __init__(
+        self, *, tempdir, task, target, use_zip, target_access_string, username
+    ):
         self.task = task
         self.use_zip = use_zip
         self.tempdir = tempdir
         self.target_access_string = target_access_string
         self.target = target
+        self.username = username
 
         self._temp_path = Path(self.tempdir)
         self._combined_sdf_path = self._temp_path.joinpath(
             f'{target.title}_combined.sdf'
         )
         self._error_file = self._temp_path.joinpath(_ERROR_FILE)
+        # A custom logging adapter to refine the standard logger
+        # by adding lightweight context to the messages we log.
+        # We don't add Target, TAS, or Username.
+        #
+        # The assumption is that it's already logged by the outer
+        # 'create_download_link()' function and probably unnecessary to add this
+        # information on every line - the Task ID should be enough to find matching
+        # lines.
+        self._logger = TaskLoggerAdapter(
+            logger,
+            {
+                'task': str(task.request.id),
+                'marker': 'DOWNLOAD',
+            },
+        )
 
     @property
     def temp_path(self) -> Path:
@@ -226,7 +246,7 @@ class DownloadStructures:
         Returns:
             [dict]: [dictionary containing the file contents]
         """
-        logger.info('Processing %d SiteObservations', site_obvs.count())
+        self._logger.info('Processing %d SiteObservations', site_obvs.count())
         self.update_task(ProcessState.PROCESSING, 'Creating tarball contents...')
 
         # Read through zip_params to compile the parameters
@@ -258,7 +278,7 @@ class DownloadStructures:
                     if param in ['pdb_info', 'mtz_info', 'cif_info', 'map_info']:
                         # experiment object
                         model_attr = getattr(so.experiment, param)
-                        logger.debug(
+                        self._logger.debug(
                             'Adding param to zip: %s, value: %s', param, model_attr
                         )
                         if param != 'map_info':
@@ -276,7 +296,7 @@ class DownloadStructures:
                             try:
                                 exp_path = strip_exp_code(so.experiment.code)
                             except ValueError:
-                                logger.error(
+                                self._logger.error(
                                     'Unexpected experiment code format: %s',
                                     so.experiment.code,
                                 )
@@ -312,7 +332,7 @@ class DownloadStructures:
                         # siteobservation object
 
                         model_attr = getattr(so, param)
-                        logger.debug(
+                        self._logger.debug(
                             'Adding param to zip: %s, value: %s', param, model_attr
                         )
                         apath = Path('aligned_files').joinpath(so.code)
@@ -336,7 +356,7 @@ class DownloadStructures:
                         ]
 
                     else:
-                        logger.warning('Unexpected param: %s', param)
+                        self._logger.warning('Unexpected param: %s', param)
                         continue
 
                     zip_contents['proteins'][param][so.code] = afile
@@ -404,26 +424,26 @@ class DownloadStructures:
                     num_molecules_collected += 1
                 else:
                     # No file value (odd).
-                    logger.warning(
+                    self._logger.warning(
                         "SiteObservation record's 'ligand_sdf' isn't set (%s)", so
                     )
                     num_missing_sd_files += 1
 
             # Report (in the log) anomalies
             if num_molecules_collected == 0:
-                logger.warning('No SD files collected')
+                self._logger.warning('No SD files collected')
             else:
-                logger.info('%s SD files collected', num_molecules_collected)
+                self._logger.info('%s SD files collected', num_molecules_collected)
 
             if site_obvs.count() != num_molecules_collected:
-                logger.warning(
+                self._logger.warning(
                     'Expected %d files, got %d',
                     site_obvs.count(),
                     num_molecules_collected,
                 )
 
             if num_missing_sd_files > 0:
-                logger.warning('%d missing files', num_missing_sd_files)
+                self._logger.warning('%d missing files', num_missing_sd_files)
 
         # The smiles at molecule level may not be unique.
         if other_params['smiles_info'] is True:
@@ -449,18 +469,17 @@ class DownloadStructures:
     ):
         """Write a ZIP file containing data from an input dictionary."""
 
-        logger.info('+ _create_structures_zip(%s)', self.target.title)
-        logger.info('file_url="%s"', file_url)
-        logger.info(
+        self._logger.info('file_url="%s"', file_url)
+        self._logger.info(
             'single_sdf_file="%s"', zip_contents['molecules']['single_sdf_file']
         )
-        logger.info('sdf_files=%s', zip_contents['molecules']['sdf_files'])
+        self._logger.info('sdf_files=%s', zip_contents['molecules']['sdf_files'])
 
-        logger.debug('zip_contents=%s', zip_contents)
+        self._logger.debug('zip_contents=%s', zip_contents)
         self.update_task(ProcessState.PROCESSING, 'Creating tarball...')
 
         download_path = os.path.dirname(file_url)
-        logger.info('Creating download path (%s)', download_path)
+        self._logger.info('Creating download path (%s)', download_path)
         os.makedirs(download_path, exist_ok=True)
 
         error_filename = str(self.error_file)
@@ -473,13 +492,13 @@ class DownloadStructures:
         combined_sdf_file = None
         if zip_contents['molecules']['single_sdf_file'] is True:
             combined_sdf_file = str(self.combined_sdf_path)
-            logger.info('combined_sdf_file=%s', combined_sdf_file)
+            self._logger.info('combined_sdf_file=%s', combined_sdf_file)
 
         # Read through zip_contents to compile the file
         self.update_task(ProcessState.PROCESSING, 'Adding PDBs...')
         errors += self._protein_files_zip(zip_contents, error_file)
         if errors > 0:
-            logger.warning('After _protein_files_zip() errors=%s', errors)
+            self._logger.warning('After _protein_files_zip() errors=%s', errors)
 
         self.update_task(ProcessState.PROCESSING, 'Adding SDFs...')
         if zip_contents['molecules']['sdf_files']:
@@ -488,7 +507,7 @@ class DownloadStructures:
                 zip_contents, combined_sdf_file, error_file
             )
             if errors > errors_before:
-                logger.warning('After _molecule_files_zip() errors=%s', errors)
+                self._logger.warning('After _molecule_files_zip() errors=%s', errors)
 
         # If smiles info is required, then write one column for each molecule
         # to a smiles.smi file and then add to the archive.
@@ -534,7 +553,7 @@ class DownloadStructures:
         t_0 = timeit.default_timer()
         self.compress_directory(self.temp_path, file_url)
         t_end = timeit.default_timer()
-        logger.debug('timings, compression time: %s', t_end - t_0)
+        self._logger.debug('timings, compression time: %s', t_end - t_0)
 
     def update_task(self, status: ProcessState, message: str):
         self.task.update_state(
@@ -585,7 +604,7 @@ class DownloadStructures:
         Used to send an explicit signal to the downloader that the file is
         missing.
         """
-        logger.debug('+_add_empty_file: %s', archive_path)
+        self._logger.debug('+_add_empty_file: %s', archive_path)
         self.write_file('', f'{archive_path}_FILE_NOT_IN_UPLOAD')
 
     def _add_file_to_zip_aligned(self, code, archive_file):
@@ -602,15 +621,14 @@ class DownloadStructures:
         Returns:
             [boolean]: [True of record added to archive]
         """
-        logger.debug('+_add_file_to_zip_aligned: %s, %s', code, archive_file)
         if not archive_file:
             # Odd - assume success
-            logger.error('No filepath value')
+            self._logger.debug('No archive_file')
             return True
 
         # calling str on archive_file.path because could be None
         filepath = str(Path(settings.MEDIA_ROOT).joinpath(str(archive_file.path)))
-        logger.debug(
+        self._logger.debug(
             'value and type of archive path: %s, %s',
             archive_file.path,
             type(archive_file.path),
@@ -638,7 +656,7 @@ class DownloadStructures:
                 )
                 return True
 
-        logger.warning('filepath "%s" is not a file', filepath)
+        self._logger.debug('filepath "%s" is not a file', filepath)
         self._add_empty_file(archive_file.archive_path)
 
         return False
@@ -655,7 +673,7 @@ class DownloadStructures:
         """
         if not archive_file.path:
             # Odd - assume success
-            logger.error('No filepath value')
+            self._logger.debug('No archive_file.path value')
             return True
 
         if archive_file.path and archive_file.path != 'None':
@@ -666,7 +684,7 @@ class DownloadStructures:
                 f_out.write(patched_sdf_content)
             return True
         else:
-            logger.warning('filepath "%s" is not a file', archive_file.path)
+            self._logger.debug('filepath "%s" is not a file', archive_file.path)
 
         return False
 
@@ -694,7 +712,7 @@ class DownloadStructures:
         """
 
         mol_errors = 0
-        logger.info(
+        self._logger.info(
             'len(molecules.sd_files)=%s', len(zip_contents['molecules']['sdf_files'])
         )
         for archive_file, prot in zip_contents['molecules']['sdf_files'].items():
@@ -724,16 +742,16 @@ class DownloadStructures:
     def _smiles_files_zip(self, zip_contents):
         """Create and write the smiles file to the ZIP file"""
         smiles_filename = self.temp_path.joinpath('smiles.smi')
-        logger.info('Creating SMILES file "%s"...', smiles_filename)
+        self._logger.info('Creating SMILES file "%s"...', smiles_filename)
 
         num_smiles = 0
         with open(smiles_filename, 'w', encoding='utf-8') as smilesfile:
             for smi in zip_contents['molecules']['smiles_info']:
-                logger.debug('Adding "%s"...', smi)
+                self._logger.debug('Adding "%s"...', smi)
                 smilesfile.write(f'{smi},')
                 num_smiles += 1
 
-        logger.info('Added %s SMILES', num_smiles)
+        self._logger.info('Added %s SMILES', num_smiles)
 
     def _trans_matrix_files_zip(self, target):
         """Add transformation matrices to archive.
@@ -741,7 +759,7 @@ class DownloadStructures:
         Note that this will always be the latest information - even for
         preserved searches.
         """
-        logger.info('+ Processing trans matrix files')
+        self._logger.info('+ Processing trans matrix files')
 
         # grab the last set of files for this target
         experiment_upload = target.experimentupload_set.order_by(
@@ -767,12 +785,12 @@ class DownloadStructures:
             if filepath.is_file():
                 self.write_symlink(filepath, archive_path)
             else:
-                logger.warning('File %s does not exist', Path(str(tmf)).name)
+                self._logger.debug('File %s does not exist', Path(str(tmf)).name)
                 self._add_empty_file(archive_path)
 
     def _metadata_file_zip(self, target, site_observations):
         """Compile and add metadata file to archive."""
-        logger.info('+ Processing metadata')
+        self._logger.info('Processing metadata...')
 
         header, annotations, values = get_metadata_fields(target)
 
@@ -798,9 +816,9 @@ class DownloadStructures:
         # fmt: on
 
         df = pd.DataFrame(qs)
-        logger.debug('qs: %s', qs)
-        logger.debug('annotations: %s', annotations.keys())
-        logger.debug('values: %s', values)
+        self._logger.debug('qs: %s', qs)
+        self._logger.debug('annotations: %s', annotations.keys())
+        self._logger.debug('values: %s', values)
 
         columns = [header[values.index(k)] for k in df.columns]
         df.columns = columns
@@ -816,7 +834,6 @@ class DownloadStructures:
         )
         buff.seek(0)
         self.write_file(buff.getvalue(), _METADATA_FILE)
-        logger.info('- Processing metadata')
 
     def _extra_files_zip(self, target, soakdb_files=True):
         """If an extra info folder exists at the target root level, then
@@ -841,8 +858,8 @@ class DownloadStructures:
 
         extra_files = extra_files.joinpath('extra_files')
 
-        logger.debug('extra_files path 2: %s', extra_files)
-        logger.info('Processing extra files (%s)...', extra_files)
+        self._logger.debug('extra_files path 2: %s', extra_files)
+        self._logger.info('Processing extra files (%s)...', extra_files)
 
         if extra_files.is_dir():
             num_extra_dir = num_extra_dir + 1
@@ -852,7 +869,7 @@ class DownloadStructures:
                     if soakdb_files or (
                         not soakdb_files and filepath.find('soakdb_') < 0
                     ):
-                        logger.info('Adding extra file "%s"...', filepath)
+                        self._logger.info('Adding extra file "%s"...', filepath)
                         self.write_symlink(
                             filepath,
                             os.path.join(
@@ -861,12 +878,12 @@ class DownloadStructures:
                         )
                         num_processed += 1
         else:
-            logger.info('Directory does not exist (%s)...', extra_files)
+            self._logger.info('Directory does not exist (%s)...', extra_files)
 
         if num_processed == 0:
-            logger.info('No extra files found')
+            self._logger.info('No extra files found')
         else:
-            logger.info('Processed %s extra files', num_processed)
+            self._logger.info('Processed %s extra files', num_processed)
 
     def _yaml_files_zip(self, target, transforms_requested: bool = False) -> None:
         """Add all yaml files (except transforms) from upload to ziparchive"""
@@ -898,10 +915,10 @@ class DownloadStructures:
                 if f.is_file() and f.name not in transforms
             ]
 
-            logger.info('Processing yaml files (%s)...', yaml_files)
+            self._logger.debug('Processing yaml files (%s)...', yaml_files)
 
             for file in yaml_files:
-                logger.info('Adding yaml file "%s"...', file)
+                self._logger.debug('Adding yaml file "%s"...', file)
                 if not transforms_requested and file.name == 'neighbourhoods.yaml':
                     # don't add this file if transforms are not requested
                     continue
@@ -910,15 +927,15 @@ class DownloadStructures:
     def _compound_sets_zip(self, target) -> None:
         """Add compound sets to download"""
 
-        logger.info('Processing computed sets')
+        self._logger.info('Processing computed sets...')
         for cset in target.computedset_set.all():
             archive_path = Path('virtual_hits').joinpath(cset.submitted_sdf.name)
             buff = StringIO()
             writer = Chem.SDWriter(buff)
             for cmol in cset.computed_molecules.all():
-                logger.debug('Processing computed molecule (%s)...', cmol.name)
+                self._logger.debug('Processing computed molecule (%s)...', cmol.name)
                 mol = Chem.MolFromMolBlock(cmol.sdf_info)
-                logger.debug('mol: %s', mol)
+                self._logger.debug('mol: %s', mol)
                 mol.SetProp('_Name', cmol.name)
                 for prop in cmol.numericalscorevalues_set.all():
                     mol.SetProp(prop.score.name, str(prop.value))
@@ -934,7 +951,7 @@ class DownloadStructures:
         This consists of a template plus an added contents description.
         """
 
-        logger.info('Creating documentation...')
+        self._logger.info('Creating documentation...')
 
         template_file = os.path.join(
             "/code/doc_templates", "download_readme_template.md"
@@ -975,7 +992,7 @@ class DownloadStructures:
             with open(template_file, "r", encoding="utf-8") as template:
                 readme.write(template.read())
         else:
-            logger.warning('Could not find template file (%s)', template_file)
+            self._logger.warning('Could not find template file (%s)', template_file)
 
         # Files Included
         list_of_files = list(self.temp_path.rglob('*'))
@@ -1000,14 +1017,18 @@ class DownloadStructures:
                 except FileNotFoundError:
                     current_size = 0
 
-                progress = min(current_size / estimated_total_size, 1.0)
+                progress = min(current_size / directory_total_size_bytes, 1.0)
                 self.update_task(
                     ProcessState.PROCESSING, f'Compressing tarball: {progress:.1%}'
                 )
                 time.sleep(frequency)
 
-        estimated_total_size = get_total_size(str(data_path))
-        logger.debug('estimated data dir size: %s', estimated_total_size)
+        directory_total_size_bytes = get_total_size(str(data_path))
+        self._logger.info(
+            'Creating tarball from %s (directory_total_size_bytes=%s)...',
+            data_path,
+            humanize.naturalsize(directory_total_size_bytes, binary=True),
+        )
         poll_frequency = 2
 
         if self.use_zip:
@@ -1022,20 +1043,36 @@ class DownloadStructures:
                 # - this way there's the additional efficiency of
                 #   handling things in bulk
 
+                self._logger.info(
+                    'Invoking run("rsync ...") data_path=%s tmpdir=%s...',
+                    str(data_path.absolute()),
+                    str(tmpdir),
+                )
                 self.update_task(ProcessState.PROCESSING, 'Resolving symlinks...')
                 subprocess.run(
                     ["rsync", "-aL", str(data_path.absolute()) + "/", str(tmpdir)],
                     check=True,
                 )
 
+                self._logger.info(
+                    'Invoking Popen("7z ...") tmpdir=%s...',
+                    str(tmpdir),
+                )
                 self.update_task(ProcessState.PROCESSING, 'Compressing tarball...')
                 compress_process = subprocess.Popen(
                     ["7z", "a", "-tzip", '-mmt=on', "-mx=4", tarball_path, "."],
                     cwd=str(tmpdir),
                 )
-                check_popen_progress(compress_process, poll_frequency)
 
+                check_popen_progress(compress_process, poll_frequency)
                 compress_process.wait()
+
+                self._logger.info(
+                    'Finished Popen("7z ...") tmpdir=%s returncode=%s',
+                    str(tmpdir),
+                    compress_process.returncode,
+                )
+
         else:
             with open(tarball_path, "wb") as output_file:
                 # due to the way gzip and pigz work, specifically, not
@@ -1044,6 +1081,10 @@ class DownloadStructures:
                 # stream and sends it to stdout, the other one catches it
                 # and creates the file
                 self.update_task(ProcessState.PROCESSING, 'Compressing tarball...')
+                self._logger.info(
+                    'Invoking Popen("tar ...") data_path=%s...',
+                    data_path.absolute(),
+                )
                 tar_process = subprocess.Popen(
                     [
                         "tar",
@@ -1054,9 +1095,12 @@ class DownloadStructures:
                         "-cf",
                         "-",
                         ".",
-                        data_path.name,
                     ],
                     stdout=subprocess.PIPE,
+                )
+                self._logger.info(
+                    'Invoking Popen("pigz ...") output=%s...',
+                    tarball_path,
                 )
                 compress_process = subprocess.Popen(
                     ['pigz', '-4', "-c"],
@@ -1070,7 +1114,24 @@ class DownloadStructures:
                 tar_process.wait()
                 compress_process.wait()
 
-        logger.info("Tarball saved at: %s", tarball_path)
+                self._logger.info(
+                    'Finished Popen("tar ...") data_path=%s name=%s returncode=%s',
+                    str(data_path.absolute()),
+                    data_path.name,
+                    tar_process.returncode,
+                )
+                self._logger.info(
+                    'Finished Popen("pigz ...") tarball_path=%s retruncode=%s',
+                    tarball_path,
+                    compress_process.returncode,
+                )
+
+        tarball_size_bytes: int = os.path.getsize(tarball_path)
+        self._logger.info(
+            "Created tarball %s (size=%s)",
+            tarball_path,
+            humanize.naturalsize(tarball_size_bytes, binary=True),
+        )
 
 
 def _is_mol_or_sdf(path):
@@ -1159,8 +1220,8 @@ def return_download_link(
     validated_data,
     target,
     site_observations,
-):
-    """Return a link to existing downloadable zip file.
+) -> str | None:
+    """Return a link to existing downloadable zip file, or None if one does not exist.
 
     Downloads are located in <MEDIA_ROOT>/downloads/ using a subdirectory
     using a UUID-4 value, with the file located in it, using the target title.
@@ -1169,7 +1230,7 @@ def return_download_link(
     Returns:
         [file]: [URL to the file in the media directory]
     """
-    logger.info('+ Handling download for Target "%s"', target.title)
+    logger.debug('Getting DownloadLink (target="%s")...', target.title)
     # Log the provided SiteObservations
     logger.debug(
         'Given %s SiteObservation records: %s',
@@ -1194,7 +1255,8 @@ def return_download_link(
     ).first()
     # Leave if 'first()' returns None
     if not existing_link:
-        raise ValueError()
+        logger.debug('No DownloadLink (target="%s")...', target.title)
+        return None
 
     # Dynamic to static?
     # Static link records are never removed.
@@ -1207,7 +1269,7 @@ def return_download_link(
     # Now return the file...
     file_url = existing_link.file_url
     # assert os.path.isfile(file_url)
-    logger.info('- Handled existing download (file_url=%s)', file_url)
+    logger.debug('Got DownloadLink (target="%s" file_url=%s)', target.title, file_url)
 
     return file_url
 
@@ -1238,17 +1300,37 @@ def create_download_link(
         [file]: [URL to the file in the media directory]
 
     """
-    logger.info('+ Handling download for Target "%s"', target_id)
-    logger.debug('site observations "%s"', site_observation_ids)
-    import timeit
-
-    t_0 = timeit.default_timer()
-
     # error checking is not necessary because all these objects are
     # already resolved in the view and then passed through task
     target = Target.objects.get(pk=target_id)
     site_observations = SiteObservation.objects.filter(pk__in=site_observation_ids)
     user = get_user_model().objects.get(pk=user_id)
+
+    # A custom logging adapter to refine the standard logger
+    # by adding lightweight Task context to the messages we log
+    _logger = TaskLoggerAdapter(
+        logger,
+        {
+            'task': str(task.request.id),
+            'marker': 'DOWNLOAD',
+            'target': target,
+            'tas': target_access_string,
+            'username': user.username,
+        },
+    )
+
+    # Always issue an INFO - we're one of the first functions to run
+    # for this task. Here we provide the Task, Target, TAS and Username.
+    # Other users of TaskLoggerAdapter can omit properties other than
+    # the Task in order to shorten lines. The Task gives uas a key
+    # correaltion value so that we can find matching lines.
+    _logger.info('Handling download (target_id=%s)', target_id)
+
+    _logger.debug('site_observation_ids=%s', site_observation_ids)
+
+    import timeit
+
+    t_0 = timeit.default_timer()
 
     task.update_state(
         state=ProcessState.PROCESSING,
@@ -1258,16 +1340,16 @@ def create_download_link(
         },
     )
 
-    logger.debug(
+    _logger.debug(
         'Given %s SiteObservation records: %r',
         site_observations.count(),
         site_observation_ids,
     )
 
     protein_params, other_params, static_link = get_download_params(validated_data)
-    logger.debug('proteins_params: %s', protein_params)
-    logger.debug('other_params: %s', other_params)
-    logger.debug('static_link: %s', static_link)
+    _logger.debug('proteins_params: %s', protein_params)
+    _logger.debug('other_params: %s', other_params)
+    _logger.debug('static_link: %s', static_link)
 
     # No existing Download record - create one,
     # which requires construction of the file prior to creating the record.
@@ -1281,7 +1363,7 @@ def create_download_link(
     file_url = os.path.join(
         settings.MEDIA_ROOT, 'downloads', str(uuid.uuid4()), filename
     )
-    logger.info('Creating new download (file_url=%s)...', file_url)
+    _logger.info('Creating new DownloadLinks record (file_url=%s)...', file_url)
 
     with TemporaryDirectory() as tempdir:
         downloader = DownloadStructures(
@@ -1290,6 +1372,7 @@ def create_download_link(
             target=target,
             use_zip=validated_data['use_zip'],
             target_access_string=target_access_string,
+            username=user.username,
         )
         zip_contents = downloader.create_content_dict(
             site_obvs=site_observations,
@@ -1335,9 +1418,9 @@ def create_download_link(
             "description": file_url,
         },
     )
-    logger.info('- Handled new record (file_url=%s)', file_url)
+    _logger.info('New DownloadLinks record (file_url=%s)', file_url)
     t_end = timeit.default_timer()
-    logger.debug('timings, zipcompile: %s', t_end - t_0)
+    _logger.debug('Timings zipcompile: %s', t_end - t_0)
 
     return file_url
 
@@ -1358,32 +1441,39 @@ def erase_out_of_date_download_records():
     for out_of_date_dynamic_record in out_of_date_dynamic_records:
         file_url = out_of_date_dynamic_record.file_url
         logger.info(
-            '+ Attempting to remove download link record (file_url=%s)...', file_url
+            'Too old (file_url=%s keep_zip_until=%s)...',
+            file_url,
+            out_of_date_dynamic_record.keep_zip_until,
         )
 
         dir_name = os.path.dirname(file_url)
         if os.path.isdir(dir_name):
-            logger.debug('Removing file_url directory (%s)...', dir_name)
-            shutil.rmtree(dir_name, ignore_errors=True)
-            logger.debug('Removed (%s)', dir_name)
+            logger.debug('Removing %s...', dir_name)
+            try:
+                shutil.rmtree(dir_name)
+                logger.debug('Removed %s', dir_name)
+            except Exception as ex:
+                # Avoid potential race condition deleting the directory.
+                # It's possible another call or stack Pod has deleted the directory
+                # since we checked on line 1450. Issue a warning if the error
+                # does not look like 'No such file or directory'...
+                if 'No such file' not in str(ex):
+                    logger.warning('Failed to remove %s (%s)', dir_name, ex)
 
-        # Does the file exist now?
-        # Hopefully not - but cater for 'cosmic-ray-effect' and
-        # only delete the originating record if the file has been removed.
+        # Does the file directory exist now?
+        # Only delete the originating record if the directory has been removed.
         if os.path.isdir(dir_name):
             logger.warning(
-                'Failed removal of file_url directory (%s), leaving record',
+                'Failed to remove %s, leaving it alone until next time',
                 dir_name,
             )
         else:
-            logger.info(
-                'Removed file_url directory (%s), removing DownloadLinks record...',
-                dir_name,
-            )
             out_of_date_dynamic_record.delete()
             num_removed += 1
+            logger.debug('DownloadLinks deleted (file_url=%s)...', file_url)
 
-    logger.info('Erased %d', num_removed)
+    if num_removed:
+        logger.info('Erased %d old DownloadLinks records', num_removed)
 
 
 # TODO: issue with single_sdf file

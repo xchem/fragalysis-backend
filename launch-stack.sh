@@ -42,6 +42,10 @@ touch /srv/logs/gunicorn.log
 touch /srv/logs/access.log
 touch /code/logs/logfile.log
 
+tmpdir="${TMPDIR:-/code/media/tmp}"
+echo "Preparing tmp ($tmpdir)..."
+mkdir -p ${tmpdir}
+
 CONCURRENCY=${STACK_CONCURRENCY:-4}
 
 echo "Starting Gunicorn (CONCURRENCY=${CONCURRENCY})..."
@@ -67,8 +71,10 @@ echo proxy_set_header X-Forwarded-Proto "${PROXY_FORWARDED_PROTO_HEADER:-https};
 echo "Testing nginx config..."
 nginx -tq
 
-echo "Launching service health check queries"
-python manage.py start_service_queries
+if [ "${HOSTNAME}" = "stack-0" ]; then
+  echo "Launching service health check queries"
+  python manage.py start_service_queries &
+fi
 
 echo "Running nginx..."
 nginx

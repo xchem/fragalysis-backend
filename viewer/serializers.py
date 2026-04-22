@@ -171,7 +171,7 @@ class TargetSerializer(serializers.ModelSerializer):
                 if media_ref_path.is_file():
                     return ref_path
                 else:
-                    logger.error(
+                    logger.debug(
                         "Reference pdb file doesn't exist (%s)", media_ref_path
                     )
                     return None
@@ -989,7 +989,7 @@ class TargetExperimentReadSerializer(ValidateProjectMixin, serializers.ModelSeri
 
 class TargetExperimentWriteSerializer(serializers.ModelSerializer):
     target_access_string = serializers.CharField(label='Target Access String')
-    file = serializers.FileField(required=False)
+    file = serializers.FileField()
     sha256checksum = serializers.CharField(required=False)
 
     def validate(self, data):

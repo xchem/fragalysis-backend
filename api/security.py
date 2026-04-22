@@ -226,19 +226,19 @@ class ISPyBSafeStaticFiles:
         return queryset
 
     def get_response(self):
-        logger.info("+ get_response called with: %s", self.input_string)
+        logger.debug("+ get_response called with: %s", self.input_string)
         try:
             queryset = self.get_queryset()
             filter_dict = {self.field_name + "__endswith": self.input_string}
-            logger.info("filter_dict: %r", filter_dict)
+            logger.debug("filter_dict: %r", filter_dict)
             # instance = queryset.get(**filter_dict)
             instance = queryset.filter(**filter_dict)[0]
-            logger.info("instance: %r", instance)
+            logger.debug("instance: %r", instance)
 
             file_name = os.path.basename(str(getattr(instance, self.field_name)))
 
-            logger.info("instance: %r", instance)
-            logger.info("Path to pass to nginx: %s", self.prefix + file_name)
+            logger.debug("instance: %r", instance)
+            logger.debug("Path to pass to nginx: %s", self.prefix + file_name)
 
             if hasattr(self, 'file_format'):
                 if self.file_format == 'raw':
@@ -266,21 +266,21 @@ class ISPyBSafeStaticFiles:
 
 class ISPyBSafeStaticFiles2(ISPyBSafeStaticFiles):
     def get_response(self):
-        logger.info("+ get_response called with: %s", self.input_string)
+        logger.debug("+ get_response called with: %s", self.input_string)
         # it wasn't working because found two objects with test file name
         # so it doesn't help me here..
         try:
             # file_name = Path('/').joinpath(self.prefix).joinpath(self.input_string)
             # file_name = Path(self.prefix).joinpath(self.input_string)
             file_name = str(Path('/').joinpath(self.prefix).joinpath(self.input_string))
-            logger.info("Path to pass to nginx: %s", file_name)
+            logger.debug("Path to pass to nginx: %s", file_name)
             response = HttpResponse()
             response["Content-Type"] = self.content_type
             response["X-Accel-Redirect"] = file_name
             # response["Content-Disposition"] = "attachment;filename=" + file_name.name
             response["Content-Disposition"] = "attachment;filename=" + self.input_string
 
-            logger.info("- Response resolved: %r", response)
+            logger.debug("- Response resolved: %r", response)
             return response
         except Exception as exc:
             logger.error(exc, exc_info=True)

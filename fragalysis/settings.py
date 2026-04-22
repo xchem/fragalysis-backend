@@ -453,6 +453,8 @@ if not DISABLE_LOGGING_FRAMEWORK:
         },
         'loggers': {
             'api.security': {'level': 'INFO'},
+            'api.ta_auth_connector': {'level': 'WARNING'},
+            'apscheduler': {'level': 'WARNING'},
             'asyncio': {'level': 'WARNING'},
             'celery': {'level': 'INFO'},
             'django': {'level': 'ERROR'},
@@ -461,7 +463,7 @@ if not DISABLE_LOGGING_FRAMEWORK:
             'paramiko': {'level': 'WARNING'},
             'service_status': {
                 'handlers': ['service_status', 'console'],
-                'level': 'DEBUG',
+                'level': 'INFO',
                 'propagate': False,
             },
         },
@@ -534,6 +536,9 @@ DUMMY_TAS: str = os.environ.get("DUMMY_TAS", "")
 # See "viewer/services.py" for the full list of supported services.
 ENABLE_SERVICE_STATUS: str = os.environ.get("ENABLE_SERVICE_STATUS", "")
 SERVICE_STATUS_LOGLEVEL = os.environ.get("SERVICE_STATUS_LOGLEVEL", "WARNING")
+SERVICE_STATUS_SCHEDULER_ENABLED: bool = os.environ.get(
+    "SERVICE_STATUS_SCHEDULER_ENABLED", "yes"
+).lower() in ["true", "yes"]
 
 # What infection have been set?
 # "Infections" are  built-in faults that can be induced by providing their names.

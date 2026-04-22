@@ -1502,7 +1502,7 @@ class DownloadStructuresView(
 
         if file_url:
             if models.DownloadLinks.objects.filter(file_url=file_url).first():
-                logger.info('Found %s', file_url)
+                logger.info('Got DownloadLinks record for %s', file_url)
                 assert os.path.isfile(file_url)
 
                 file_name = os.path.basename(file_url)
@@ -1527,8 +1527,8 @@ class DownloadStructuresView(
         authenticated or not), and this is handled by the queryset logic later in
         this method.
         """
-        logger.info('+ DownloadStructures.post')
-        logger.debug('DownloadStructures.post.data: %s', request.data)
+        logger.debug('request.data=%s', request.data)
+        username: str = request.user.username if request.user.username else "|anon|"
 
         erase_out_of_date_download_records()
 
@@ -1578,15 +1578,20 @@ class DownloadStructuresView(
             return Response(content, status=status.HTTP_400_BAD_REQUEST)
 
         target_name = serializer.validated_data['target_name']
-        project_name = serializer.validated_data['target_access_string']
+        tas = serializer.validated_data['target_access_string']
         target = None
-        logger.info('Given target_name "%s"', target_name)
+        logger.info(
+            'Starting download (user=%s target=%s, tas=%s)...',
+            username,
+            target_name,
+            tas,
+        )
 
         # Check target_name is valid:
         try:
-            project = models.Project.objects.get(title=project_name)
+            project = models.Project.objects.get(title=tas)
         except models.Project.DoesNotExist:
-            msg = f'Project "{project_name}" does not exist'
+            msg = f'Project "{tas}" does not exist'
             logger.warning(msg)
             content = {'message': msg}
             return Response(content, status=status.HTTP_404_NOT_FOUND)
@@ -1594,7 +1599,7 @@ class DownloadStructuresView(
         if project.title not in _ISPYB_SAFE_QUERY_SET.get_proposals_for_user(
             request.user
         ):
-            msg = f'User "{request.user.username}" is not a member of {project_name}'
+            msg = f'User "{username}" is not a member of {tas}'
             logger.warning(msg)
             content = {'message': msg}
             return Response(content, status=status.HTTP_404_NOT_FOUND)
@@ -1603,18 +1608,26 @@ class DownloadStructuresView(
             target = self.queryset.get(title=target_name, project=project)
         except models.Target.DoesNotExist:
             msg = f'Target "{target_name}" does not exist under project {project.title}'
-            logger.warning(msg)
+            logger.warning("%s (user=%s)", msg, username)
             content = {'message': msg}
             return Response(content, status=status.HTTP_404_NOT_FOUND)
 
-        logger.info('Found Target record %r', target)
+        logger.debug('Found Target record %r (user=%s)', target, username)
 
         proteins_list = [
             p.strip() for p in request.data.get('proteins', '').split(',') if p
         ]
         if proteins_list:
-            logger.info('Given %s Proteins %s', len(proteins_list), proteins_list)
-            logger.info('Looking for SiteObservation records for given Proteins...')
+            logger.info(
+                'Given %s Proteins %s (user=%s)',
+                len(proteins_list),
+                proteins_list,
+                username,
+            )
+            logger.info(
+                'Looking for SiteObservation records for given Proteins (user=%s)...',
+                username,
+            )
 
             site_obvs = models.SiteObservation.objects.filter(
                 experiment__experiment_upload__target=target,
@@ -1626,13 +1639,16 @@ class DownloadStructuresView(
             )
             if missing_obvs:
                 logger.warning(
-                    'Could not find SiteObservation record for "%s"',
+                    'Could not find SiteObservation record for "%s" (user=%s)',
                     missing_obvs,
+                    username,
                 )
 
         else:
-            logger.info('Request had no Proteins')
-            logger.info('Looking for Protein records for %r...', target)
+            logger.info('Request had no Proteins (user=%s)', username)
+            logger.info(
+                'Looking for Protein records for %r (user=%s)...', target, username
+            )
             site_obvs = models.SiteObservation.objects.filter(
                 experiment__experiment_upload__target=target
             )
@@ -1649,32 +1665,41 @@ class DownloadStructuresView(
             content = {'message': f'Download Error! ({INFECTION_STRUCTURE_DOWNLOAD})'}
             return Response(content, status=status.HTTP_404_NOT_FOUND)
 
-        try:
-            filename_url = return_download_link(
-                serializer.validated_data, target, site_obvs
-            )
-            return Response({"file_url": filename_url})
-        except ValueError:
-            # download with these parameters does not exist, launch a
-            # task to create it
-            original_search = copy.deepcopy(request.data)
-            original_search.pop('csrfmiddlewaretoken', None)
+        if file_url := return_download_link(
+            serializer.validated_data, target, site_obvs
+        ):
+            return Response({"file_url": file_url})
 
-            task = task_create_download_link.delay(
-                original_search=original_search,
-                validated_data=serializer.validated_data,
-                target_id=target.pk,
-                site_observation_ids=list(site_obvs.values_list('id', flat=True)),
-                user_id=request.user.pk
-                if request.user.is_authenticated
-                else settings.ANONYMOUS_USER,
-                target_access_string=project_name,
-            )
-            logger.info(
-                "+ UploadTargetExperiments.create got Celery id %s", task.task_id
-            )
-            url = reverse('viewer:task_status', kwargs={'task_id': task.task_id})
-            return Response({'task_status_url': url}, status=status.HTTP_202_ACCEPTED)
+        # A download with these parameters does not exist, launch a
+        # task to create it
+        original_search = copy.deepcopy(request.data)
+        original_search.pop('csrfmiddlewaretoken', None)
+
+        task = task_create_download_link.delay(
+            original_search=original_search,
+            validated_data=serializer.validated_data,
+            target_id=target.pk,
+            site_observation_ids=list(site_obvs.values_list('id', flat=True)),
+            user_id=request.user.pk
+            if request.user.is_authenticated
+            else settings.ANONYMOUS_USER,
+            target_access_string=tas,
+        )
+
+        task_status_url = reverse(
+            'viewer:task_status', kwargs={'task_id': task.task_id}
+        )
+
+        logger.info(
+            "Task started to build a download (user=%s target=%s task=%s)",
+            username,
+            target.title,
+            task.task_id,
+        )
+
+        return Response(
+            {'task_status_url': task_status_url}, status=status.HTTP_202_ACCEPTED
+        )
 
 
 class UploadExperimentUploadView(viewsets.ViewSet):
@@ -1991,8 +2016,8 @@ class TaskStatusView(APIView):
                 # occasionally mean it's 'None'. Here we assume the task has yet
                 # to be handled internally and info will be populated soon.
                 # For now we log a warning and return an UNKNOWN status.
-                logger.warning(
-                    'AsyncResult info for %s is %s instead of dict',
+                logger.debug(
+                    '/%s/ AsyncResult info is %s instead of dict',
                     task_id_str,
                     type(result.info),
                 )
@@ -2015,7 +2040,7 @@ class TaskStatusView(APIView):
                 status=status.HTTP_404_NOT_FOUND,
             )
 
-        logger.debug("project found: %s", project.title)
+        logger.debug("/%s/ Project found: %s", task_id, project.title)
 
         if not project.open_to_public:
             if not request.user.is_authenticated and settings.AUTHENTICATE_UPLOAD:
