@@ -44,7 +44,7 @@ COPY --from=poetry-base /.venv /.venv
 
 ENV PYTHONPATH="${PYTHONPATH}:/.venv/lib/python3.13/site-packages/"
 ENV PATH=/.venv/bin:$PATH
-ENV TMPDIR=/code/media/tmp
+ENV TMPDIR=/tmp
 
 WORKDIR /srv/logs
 WORKDIR /code/logs
