@@ -42,7 +42,7 @@ FROM python-base AS final
 
 COPY --from=poetry-base /.venv /.venv
 
-ENV PYTHONPATH="${PYTHONPATH}:/.venv/lib/python3.13/site-packages/"
+ENV PYTHONPATH="/.venv/lib/python3.13/site-packages/"
 ENV PATH=/.venv/bin:$PATH
 ENV TMPDIR=/tmp
 
