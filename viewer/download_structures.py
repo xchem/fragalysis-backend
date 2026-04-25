@@ -470,16 +470,17 @@ class DownloadStructures:
         """Write a ZIP file containing data from an input dictionary."""
 
         self._logger.info('file_url="%s"', file_url)
-        self._logger.info(
+
+        self._logger.debug(
             'single_sdf_file="%s"', zip_contents['molecules']['single_sdf_file']
         )
-        self._logger.info('sdf_files=%s', zip_contents['molecules']['sdf_files'])
-
+        self._logger.debug('sdf_files=%s', zip_contents['molecules']['sdf_files'])
         self._logger.debug('zip_contents=%s', zip_contents)
+
         self.update_task(ProcessState.PROCESSING, 'Creating tarball...')
 
         download_path = os.path.dirname(file_url)
-        self._logger.info('Creating download path (%s)', download_path)
+        self._logger.debug('Creating download path (%s)', download_path)
         os.makedirs(download_path, exist_ok=True)
 
         error_filename = str(self.error_file)
