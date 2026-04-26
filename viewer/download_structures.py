@@ -1427,12 +1427,9 @@ def create_download_link(
 
 def erase_out_of_date_download_records():
     """Physical zip files and DownloadLink records for non-static (dynamic) links
-    are removed after 1 hour (typically during a POST call to create a new download).
+    are removed if their 'keep_zip_until' time has been met.
 
-    This is for security reasons and to conserve memory space. Only if the file can
-    be deleted do we delete the download record. So, if there are any problems
-    with the file-system the model should continue to reflect the current state
-    of the world.
+    This is for security reasons and to conserve memory space.
     """
     num_removed = 0
     out_of_date_dynamic_records = DownloadLinks.objects.filter(
@@ -1441,11 +1438,19 @@ def erase_out_of_date_download_records():
     for out_of_date_dynamic_record in out_of_date_dynamic_records:
         file_url = out_of_date_dynamic_record.file_url
         logger.info(
-            'Too old (file_url=%s keep_zip_until=%s)...',
+            'Too old (file_url=%s keep_zip_until="%s")...',
             file_url,
             out_of_date_dynamic_record.keep_zip_until,
         )
 
+        # Delete the record - we wil delete the file next.
+        # We have to do this to avoid any other thread/process from
+        # accessing a record whose file we are about to remove
+        # (changes made for m2ms-2166)
+        out_of_date_dynamic_record.delete()
+        num_removed += 1
+
+        # Now delete the download content
         dir_name = os.path.dirname(file_url)
         if os.path.isdir(dir_name):
             logger.debug('Removing %s...', dir_name)
@@ -1459,18 +1464,6 @@ def erase_out_of_date_download_records():
                 # does not look like 'No such file or directory'...
                 if 'No such file' not in str(ex):
                     logger.warning('Failed to remove %s (%s)', dir_name, ex)
-
-        # Does the file directory exist now?
-        # Only delete the originating record if the directory has been removed.
-        if os.path.isdir(dir_name):
-            logger.warning(
-                'Failed to remove %s, leaving it alone until next time',
-                dir_name,
-            )
-        else:
-            out_of_date_dynamic_record.delete()
-            num_removed += 1
-            logger.debug('DownloadLinks deleted (file_url=%s)...', file_url)
 
     if num_removed:
         logger.info('Erased %d old DownloadLinks records', num_removed)
