@@ -21,6 +21,7 @@ from django.http import FileResponse, HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.views import View
+from python_ipware import IpWare
 from rest_framework import generics, mixins, permissions, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.parsers import BaseParser
@@ -67,10 +68,7 @@ from .discourse import (
     create_discourse_post,
     list_discourse_posts_for_topic,
 )
-from .download_structures import (  # create_or_return_download_link,
-    erase_out_of_date_download_records,
-    return_download_link,
-)
+from .download_structures import erase_out_of_date_download_records, get_download_params
 from .forms import CSetForm
 from .squonk_job_file_transfer import (
     TfrFileNotFoundError,
@@ -87,7 +85,7 @@ from .tags import load_tags_from_file
 from .tasks import (
     process_compound_set,
     process_job_file_transfer,
-    task_create_download_link,
+    task_create_download,
     task_load_target,
     validate_compound_set,
 )
@@ -1526,11 +1524,13 @@ class DownloadStructuresView(
         The user is permitted to download Targets they have access to (whether
         authenticated or not), and this is handled by the queryset logic later in
         this method.
+
+        Update: major change with 2142 DownloadLink objects are no
+        longer deleted, they're kept for stats collection. Handling
+        out of date records now means deleting the files and clearing
+        the file_url field in the instance.
         """
         logger.debug('request.data=%s', request.data)
-        username: str = request.user.username if request.user.username else "|anon|"
-
-        erase_out_of_date_download_records()
 
         serializer = self.serializer_class(data=request.data)
         if not serializer.is_valid():
@@ -1539,9 +1539,42 @@ class DownloadStructuresView(
 
         logger.debug('serializer validated data: %s', serializer.validated_data)
 
+        ipw = IpWare()
+        # request is valid, create download link right away:
+        protein_params, other_params, static_link = get_download_params(
+            serializer.validated_data,
+        )
+        original_search = copy.deepcopy(request.data)
+        original_search.pop('csrfmiddlewaretoken', None)
+        ip, _ = ipw.get_client_ip(request.META)
+
+        location = ''  # TODO: extract from request
+
+        if request.user.is_authenticated:
+            user = request.user
+            username = user.username
+        else:
+            user = get_user_model().objects.get(pk=settings.ANONYMOUS_USER)
+            username = "|anon|"
+
+        logger.debug('user resolved: %s', user)
+
+        # save new download link to record an attempt
+        download_link = models.DownloadLinks(
+            user=user,
+            create_date=datetime.now(timezone.utc),
+            original_search=original_search,
+            protein_params=protein_params,
+            other_params=other_params,
+            static_link=static_link,
+            request_ip=ip,
+            request_location=location,
+        )
+        download_link.save()
+
+        erase_out_of_date_download_records()
+
         # Static files (i.e. links not removed)
-        # I don't understand this bit.. what is it doing?
-        # in any case, can I move it to DownloadLinks instance method?
         if serializer.validated_data['file_url']:
             file_url = serializer.validated_data['file_url']
             logger.info('Given file_url "%s"', file_url)
@@ -1613,6 +1646,8 @@ class DownloadStructuresView(
             return Response(content, status=status.HTTP_404_NOT_FOUND)
 
         logger.debug('Found Target record %r (user=%s)', target, username)
+        download_link.target = target
+        download_link.save()
 
         proteins_list = [
             p.strip() for p in request.data.get('proteins', '').split(',') if p
@@ -1660,46 +1695,48 @@ class DownloadStructuresView(
             }
             return Response(content, status=status.HTTP_404_NOT_FOUND)
 
+        download_link.proteins = ','.join(
+            [str(k) for k in site_obvs.order_by('pk').values_list('pk', flat=True)],
+        )
+        download_link.save()
+
         # Forced errors?
         if have_infection(INFECTION_STRUCTURE_DOWNLOAD):
             content = {'message': f'Download Error! ({INFECTION_STRUCTURE_DOWNLOAD})'}
             return Response(content, status=status.HTTP_404_NOT_FOUND)
 
-        if file_url := return_download_link(
-            serializer.validated_data, target, site_obvs
-        ):
-            return Response({"file_url": file_url})
+        # fmt: off
+        existing_link = models.DownloadLinks.objects.filter(
+            target=download_link.target,
+            proteins=download_link.proteins,
+            protein_params=download_link.protein_params,
+            other_params=download_link.other_params,
+        ).exclude(
+            pk=download_link.pk,
+        ).first()
+        # fmt: on
 
-        # A download with these parameters does not exist, launch a
-        # task to create it
-        original_search = copy.deepcopy(request.data)
-        original_search.pop('csrfmiddlewaretoken', None)
+        # found a download attempt with exact same parameters
+        if existing_link:
+            return Response({"file_url": existing_link.file_url})
+        else:
+            # download with these parameters does not exist, launch a
+            # task to create it
+            # original_search = copy.deepcopy(request.data)
+            # original_search.pop('csrfmiddlewaretoken', None)
 
-        task = task_create_download_link.delay(
-            original_search=original_search,
-            validated_data=serializer.validated_data,
-            target_id=target.pk,
-            site_observation_ids=list(site_obvs.values_list('id', flat=True)),
-            user_id=request.user.pk
-            if request.user.is_authenticated
-            else settings.ANONYMOUS_USER,
-            target_access_string=tas,
-        )
-
-        task_status_url = reverse(
-            'viewer:task_status', kwargs={'task_id': task.task_id}
-        )
-
-        logger.info(
-            "Task started to build a download (user=%s target=%s task=%s)",
-            username,
-            target.title,
-            task.task_id,
-        )
-
-        return Response(
-            {'task_status_url': task_status_url}, status=status.HTTP_202_ACCEPTED
-        )
+            task = task_create_download.delay(
+                download_link_id=download_link.pk,
+                use_zip=serializer.validated_data.get('use_zip', False),
+            )
+            logger.info(
+                "Task started to build a download (user=%s target=%s task=%s)",
+                username,
+                target.title,
+                task.task_id,
+            )
+            url = reverse('viewer:task_status', kwargs={'task_id': task.task_id})
+            return Response({'task_status_url': url}, status=status.HTTP_202_ACCEPTED)
 
 
 class UploadExperimentUploadView(viewsets.ViewSet):
