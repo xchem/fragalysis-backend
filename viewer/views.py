@@ -1711,6 +1711,7 @@ class DownloadStructuresView(
             proteins=download_link.proteins,
             protein_params=download_link.protein_params,
             other_params=download_link.other_params,
+            file_url__isnull=False,
         ).exclude(
             pk=download_link.pk,
         ).first()
@@ -1718,6 +1719,7 @@ class DownloadStructuresView(
 
         # found a download attempt with exact same parameters
         if existing_link:
+            assert existing_link.file_url
             return Response({"file_url": existing_link.file_url})
         else:
             # download with these parameters does not exist, launch a
