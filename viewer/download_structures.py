@@ -476,7 +476,7 @@ class DownloadStructures:
         self._logger.info(
             'single_sdf_file="%s"', zip_contents['molecules']['single_sdf_file']
         )
-        self._logger.info('sdf_files=%s', zip_contents['molecules']['sdf_files'])
+        self._logger.debug('sdf_files=%s', zip_contents['molecules']['sdf_files'])
 
         self._logger.debug('zip_contents=%s', zip_contents)
         self.update_task(ProcessState.PROCESSING, 'Creating tarball...')
