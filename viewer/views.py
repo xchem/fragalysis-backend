@@ -1722,9 +1722,6 @@ class DownloadStructuresView(
         else:
             # download with these parameters does not exist, launch a
             # task to create it
-            # original_search = copy.deepcopy(request.data)
-            # original_search.pop('csrfmiddlewaretoken', None)
-
             task = task_create_download.delay(
                 download_link_id=download_link.pk,
                 use_zip=serializer.validated_data.get('use_zip', False),
