@@ -1328,14 +1328,16 @@ def create_download(download_link_id: int, task, use_zip: bool = False):
 
 
 def erase_out_of_date_download_records():
-    """Physical zip files and DownloadLink records for non-static (dynamic) links
+    """Physical zip files for non-static (dynamic) links
     are removed if their 'keep_zip_until' time has been met.
 
     This is for security reasons and to conserve memory space.
     """
-    out_of_date_dynamic_records = DownloadLinks.objects.filter(
-        keep_zip_until__lt=datetime.now(timezone.utc)
-    ).filter(static_link=False)
+    out_of_date_dynamic_records = (
+        DownloadLinks.objects.filter(keep_zip_until__lt=datetime.now(timezone.utc))
+        .filter(file_url__isnull=False)
+        .filter(static_link=False)
+    )
 
     for out_of_date_dynamic_record in out_of_date_dynamic_records:
         file_url = out_of_date_dynamic_record.file_url
@@ -1359,18 +1361,8 @@ def erase_out_of_date_download_records():
                 if 'No such file' not in str(ex):
                     logger.warning('Failed to remove %s (%s)', dir_name, ex)
 
-        # Does the file directory exist now?
-        # Only delete the originating record if the directory has been removed.
-        if os.path.isdir(dir_name):
-            logger.warning(
-                'Failed to remove %s, leaving it alone until next time',
-                dir_name,
-            )
-        else:
-            logger.debug('DownloadLinks reset (file_url=%s)...', file_url)
-
-    num_removed = out_of_date_dynamic_records.update(file_url=None)
-    logger.info('Erased %d', num_removed)
+    if num_removed := out_of_date_dynamic_records.update(file_url=None):
+        logger.info('Removed %d files', num_removed)
 
 
 # TODO: issue with single_sdf file
