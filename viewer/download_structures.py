@@ -1329,12 +1329,9 @@ def create_download(download_link_id: int, task, use_zip: bool = False):
 
 def erase_out_of_date_download_records():
     """Physical zip files and DownloadLink records for non-static (dynamic) links
-    are removed after 1 hour (typically during a POST call to create a new download).
+    are removed if their 'keep_zip_until' time has been met.
 
-    This is for security reasons and to conserve memory space. Only if the file can
-    be deleted do we delete the download record. So, if there are any problems
-    with the file-system the model should continue to reflect the current state
-    of the world.
+    This is for security reasons and to conserve memory space.
     """
     out_of_date_dynamic_records = DownloadLinks.objects.filter(
         keep_zip_until__lt=datetime.now(timezone.utc)
