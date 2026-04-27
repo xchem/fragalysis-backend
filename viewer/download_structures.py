@@ -27,19 +27,17 @@ import pandas as pd
 import pandoc
 import requests
 from django.conf import settings
-from django.contrib.auth import get_user_model
 from django.db.models import Exists, F, OuterRef, Value
 from django.db.models.fields import CharField
 from django.db.models.functions import Concat
 from rdkit import Chem
 
-from viewer.models import DownloadLinks, SiteObservation, Target
+from viewer.models import DownloadLinks, SiteObservation
 from viewer.utils import clean_filename
 
 from .logger_adapters import TaskLoggerAdapter
 from .tags import get_metadata_fields
 from .target_loader import strip_exp_code
-from .utils import profile
 
 logger = logging.getLogger(__name__)
 
@@ -186,14 +184,19 @@ _METADATA_FILE = 'metadata.csv'
 
 class DownloadStructures:
     def __init__(
-        self, *, tempdir, task, target, use_zip, target_access_string, username
+        self,
+        *,
+        tempdir,
+        task,
+        target,
+        use_zip,
+        target_access_string,
     ):
         self.task = task
         self.use_zip = use_zip
         self.tempdir = tempdir
         self.target_access_string = target_access_string
         self.target = target
-        self.username = username
 
         self._temp_path = Path(self.tempdir)
         self._combined_sdf_path = self._temp_path.joinpath(
@@ -470,17 +473,16 @@ class DownloadStructures:
         """Write a ZIP file containing data from an input dictionary."""
 
         self._logger.info('file_url="%s"', file_url)
-
-        self._logger.debug(
+        self._logger.info(
             'single_sdf_file="%s"', zip_contents['molecules']['single_sdf_file']
         )
         self._logger.debug('sdf_files=%s', zip_contents['molecules']['sdf_files'])
-        self._logger.debug('zip_contents=%s', zip_contents)
 
+        self._logger.debug('zip_contents=%s', zip_contents)
         self.update_task(ProcessState.PROCESSING, 'Creating tarball...')
 
         download_path = os.path.dirname(file_url)
-        self._logger.debug('Creating download path (%s)', download_path)
+        self._logger.info('Creating download path (%s)', download_path)
         os.makedirs(download_path, exist_ok=True)
 
         error_filename = str(self.error_file)
@@ -1217,75 +1219,7 @@ def get_download_params(validated_data):
     return protein_params, other_params, static_link
 
 
-def return_download_link(
-    validated_data,
-    target,
-    site_observations,
-) -> str | None:
-    """Return a link to existing downloadable zip file, or None if one does not exist.
-
-    Downloads are located in <MEDIA_ROOT>/downloads/ using a subdirectory
-    using a UUID-4 value, with the file located in it, using the target title.
-    For example: "/code/media/downloads/4c3afc69-bca9-4fb1-a76e-56c85a85899f/XX01ZVNS2B.zip".
-
-    Returns:
-        [file]: [URL to the file in the media directory]
-    """
-    logger.debug('Getting DownloadLink (target="%s")...', target.title)
-    # Log the provided SiteObservations
-    logger.debug(
-        'Given %s SiteObservation records: %s',
-        site_observations.count(),
-        site_observations.values_list('pk', flat=True),
-    )
-
-    protein_params, other_params, static_link = get_download_params(validated_data)
-    logger.debug('proteins_params: %s', protein_params)
-    logger.debug('other_params: %s', other_params)
-    logger.debug('static_link: %s', static_link)
-
-    # Save the list of protein codes - this is the ispybsafe set for this user.
-    proteins_list = list(site_observations.values_list('code', flat=True))
-    logger.debug('proteins_list: %s', proteins_list)
-
-    existing_link = DownloadLinks.objects.filter(
-        target_id=target.id,
-        proteins=proteins_list,
-        protein_params=protein_params,
-        other_params=other_params,
-    ).first()
-    # Leave if 'first()' returns None
-    if not existing_link:
-        logger.debug('No DownloadLink (target="%s")...', target.title)
-        return None
-
-    # Dynamic to static?
-    # Static link records are never removed.
-    if static_link and not existing_link.static_link:
-        logger.info(
-            'Converting dynamic link to static link (%s)', existing_link.file_url
-        )
-        existing_link.static_link = True
-        existing_link.save()
-    # Now return the file...
-    file_url = existing_link.file_url
-    # assert os.path.isfile(file_url)
-    logger.debug('Got DownloadLink (target="%s" file_url=%s)', target.title, file_url)
-
-    return file_url
-
-
-@profile('profile_after_ext_proc.prof')
-def create_download_link(
-    *,
-    original_search,
-    validated_data,
-    target_id,
-    site_observation_ids,
-    user_id,
-    task,
-    target_access_string,
-):
+def create_download(download_link_id: int, task, use_zip: bool = False):
     """Check/create a download zip file.
 
     This function is being ran inside a celery task, hence the object
@@ -1301,11 +1235,14 @@ def create_download_link(
         [file]: [URL to the file in the media directory]
 
     """
+
+    download_link = DownloadLinks.objects.get(pk=download_link_id)
+
     # error checking is not necessary because all these objects are
     # already resolved in the view and then passed through task
-    target = Target.objects.get(pk=target_id)
-    site_observations = SiteObservation.objects.filter(pk__in=site_observation_ids)
-    user = get_user_model().objects.get(pk=user_id)
+    site_observations = SiteObservation.objects.filter(
+        pk__in=download_link.proteins.split(','),
+    )
 
     # A custom logging adapter to refine the standard logger
     # by adding lightweight Task context to the messages we log
@@ -1314,9 +1251,9 @@ def create_download_link(
         {
             'task': str(task.request.id),
             'marker': 'DOWNLOAD',
-            'target': target,
-            'tas': target_access_string,
-            'username': user.username,
+            'target': download_link.target,
+            'tas': download_link.target.project,
+            'username': download_link.user.username,
         },
     )
 
@@ -1325,103 +1262,67 @@ def create_download_link(
     # Other users of TaskLoggerAdapter can omit properties other than
     # the Task in order to shorten lines. The Task gives uas a key
     # correaltion value so that we can find matching lines.
-    _logger.info('Handling download (target_id=%s)', target_id)
-
-    _logger.debug('site_observation_ids=%s', site_observation_ids)
-
-    import timeit
-
-    t_0 = timeit.default_timer()
+    _logger.info('Handling download (target_id=%s)', download_link.target.pk)
+    _logger.debug(
+        'site_observation_ids=%s', site_observations.values_list('pk', flat=True)
+    )
 
     task.update_state(
         state=ProcessState.PROCESSING,
         meta={
-            "proposal_ref": target_access_string,
+            "proposal_ref": download_link.target.project.title,
             "description": 'Start processing',
         },
     )
 
-    _logger.debug(
-        'Given %s SiteObservation records: %r',
-        site_observations.count(),
-        site_observation_ids,
-    )
-
-    protein_params, other_params, static_link = get_download_params(validated_data)
-    _logger.debug('proteins_params: %s', protein_params)
-    _logger.debug('other_params: %s', other_params)
-    _logger.debug('static_link: %s', static_link)
-
-    # No existing Download record - create one,
-    # which requires construction of the file prior to creating the record.
-    # A record indicates the file is present. It is removed
-    # when "out of date".
-    # filename = f'{target.title}.zip'
-    if validated_data['use_zip']:
-        filename = f'{target.title}.zip'
+    if use_zip:
+        filename = f'{download_link.target.title}.zip'
     else:
-        filename = f'{target.title}.tar.gz'
+        filename = f'{download_link.target.title}.tar.gz'
     file_url = os.path.join(
         settings.MEDIA_ROOT, 'downloads', str(uuid.uuid4()), filename
     )
-    _logger.info('Creating new DownloadLinks record (file_url=%s)...', file_url)
 
     with TemporaryDirectory() as tempdir:
         downloader = DownloadStructures(
             task=task,
             tempdir=tempdir,
-            target=target,
-            use_zip=validated_data['use_zip'],
-            target_access_string=target_access_string,
-            username=user.username,
+            target=download_link.target,
+            use_zip=use_zip,
+            target_access_string=download_link.target.project.title,
         )
         zip_contents = downloader.create_content_dict(
             site_obvs=site_observations,
-            protein_params=protein_params,
-            other_params=other_params,
+            protein_params=download_link.protein_params,
+            other_params=download_link.other_params,
         )
         downloader.create_tarball(
             zip_contents=zip_contents,
             file_url=file_url,
-            original_search=original_search,
+            original_search=download_link.original_search,
             site_observations=site_observations,
         )
 
     task.update_state(
         state=ProcessState.PROCESSING,
         meta={
-            "proposal_ref": target_access_string,
+            "proposal_ref": download_link.target.project.title,
             "description": 'File created',
         },
     )
 
-    download_link = DownloadLinks()
-    # Note: 'zip_file' and 'zip_contents' record properties are no longer used.
     download_link.file_url = file_url
-    download_link.user = user
-    download_link.target = target
-    download_link.proteins = list(site_observations.values_list('code', flat=True))
-    download_link.protein_params = protein_params
-    download_link.other_params = other_params
-    download_link.static_link = static_link
-    download_link.create_date = datetime.now(timezone.utc)
-    download_link.original_search = original_search
-    # We've just created the file, so the download is valid now...
-    # Dynamic files are typically removed on the next download request
-    # that occurs after the KEEP_UNTIL_DURATION.
-    download_link.keep_zip_until = download_link.create_date + KEEP_UNTIL_DURATION
+    download_link.keep_zip_until = datetime.now() + KEEP_UNTIL_DURATION
     download_link.save()
 
     task.update_state(
         state=ProcessState.SUCCESS,
         meta={
-            "proposal_ref": target_access_string,
+            "proposal_ref": download_link.target.project.title,
             "description": file_url,
         },
     )
-    _logger.info('New DownloadLinks record (file_url=%s)', file_url)
-    t_end = timeit.default_timer()
-    _logger.debug('Timings zipcompile: %s', t_end - t_0)
+    _logger.info('- Handled new record (file_url=%s)', file_url)
 
     return file_url
 
@@ -1432,26 +1333,18 @@ def erase_out_of_date_download_records():
 
     This is for security reasons and to conserve memory space.
     """
-    num_removed = 0
     out_of_date_dynamic_records = DownloadLinks.objects.filter(
         keep_zip_until__lt=datetime.now(timezone.utc)
     ).filter(static_link=False)
+
     for out_of_date_dynamic_record in out_of_date_dynamic_records:
         file_url = out_of_date_dynamic_record.file_url
         logger.info(
-            'Too old (file_url=%s keep_zip_until="%s")...',
+            'Too old (file_url=%s keep_zip_until=%s)...',
             file_url,
             out_of_date_dynamic_record.keep_zip_until,
         )
 
-        # Delete the record - we wil delete the file next.
-        # We have to do this to avoid any other thread/process from
-        # accessing a record whose file we are about to remove
-        # (changes made for m2ms-2166)
-        out_of_date_dynamic_record.delete()
-        num_removed += 1
-
-        # Now delete the download content
         dir_name = os.path.dirname(file_url)
         if os.path.isdir(dir_name):
             logger.debug('Removing %s...', dir_name)
@@ -1466,8 +1359,18 @@ def erase_out_of_date_download_records():
                 if 'No such file' not in str(ex):
                     logger.warning('Failed to remove %s (%s)', dir_name, ex)
 
-    if num_removed:
-        logger.info('Erased %d old DownloadLinks records', num_removed)
+        # Does the file directory exist now?
+        # Only delete the originating record if the directory has been removed.
+        if os.path.isdir(dir_name):
+            logger.warning(
+                'Failed to remove %s, leaving it alone until next time',
+                dir_name,
+            )
+        else:
+            logger.debug('DownloadLinks reset (file_url=%s)...', file_url)
+
+    num_removed = out_of_date_dynamic_records.update(file_url=None)
+    logger.info('Erased %d', num_removed)
 
 
 # TODO: issue with single_sdf file
