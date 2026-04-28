@@ -68,7 +68,7 @@ from .discourse import (
     create_discourse_post,
     list_discourse_posts_for_topic,
 )
-from .download_structures import erase_out_of_date_download_records, get_download_params
+from .download_structures import get_download_params
 from .forms import CSetForm
 from .squonk_job_file_transfer import (
     TfrFileNotFoundError,
@@ -1572,8 +1572,6 @@ class DownloadStructuresView(
         )
         download_link.save()
 
-        erase_out_of_date_download_records()
-
         # Static files (i.e. links not removed)
         if serializer.validated_data['file_url']:
             file_url = serializer.validated_data['file_url']
@@ -1706,36 +1704,40 @@ class DownloadStructuresView(
             return Response(content, status=status.HTTP_404_NOT_FOUND)
 
         # fmt: off
+        # See if we can get an alternative record that represents this download.
+        # It simply has to look like the right download, have a file set,
+        # and not have 'expired' (and not be the record we created earlier in this call)
         existing_link = models.DownloadLinks.objects.filter(
             target=download_link.target,
             proteins=download_link.proteins,
             protein_params=download_link.protein_params,
             other_params=download_link.other_params,
             file_url__isnull=False,
+            expired_date__isnull=True,
         ).exclude(
             pk=download_link.pk,
         ).first()
         # fmt: on
 
-        # found a download attempt with exact same parameters
+        # Did we find an existing DownloadLink with exact same parameters?
         if existing_link:
-            assert existing_link.file_url
             return Response({"file_url": existing_link.file_url})
-        else:
-            # download with these parameters does not exist, launch a
-            # task to create it
-            task = task_create_download.delay(
-                download_link_id=download_link.pk,
-                use_zip=serializer.validated_data.get('use_zip', False),
-            )
-            logger.info(
-                "Task started to build a download (user=%s target=%s task=%s)",
-                username,
-                target.title,
-                task.task_id,
-            )
-            url = reverse('viewer:task_status', kwargs={'task_id': task.task_id})
-            return Response({'task_status_url': url}, status=status.HTTP_202_ACCEPTED)
+
+        # Nope ... start a new celery task to create it
+        task = task_create_download.delay(
+            download_link_id=download_link.pk,
+            use_zip=serializer.validated_data.get('use_zip', False),
+        )
+        logger.info(
+            "Task started to build a download (user=%s target=%s task=%s)",
+            username,
+            target.title,
+            task.task_id,
+        )
+
+        # New task started - return a URL to obtain the task status...
+        url = reverse('viewer:task_status', kwargs={'task_id': task.task_id})
+        return Response({'task_status_url': url}, status=status.HTTP_202_ACCEPTED)
 
 
 class UploadExperimentUploadView(viewsets.ViewSet):

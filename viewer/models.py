@@ -1571,12 +1571,21 @@ class DownloadLinks(models.Model):
         " For dynamic files, the zip is reconstructed from the search",
     )
     create_date = models.DateTimeField()
+    expired_date = models.DateTimeField(
+        null=True,
+        help_text="Set when the download has passed its keep until date."
+        " Users should not use records when this is set.",
+    )
     keep_zip_until = models.DateTimeField(
         db_index=True,
         null=True,
         help_text="The datetime when the tag was created"
         " plus the retention time"
         " (1 hour at the time of writing)",
+    )
+    deleted = models.BooleanField(
+        null=True,
+        help_text="Set when the download file has been removed from the filesystem.",
     )
     # TODO - zip_file is no longer Used (A.Christie 2024-01-19)
     zip_file = models.BooleanField(default=False)
@@ -1588,9 +1597,7 @@ class DownloadLinks(models.Model):
         return str(self.file_url)
 
     def __repr__(self) -> str:
-        return "<DownloadLinks %r %r %r %r %r>" % (
-            self.id,
-            self.zip_file,
+        return "<DownloadLinks %r %r %r>" % (
             self.file_url,
             self.user,
             self.target,
