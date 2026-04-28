@@ -1540,6 +1540,10 @@ class DownloadLinks(models.Model):
         db_index=True,
         null=True,
     )
+    task_id = models.TextField(
+        null=True,
+        help_text="The task ID assigned to this download (if a Task is launched)",
+    )
     user = models.ForeignKey(User, null=True, on_delete=models.CASCADE)
     target = models.ForeignKey(
         Target, null=True, on_delete=models.CASCADE, db_index=True
