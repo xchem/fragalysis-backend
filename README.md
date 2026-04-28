@@ -207,19 +207,21 @@ for the viewer's model run the following: -
 >   Before starting postgres, if you need to, remove any pre-existing local database
     (if one exists) with `rm -rf ./data/postgresl`
 
-    docker-compose -f docker-compose-migrate.yml up -d
+    docker compose -f docker-compose-migrate.yml build
+    docker compose -f docker-compose-migrate.yml up -d
 
-Then enter the backend container with: -
+Then, giving the backend time to start, enter the backend container with: -
+
+    docker compose -f docker-compose-migrate.yml exec backend bash
 
 Then from within the backend container make the migrations
 (in this case for the `viewer`)...
 
-    docker-compose -f docker-compose-migrate.yml exec backend bash
     python manage.py makemigrations viewer --name "add_job_request_start_and_finish_times"
 
 Exit the container and tear-down the deployment: -
 
-    docker-compose -f docker-compose-migrate.yml down
+    docker compose -f docker-compose-migrate.yml down
 
 >   The migrations will be written to your clone's filesystem as the project directory
     is mapped into the container as a volume at `/code`. You just need to commit the

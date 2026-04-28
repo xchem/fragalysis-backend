@@ -12,7 +12,7 @@
 services:
 
   database:
-    image: informaticsmatters/rdkit-cartridge-debian:Release_2024_03_6
+    image: xchem/fragalysis-database:2026.04.1
     container_name: database
     volumes:
     - ./data/postgresql/data:/var/lib/postgresql/data
