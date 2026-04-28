@@ -1,3 +1,9 @@
+"""Using the service status scheduler we install two tasks that run regularly to
+clean-up "out od date" DownloadLinks records.
+
+A soft removal marks records as "expired" and a hard removal removes the underlying
+files for "expired" records that have been expired for a significant time.
+"""
 import signal
 
 from django.conf import settings
