@@ -68,7 +68,11 @@ from .discourse import (
     create_discourse_post,
     list_discourse_posts_for_topic,
 )
-from .download_structures import erase_out_of_date_download_records, get_download_params
+from .download_structures import (
+    get_download_params,
+    hard_erase_out_of_date_download_records,
+    soft_erase_out_of_date_download_records,
+)
 from .forms import CSetForm
 from .squonk_job_file_transfer import (
     TfrFileNotFoundError,
@@ -1572,8 +1576,6 @@ class DownloadStructuresView(
         )
         download_link.save()
 
-        erase_out_of_date_download_records()
-
         # Static files (i.e. links not removed)
         if serializer.validated_data['file_url']:
             file_url = serializer.validated_data['file_url']
@@ -1596,6 +1598,9 @@ class DownloadStructuresView(
             logger.warning(msg)
             content = {'message': msg}
             return Response(content, status=status.HTTP_400_BAD_REQUEST)
+
+        soft_erase_out_of_date_download_records()
+        hard_erase_out_of_date_download_records()
 
         # Dynamic files
         if 'target_access_string' not in serializer.validated_data.keys():
@@ -1706,20 +1711,22 @@ class DownloadStructuresView(
             return Response(content, status=status.HTTP_404_NOT_FOUND)
 
         # fmt: off
+        # Get the first record that represents this download,
+        # where these is a file (that has not expired).
         existing_link = models.DownloadLinks.objects.filter(
             target=download_link.target,
             proteins=download_link.proteins,
             protein_params=download_link.protein_params,
             other_params=download_link.other_params,
             file_url__isnull=False,
+            expired_date__isnull=True,
         ).exclude(
             pk=download_link.pk,
         ).first()
         # fmt: on
 
-        # found a download attempt with exact same parameters
+        # found a download link with exact same parameters?
         if existing_link:
-            assert existing_link.file_url
             return Response({"file_url": existing_link.file_url})
         else:
             # download with these parameters does not exist, launch a

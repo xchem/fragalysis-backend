@@ -41,8 +41,10 @@ from .target_loader import strip_exp_code
 
 logger = logging.getLogger(__name__)
 
-# Length of time to keep records of dynamic links.
+# Length of time to keep records of dynamic links before "expiry"
 KEEP_UNTIL_DURATION = timedelta(minutes=settings.DOWNLOAD_KEEP_UNTIL_DURATION_M)
+# Length of time to "expired" records
+HARD_EXPIRY_GRACE_PERIOD = timedelta(minutes=settings.HARD_EXPIRY_GRACE_PERIOD_M)
 
 # Filepaths mapping for writing associated files to the zip archive.
 # Note that if this is set to 'aligned' then the files will be placed in
@@ -1327,29 +1329,54 @@ def create_download(download_link_id: int, task, use_zip: bool = False):
     return file_url
 
 
-def erase_out_of_date_download_records():
-    """Physical zip files for non-static (dynamic) links
-    are removed if their 'keep_zip_until' time has been met.
+def soft_erase_out_of_date_download_records():
+    """Here we look for non-static records that are 'out of date' that have also
+    not already been soft-deleted (i.e. where an 'expired_date' is not set)
+    and we set the 'expired_date'.
 
-    This is for security reasons and to conserve memory space.
+    Users should not use records that have an expired date.
     """
-    out_of_date_dynamic_records = (
-        DownloadLinks.objects.filter(keep_zip_until__lt=datetime.now(timezone.utc))
-        .filter(file_url__isnull=False)
+    now: datetime = datetime.now(timezone.utc)
+    new_expired_records = (
+        DownloadLinks.objects.filter(keep_zip_until__lt=now)
+        .filter(expired_date__isnull=True)
         .filter(static_link=False)
     )
 
-    for out_of_date_dynamic_record in out_of_date_dynamic_records:
-        file_url = out_of_date_dynamic_record.file_url
-        logger.info(
-            'Too old (file_url=%s keep_zip_until=%s)...',
-            file_url,
-            out_of_date_dynamic_record.keep_zip_until,
-        )
+    if num_expired := new_expired_records.update(expired_date=now):
+        logger.info('%d records have now expired', num_expired)
 
+
+def hard_erase_out_of_date_download_records():
+    """Physical zip files for non-static (dynamic) links
+    are removed if they have been 'expired' for long enough.
+    We can safely do this because the
+
+    This is for security reasons and to conserve memory space.
+    """
+    now: datetime = datetime.now(timezone.utc)
+
+    # Collect non-static records where there is an expired date but are not deleted
+    # (where there is also a file-url)
+    dead_dynamic_records = (
+        DownloadLinks.objects.filter(expired_date__isnull=False)
+        .filter(deleted__isnull=True)
+        .filter(static_link=False)
+        .filter(file_url__isnull=False)
+    )
+
+    num_deleted = 0
+    num_pending = 0
+    for dead_dynamic_record in dead_dynamic_records:
+        # Skip any that have not been in an expired state for long enough...
+        if dead_dynamic_record.expired_date + HARD_EXPIRY_GRACE_PERIOD >= now:
+            num_pending += 1
+            continue
+
+        file_url = dead_dynamic_record.file_url
         dir_name = os.path.dirname(file_url)
+        logger.info('Deleting %s...', dir_name)
         if os.path.isdir(dir_name):
-            logger.debug('Removing %s...', dir_name)
             try:
                 shutil.rmtree(dir_name)
                 logger.debug('Removed %s', dir_name)
@@ -1360,9 +1387,12 @@ def erase_out_of_date_download_records():
                 # does not look like 'No such file or directory'...
                 if 'No such file' not in str(ex):
                     logger.warning('Failed to remove %s (%s)', dir_name, ex)
+            dead_dynamic_record.update(deleted=True)
 
-    if num_removed := out_of_date_dynamic_records.update(file_url=None):
-        logger.info('Removed %d files', num_removed)
+    if num_deleted:
+        logger.info('Deleted %d files', num_deleted)
+    if num_pending:
+        logger.info('%d records have expired (but not for long enough)', num_pending)
 
 
 # TODO: issue with single_sdf file

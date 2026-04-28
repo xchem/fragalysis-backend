@@ -524,10 +524,13 @@ DISCOURSE_API_KEY: str = os.environ.get("DISCOURSE_API_KEY", "")
 # dedicated Discourse server.
 DISCOURSE_DEV_POST_SUFFIX: str = os.environ.get("DISCOURSE_DEV_POST_SUFFIX", "")
 
-# The period of time allowed to elapse before recreating a Target download file.
-# This is used by download_structures.py as the length of time to keep records of dynamic links.
+# The period of time allowed to elapse before considering a DownloadLinks record to have "expired".
 DOWNLOAD_KEEP_UNTIL_DURATION_M: int = int(
     os.environ.get("DOWNLOAD_KEEP_UNTIL_DURATION_M", "90")
+)
+# The period of time to keep "expired" records before physically removing the underlying file.
+HARD_EXPIRY_GRACE_PERIOD_M: int = int(
+    os.environ.get("HARD_EXPIRY_GRACE_PERIOD_M", "180")
 )
 
 # Some Squonk2 developer/debug variables.
