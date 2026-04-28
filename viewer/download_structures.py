@@ -1319,7 +1319,7 @@ def create_download(download_link_id: int, task, use_zip: bool = False):
     # We now have a download file
     # so record it and set the 'keep unitl' (expiry) time
     download_link.file_url = file_url
-    download_link.keep_zip_until = datetime.now() + KEEP_UNTIL_DURATION
+    download_link.keep_zip_until = datetime.now(timezone.utc) + KEEP_UNTIL_DURATION
     download_link.save()
 
     task.update_state(
