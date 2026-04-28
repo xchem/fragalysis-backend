@@ -1344,7 +1344,8 @@ def soft_erase_out_of_date_download_records():
     )
 
     if num_expired := new_expired_records.update(expired_date=now):
-        logger.info('%d records have now expired', num_expired)
+        msg = "1 record has" if num_expired == 1 else f"{num_expired} records have"
+        logger.info('%s now expired', msg)
 
 
 def hard_erase_out_of_date_download_records():
@@ -1375,7 +1376,7 @@ def hard_erase_out_of_date_download_records():
 
         file_url = dead_dynamic_record.file_url
         dir_name = os.path.dirname(file_url)
-        logger.info('Deleting %s...', dir_name)
+        logger.debug('Deleting %s...', dir_name)
         if os.path.isdir(dir_name):
             try:
                 shutil.rmtree(dir_name)
@@ -1387,12 +1388,16 @@ def hard_erase_out_of_date_download_records():
                 # does not look like 'No such file or directory'...
                 if 'No such file' not in str(ex):
                     logger.warning('Failed to remove %s (%s)', dir_name, ex)
-            dead_dynamic_record.update(deleted=True)
+
+        dead_dynamic_record.update(deleted=True)
+        num_deleted += 1
 
     if num_deleted:
-        logger.info('Deleted %d files', num_deleted)
+        msg = "1 file has" if num_deleted == 1 else f"{num_deleted} files have"
+        logger.info('%s now been deleted', msg)
     if num_pending:
-        logger.info('%d records have expired (but not for long enough)', num_pending)
+        msg = "1 record has" if num_pending == 1 else f"{num_pending} records have"
+        logger.info('%s expired (but not long enough for file deletion)', num_pending)
 
 
 # TODO: issue with single_sdf file
