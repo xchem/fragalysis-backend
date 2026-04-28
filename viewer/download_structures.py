@@ -1394,7 +1394,8 @@ def hard_erase_out_of_date_download_records():
                 if 'No such file' not in str(ex):
                     logger.warning('Failed to remove %s (%s)', dir_name, ex)
 
-        dead_dynamic_record.update(deleted=True)
+        dead_dynamic_record.deleted = True
+        dead_dynamic_record.save()
         num_deleted += 1
 
     if num_deleted:
