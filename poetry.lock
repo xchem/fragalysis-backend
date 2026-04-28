@@ -959,14 +959,14 @@ Django = ">=3.2,<6.1"
 
 [[package]]
 name = "django-webpack-loader"
-version = "0.7.0"
+version = "3.2.3"
 description = "Transparently use webpack with django"
 optional = false
 python-versions = "*"
 groups = ["main"]
 files = [
-    {file = "django-webpack-loader-0.7.0.tar.gz", hash = "sha256:7a3c88201aa54481f9399465615cbe7b9aece8081496a6d0287b7cb8e232f447"},
-    {file = "django_webpack_loader-0.7.0-py2.py3-none-any.whl", hash = "sha256:d28a276ed3d89e97a313b74967e373693f8b86afe629f4c91eea91c5b4f2ec20"},
+    {file = "django_webpack_loader-3.2.3-py2.py3-none-any.whl", hash = "sha256:d070bfe8ea5bd6ed48810a8d247204bb7f672573bdb6a7b589f6b75998a45993"},
+    {file = "django_webpack_loader-3.2.3.tar.gz", hash = "sha256:81092499af8e0c9b3a0bad21324aca6e2ad786133b19248dae213eb9661a17f7"},
 ]
 
 [[package]]
@@ -3429,4 +3429,4 @@ test = ["coverage"]
 [metadata]
 lock-version = "2.1"
 python-versions = "^3.13.0"
-content-hash = "603850c48e1d09eef3528cf919930ddd7781a3f40d9d26c2effef2cc8179c7c5"
+content-hash = "be494d5d0168607f49c12815365d6e32d90a161244064d38ca724a20e94f7dc3"

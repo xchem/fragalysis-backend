@@ -18,6 +18,7 @@ django-extensions = "^4.1"
 django-filter = "^25.2"
 django-guardian = "^3.2"
 django-simple-history = "^3.10"
+django-webpack-loader = "^3.2.3"
 fragalysis = "^1.1.0"
 gunicorn = "^23.0"
 humanize = "^4.15"
@@ -49,8 +50,6 @@ python-ipware = "^3.0.0"
 rdkit = "2025.03.6"
 xchem-db = "0.1.26b0"
 im-squonk2-client = "^1.22.2"
-django-webpack-loader = "^0.7.0"   # v3.2 fails to load
-
 
 # unused/to be deprecated
 # deepdiff = "^6.2.0"
