@@ -1559,7 +1559,8 @@ class DownloadStructuresView(
 
         logger.debug('user resolved: %s', user)
 
-        # save new download link to record an attempt
+        # Save new download link to record a download attempt.
+        # It might be used to form a new Task (if one isn't already running)
         download_link = models.DownloadLinks(
             user=user,
             create_date=datetime.now(timezone.utc),
@@ -1723,20 +1724,52 @@ class DownloadStructuresView(
         if existing_link:
             return Response({"file_url": existing_link.file_url})
 
-        # Nope ... start a new celery task to create it
-        task = task_create_download.delay(
-            download_link_id=download_link.pk,
-            use_zip=serializer.validated_data.get('use_zip', False),
-        )
-        logger.info(
-            "Task started to build a download (user=%s target=%s task=%s)",
-            username,
-            target.title,
-            task.task_id,
+        # Do we have a suitable record for a compression task that's underway
+        # (i.e. has a Task ID) and not expired?
+        #
+        # If we do, then clearly the download is already being built so let's return
+        # its Task ID to the caller - there's no need to start a ew task if one
+        # that will build our download is already running!
+        in_progress_link = (
+            models.DownloadLinks.objects.filter(
+                target=download_link.target,
+                proteins=download_link.proteins,
+                protein_params=download_link.protein_params,
+                other_params=download_link.other_params,
+                task_id__isnull=False,
+                expired_date__isnull=True,
+            )
+            .exclude(
+                pk=download_link.pk,
+            )
+            .first()
         )
 
-        # New task started - return a URL to obtain the task status...
-        url = reverse('viewer:task_status', kwargs={'task_id': task.task_id})
+        if in_progress_link:
+            logger.info(
+                "A suitable Task is already in progress (user=%s target=%s task=%s)",
+                username,
+                target.title,
+                in_progress_link.task_id,
+            )
+            url = reverse(
+                'viewer:task_status', kwargs={'task_id': in_progress_link.task_id}
+            )
+        else:
+            # No existing link and nothing on progress ... start a new celery task to create it
+            task = task_create_download.delay(
+                download_link_id=download_link.pk,
+                use_zip=serializer.validated_data.get('use_zip', False),
+            )
+            logger.info(
+                "Task started to build a download (user=%s target=%s task=%s)",
+                username,
+                target.title,
+                task.task_id,
+            )
+            # New task started - return a URL to obtain the task status...
+            url = reverse('viewer:task_status', kwargs={'task_id': task.task_id})
+
         return Response({'task_status_url': url}, status=status.HTTP_202_ACCEPTED)
 
 
