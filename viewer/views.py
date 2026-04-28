@@ -1704,8 +1704,9 @@ class DownloadStructuresView(
             return Response(content, status=status.HTTP_404_NOT_FOUND)
 
         # fmt: off
-        # Get the first record that represents this download,
-        # where these is a file (that has not expired).
+        # See if we can get an alternative record that represents this download.
+        # It simply has to look like the right download, have a file set,
+        # and not have 'expired' (and not be the record we created earlier in this call)
         existing_link = models.DownloadLinks.objects.filter(
             target=download_link.target,
             proteins=download_link.proteins,
@@ -1718,24 +1719,25 @@ class DownloadStructuresView(
         ).first()
         # fmt: on
 
-        # found a download link with exact same parameters?
+        # Did we find an existing DownloadLink with exact same parameters?
         if existing_link:
             return Response({"file_url": existing_link.file_url})
-        else:
-            # download with these parameters does not exist, launch a
-            # task to create it
-            task = task_create_download.delay(
-                download_link_id=download_link.pk,
-                use_zip=serializer.validated_data.get('use_zip', False),
-            )
-            logger.info(
-                "Task started to build a download (user=%s target=%s task=%s)",
-                username,
-                target.title,
-                task.task_id,
-            )
-            url = reverse('viewer:task_status', kwargs={'task_id': task.task_id})
-            return Response({'task_status_url': url}, status=status.HTTP_202_ACCEPTED)
+
+        # Nope ... start a new celery task to create it
+        task = task_create_download.delay(
+            download_link_id=download_link.pk,
+            use_zip=serializer.validated_data.get('use_zip', False),
+        )
+        logger.info(
+            "Task started to build a download (user=%s target=%s task=%s)",
+            username,
+            target.title,
+            task.task_id,
+        )
+
+        # New task started - return a URL to obtain the task status...
+        url = reverse('viewer:task_status', kwargs={'task_id': task.task_id})
+        return Response({'task_status_url': url}, status=status.HTTP_202_ACCEPTED)
 
 
 class UploadExperimentUploadView(viewsets.ViewSet):
