@@ -1238,7 +1238,10 @@ def create_download(download_link_id: int, task, use_zip: bool = False):
 
     """
 
+    # Retrieve the DOwnloadLinks record (and set its Task ID)
     download_link = DownloadLinks.objects.get(pk=download_link_id)
+    download_link.task_id = str(task.request.id)
+    download_link.save()
 
     # error checking is not necessary because all these objects are
     # already resolved in the view and then passed through task
@@ -1313,6 +1316,8 @@ def create_download(download_link_id: int, task, use_zip: bool = False):
         },
     )
 
+    # We now have a download file
+    # so record it and set the 'keep unitl' (expiry) time
     download_link.file_url = file_url
     download_link.keep_zip_until = datetime.now() + KEEP_UNTIL_DURATION
     download_link.save()
