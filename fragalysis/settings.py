@@ -532,6 +532,10 @@ DOWNLOAD_KEEP_UNTIL_DURATION_M: int = int(
 HARD_EXPIRY_GRACE_PERIOD_M: int = int(
     os.environ.get("HARD_EXPIRY_GRACE_PERIOD_M", "180")
 )
+# How often (minutes) the background download-cleanup scheduler runs.
+DOWNLOAD_CLEANUP_INTERVAL_M: int = int(
+    os.environ.get("DOWNLOAD_CLEANUP_INTERVAL_M", "17")
+)
 
 # Some Squonk2 developer/debug variables.
 # Unused in production.

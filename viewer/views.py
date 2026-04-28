@@ -68,11 +68,7 @@ from .discourse import (
     create_discourse_post,
     list_discourse_posts_for_topic,
 )
-from .download_structures import (
-    get_download_params,
-    hard_erase_out_of_date_download_records,
-    soft_erase_out_of_date_download_records,
-)
+from .download_structures import get_download_params
 from .forms import CSetForm
 from .squonk_job_file_transfer import (
     TfrFileNotFoundError,
@@ -1598,9 +1594,6 @@ class DownloadStructuresView(
             logger.warning(msg)
             content = {'message': msg}
             return Response(content, status=status.HTTP_400_BAD_REQUEST)
-
-        soft_erase_out_of_date_download_records()
-        hard_erase_out_of_date_download_records()
 
         # Dynamic files
         if 'target_access_string' not in serializer.validated_data.keys():

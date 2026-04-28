@@ -74,6 +74,8 @@ nginx -tq
 if [ "${HOSTNAME}" = "stack-0" ]; then
   echo "Launching service health check queries"
   python manage.py start_service_queries &
+  echo "Launching download cleanup scheduler"
+  python manage.py start_download_cleanup &
 fi
 
 echo "Running nginx..."
