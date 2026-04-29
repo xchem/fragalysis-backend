@@ -315,7 +315,7 @@ class ProteinPDBBoundInfoView(ISPyBSafeQuerySet):
     )
 
 
-class ProjectView(ISPyBSafeQuerySet):
+class ProjectView(mixins.UpdateModelMixin, ISPyBSafeQuerySet):
     """Projects (api/project)"""
 
     queryset = models.Project.objects.filter()

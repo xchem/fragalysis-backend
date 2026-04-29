@@ -409,11 +409,18 @@ class ProjectSerializer(serializers.ModelSerializer):
         fields = (
             "id",
             "target_access_string",
+            "alias",
             "init_date",
             "authority",
             "open_to_public",
             "user_can_use_squonk",
         )
+        extra_kwargs = {
+            "id": {"read_only": True},
+            "target_access_string": {"read_only": True},
+            "init_date": {"read_only": True},
+            "open_to_public": {"read_only": True},
+        }
 
 
 class MolImageSerializer(serializers.ModelSerializer):
