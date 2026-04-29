@@ -4,6 +4,9 @@ import sys
 _CONCURRENCY: int = int(os.environ.get("STACK_CONCURRENCY", "4"))
 
 _GUNICORN_LOGGING_DIR: str = os.environ.get("GUNICORN_LOGGING_DIR", "/code/logs")
+_GUNICORN_ROOT_LOGGING_LEVEL: str = os.environ.get(
+    "GUNICORN_ROOT_LOGGING_LEVEL", "INFO"
+).upper()
 _GUNICORN_ERROR_LOGGING_LEVEL: str = os.environ.get(
     "GUNICORN_ERROR_LOGGING_LEVEL", "INFO"
 ).upper()
@@ -34,7 +37,7 @@ logconfig_dict = {
     },
     "handlers": {
         "console": {
-            "level": "INFO",
+            "level": _GUNICORN_ROOT_LOGGING_LEVEL,
             "class": "logging.StreamHandler",
             "stream": sys.stdout,
             "formatter": "generic",
@@ -61,12 +64,12 @@ logconfig_dict = {
         },
     },
     "root": {
-        "level": "INFO",
+        "level": _GUNICORN_ROOT_LOGGING_LEVEL,
         "handlers": ["error_file"],
     },
     "loggers": {
         "root": {
-            "level": "INFO",
+            "level": _GUNICORN_ROOT_LOGGING_LEVEL,
             "handlers": ["error_file"],
         },
         "gunicorn.error": {
