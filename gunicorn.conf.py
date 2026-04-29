@@ -27,7 +27,7 @@ disable_redirect_access_to_syslog = True
 
 class LoggingPrometheusFilter(logging.Filter):
     def filter(self, record):
-        return "GET /metrics" not in record.msg
+        return "GET /metrics" not in record.getMessage()
 
 
 logconfig_dict = {
