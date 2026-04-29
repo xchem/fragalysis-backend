@@ -38,13 +38,9 @@ else:
 printf "$script" | python manage.py shell
 
 echo "Preparing logging..."
-touch /srv/logs/gunicorn.log
-touch /srv/logs/access.log
-touch /code/logs/logfile.log
-
-tmpdir="${TMPDIR:-/code/media/tmp}"
-echo "Preparing tmp ($tmpdir)..."
-mkdir -p ${tmpdir}
+touch /code/logs/gunicorn.log
+touch /code/logs/access.log
+touch /code/logs/backend.log
 
 CONCURRENCY=${STACK_CONCURRENCY:-4}
 
@@ -56,8 +52,9 @@ gunicorn fragalysis.wsgi:application \
     --timeout 3000 \
     --workers ${CONCURRENCY} \
     --log-level=debug \
-    --log-file=/srv/logs/gunicorn.log \
-    --access-logfile=/srv/logs/access.log
+    --log-file /code/logs/gunicorn.log \
+    --error-logfile /code/logs/gunicorn-err.log \
+    --access-logfile /code/logs/gunicorn-access.log
 
 # added as a fix to #1215, mixing http and https requests to enable
 # local development with http. Need to set the env variable in compose
