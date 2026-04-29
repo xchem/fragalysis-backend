@@ -38,7 +38,7 @@ _GUNICORN_LOGGING_BACKUP_COUNT: int = int(
 #   q: Query string
 #   s: Status code of the response.
 #   T: Request time in seconds (integer)
-access_log_format = '%(t)s %(m)s %(U)s %(s)s %(b)s "%(a)s"'
+access_log_format = '%(t)s %(m)s %(U)s %(s)s %(b)s %(L)s "%(a)s"'
 
 bind = "unix:django_app.sock"
 daemon = True
@@ -62,7 +62,7 @@ logconfig_dict = {
     },
     "formatters": {
         "generic": {
-            "format": "%(asctime)s [%(process)d] [%(levelname)s] # %(message)s",
+            "format": "%(asctime)s %(process)d %(levelname)s # %(message)s",
             "datefmt": "%Y-%m-%dT%H:%M:%S%z",
         },
         "access": {
