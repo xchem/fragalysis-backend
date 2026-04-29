@@ -46,7 +46,6 @@ ENV PYTHONPATH="/.venv/lib/python3.13/site-packages/"
 ENV PATH=/.venv/bin:$PATH
 ENV TMPDIR=/tmp
 
-WORKDIR /srv/logs
 WORKDIR /code/logs
 WORKDIR /code
 
