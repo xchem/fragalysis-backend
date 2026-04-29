@@ -5,13 +5,13 @@ _CONCURRENCY: int = int(os.environ.get("STACK_CONCURRENCY", "4"))
 
 _GUNICORN_LOGGING_DIR: str = os.environ.get("GUNICORN_LOGGING_DIR", "/code/logs")
 _GUNICORN_ERROR_LOGGING_LEVEL: str = os.environ.get(
-    "GUNICORN_ERROR_LOGGING_LEVEL", "WARNING"
+    "GUNICORN_ERROR_LOGGING_LEVEL", "INFO"
 ).upper()
 _GUNICORN_ACCESS_LOGGING_LEVEL: str = os.environ.get(
     "GUNICORN_ACCESS_LOGGING_LEVEL", "INFO"
 ).upper()
 _GUNICORN_LOGGING_BACKUP_COUNT: int = int(
-    os.environ.get("GUNICORN_LOGGING_BACKUP_COUNT", "2")
+    os.environ.get("GUNICORN_LOGGING_BACKUP_COUNT", "7")
 )
 
 bind = "unix:django_app.sock"
