@@ -56,7 +56,8 @@ class Vector3d:
 
 
 class Project(models.Model):
-    title = models.CharField(max_length=200, unique=True)
+    title = models.TextField(null=False, unique=True)
+    alias = models.TextField(null=True)
     init_date = models.DateTimeField(auto_now_add=True)
     user_id = models.ManyToManyField(User)
     open_to_public = models.BooleanField(default=False)
