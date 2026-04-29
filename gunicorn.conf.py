@@ -33,6 +33,11 @@ class LoggingPrometheusFilter(logging.Filter):
 logconfig_dict = {
     "version": 1,
     "disable_existing_loggers": True,
+    "filters": {
+        "prometheus_filter": {
+            "()": LoggingPrometheusFilter,
+        },
+    },
     "formatters": {
         "generic": {
             "format": "%(asctime)s [%(process)d] [%(levelname)s] # %(message)s",
@@ -69,11 +74,6 @@ logconfig_dict = {
             "backupCount": _GUNICORN_LOGGING_BACKUP_COUNT,
             "encoding": "utf8",
             "filters": ["prometheus_filter"],
-        },
-    },
-    "filters": {
-        "prometheus_filter": {
-            "class": "LoggingPrometheusFilter",
         },
     },
     "root": {
