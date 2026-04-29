@@ -199,6 +199,7 @@ class DownloadStructures:
         self.tempdir = tempdir
         self.target_access_string = target_access_string
         self.target = target
+        self.username = username
 
         self._temp_path = Path(self.tempdir)
         self._combined_sdf_path = self._temp_path.joinpath(
@@ -1271,6 +1272,32 @@ def create_download(download_link_id: int, task, use_zip: bool = False):
     _logger.debug(
         'site_observation_ids=%s', site_observations.values_list('pk', flat=True)
     )
+
+    # A custom logging adapter to refine the standard logger
+    # by adding lightweight Task context to the messages we log
+    _logger = TaskLoggerAdapter(
+        logger,
+        {
+            'task': str(task.request.id),
+            'marker': 'DOWNLOAD',
+            'target': target,
+            'tas': target_access_string,
+            'username': user.username,
+        },
+    )
+
+    # Always issue an INFO - we're one of the first functions to run
+    # for this task. Here we provide the Task, Target, TAS and Username.
+    # Other users of TaskLoggerAdapter can omit properties other than
+    # the Task in order to shorten lines. The Task gives uas a key
+    # correaltion value so that we can find matching lines.
+    _logger.info('Handling download (target_id=%s)', target_id)
+
+    _logger.debug('site_observation_ids=%s', site_observation_ids)
+
+    import timeit
+
+    t_0 = timeit.default_timer()
 
     task.update_state(
         state=ProcessState.PROCESSING,
