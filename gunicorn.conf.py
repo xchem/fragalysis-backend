@@ -18,6 +18,28 @@ _GUNICORN_LOGGING_BACKUP_COUNT: int = int(
     os.environ.get("GUNICORN_LOGGING_BACKUP_COUNT", "7")
 )
 
+# Access log parameters: -
+#
+#   a: User-agent string (browser or client information).
+#   B: Size of the response body in bytes, excluding headers.
+#   b: Response size in bytes (or 0).
+#   D: Request time in microseconds
+#   f: Referrer URL (where the request originated).
+#   H: Protocol
+#   h: Remote host (IP address of the client).
+#   L: Request time in seconds
+#   l: Remote log name (usually ``, since ident lookups are generally disabled).
+#   m: Request method
+#   r: First line of the request (method, path, and HTTP version).
+#   t: Date and time of the request.
+#   U: URL path without query string
+#   u: Remote user (username of the authenticated user, if any).
+#   p: Process ID of the worker handling the request
+#   q: Query string
+#   s: Status code of the response.
+#   T: Request time in seconds (integer)
+access_log_format = '%(t)s %(m)s %(U)s %(s)s %(b)s "%(a)s"'
+
 bind = "unix:django_app.sock"
 daemon = True
 timeout = 3_000
