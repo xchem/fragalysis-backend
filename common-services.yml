@@ -4,7 +4,7 @@ services:
 
   # The database
   database:
-    image: postgres:15.12-alpine3.21
+    image: xchem/fragalysis-database:2026.04.1
     container_name: database
     volumes:
     - ./data/postgresql/data:/var/lib/postgresql/data

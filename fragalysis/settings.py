@@ -343,7 +343,13 @@ DATABASES = {
         "USER": os.environ.get("POSTGRESQL_USER", "fragalysis"),
         "PASSWORD": os.environ.get("POSTGRESQL_PASSWORD", "fragalysis"),
         "HOST": os.environ.get("POSTGRESQL_HOST", "database"),
-        "PORT": os.environ.get("POSTGRESQL_PORT", 5432),
+        "PORT": int(os.environ.get("POSTGRESQL_PORT", 5432)),
+        # If using a DB connection pooler (like pgBouncer),
+        # DISABLE_SERVER_SIDE_CURSORS must be True (yes).
+        "DISABLE_SERVER_SIDE_CURSORS": os.environ.get(
+            "POSTGRESQL_DISABLE_SERVER_SIDE_CURSORS", "yes"
+        ).lower()
+        == "yes",
     }
 }
 
@@ -518,10 +524,17 @@ DISCOURSE_API_KEY: str = os.environ.get("DISCOURSE_API_KEY", "")
 # dedicated Discourse server.
 DISCOURSE_DEV_POST_SUFFIX: str = os.environ.get("DISCOURSE_DEV_POST_SUFFIX", "")
 
-# The period of time allowed to elapse before recreating a Target download file.
-# This is used by download_structures.py as the length of time to keep records of dynamic links.
+# The period of time allowed to elapse before considering a DownloadLinks record to have "expired".
 DOWNLOAD_KEEP_UNTIL_DURATION_M: int = int(
     os.environ.get("DOWNLOAD_KEEP_UNTIL_DURATION_M", "90")
+)
+# The period of time to keep "expired" records before physically removing the underlying file.
+HARD_EXPIRY_GRACE_PERIOD_M: int = int(
+    os.environ.get("HARD_EXPIRY_GRACE_PERIOD_M", "180")
+)
+# How often (minutes) the background download-cleanup scheduler runs.
+DOWNLOAD_CLEANUP_INTERVAL_M: int = int(
+    os.environ.get("DOWNLOAD_CLEANUP_INTERVAL_M", "17")
 )
 
 # Some Squonk2 developer/debug variables.

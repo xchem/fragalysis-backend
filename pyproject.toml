@@ -41,6 +41,7 @@ bcrypt = "^5.0"
 djangorestframework = "^3.16.1"
 legacy-cgi = "^2.6.3"   # required by djangorestframwork
 django-prometheus = "^2.4"
+python-ipware = "^3.0.0"
 
 
 # Specific (critical dependency) packages...

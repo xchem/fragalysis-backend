@@ -56,7 +56,8 @@ class Vector3d:
 
 
 class Project(models.Model):
-    title = models.CharField(max_length=200, unique=True)
+    title = models.TextField(null=False, unique=True)
+    alias = models.TextField(null=True)
     init_date = models.DateTimeField(auto_now_add=True)
     user_id = models.ManyToManyField(User)
     open_to_public = models.BooleanField(default=False)
@@ -1535,11 +1536,14 @@ class DiscourseTopic(models.Model):
 class DownloadLinks(models.Model):
     """Searches made with the download_structures api."""
 
-    file_url = models.CharField(
-        max_length=200,
+    file_url = models.TextField(
         unique=True,
         db_index=True,
-        help_text="Contains the complete link to the zip file including the uuid",
+        null=True,
+    )
+    task_id = models.TextField(
+        null=True,
+        help_text="The task ID assigned to this download (if a Task is launched)",
     )
     user = models.ForeignKey(User, null=True, on_delete=models.CASCADE)
     target = models.ForeignKey(
@@ -1572,23 +1576,33 @@ class DownloadLinks(models.Model):
         " For dynamic files, the zip is reconstructed from the search",
     )
     create_date = models.DateTimeField()
+    expired_date = models.DateTimeField(
+        null=True,
+        help_text="Set when the download has passed its keep until date."
+        " Users should not use records when this is set.",
+    )
     keep_zip_until = models.DateTimeField(
         db_index=True,
+        null=True,
         help_text="The datetime when the tag was created"
         " plus the retention time"
         " (1 hour at the time of writing)",
     )
+    deleted = models.BooleanField(
+        null=True,
+        help_text="Set when the download file has been removed from the filesystem.",
+    )
     # TODO - zip_file is no longer Used (A.Christie 2024-01-19)
     zip_file = models.BooleanField(default=False)
     original_search = models.JSONField(encoder=DjangoJSONEncoder, null=True)
+    request_ip = models.TextField(null=True)
+    request_location = models.TextField(null=True)
 
     def __str__(self):
         return str(self.file_url)
 
     def __repr__(self) -> str:
-        return "<DownloadLinks %r %r %r %r %r>" % (
-            self.id,
-            self.zip_file,
+        return "<DownloadLinks %r %r %r>" % (
             self.file_url,
             self.user,
             self.target,
