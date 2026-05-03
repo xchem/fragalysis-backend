@@ -238,6 +238,21 @@ TEMPLATES = [
 
 TIME_ZONE = "UTC"
 
+# Cache framework.
+# We use per-view cache, so views that need caching
+# should use the '@cache_page' decorator.
+# See https://docs.djangoproject.com/en/6.0/topics/cache/#the-per-view-cache
+
+CACHES = {
+    "memory": {
+        "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
+    }
+}
+
+CACHE_MIDDLEWARE_ALIAS = "memory"
+CACHE_MIDDLEWARE_SECONDS = 600
+CACHE_MIDDLEWARE_KEY_PREFIX = ""
+
 # mozilla_django_oidc.
 # See: https://mozilla-django-oidc.readthedocs.io/en/stable/
 # Before you can configure your application, you need to set up a client with

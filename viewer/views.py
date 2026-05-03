@@ -20,7 +20,10 @@ from django.contrib.auth import get_user_model
 from django.http import FileResponse, HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
+from django.utils.decorators import method_decorator
 from django.views import View
+from django.views.decorators.cache import cache_page
+from django.views.decorators.vary import vary_on_headers
 from python_ipware import IpWare
 from rest_framework import generics, mixins, permissions, status, viewsets
 from rest_framework.decorators import action
@@ -1227,6 +1230,28 @@ class ComputedMoleculesView(ISPyBSafeQuerySet):
     filter_permissions = "compound__project_id"
     filterset_fields = ('computed_set',)
 
+    # Vary keys the cache on Authorization/Cookie so per-user
+    # proposal filtering from ISPyBSafeQuerySet is preserved.
+    @method_decorator(
+        cache_page(
+            settings.CACHE_MIDDLEWARE_SECONDS,
+            cache=settings.CACHE_MIDDLEWARE_ALIAS,
+        )
+    )
+    @method_decorator(vary_on_headers('Authorization', 'Cookie'))
+    def list(self, request, *args, **kwargs):
+        return super().list(request, *args, **kwargs)
+
+    @method_decorator(
+        cache_page(
+            settings.CACHE_MIDDLEWARE_SECONDS,
+            cache=settings.CACHE_MIDDLEWARE_ALIAS,
+        )
+    )
+    @method_decorator(vary_on_headers('Authorization', 'Cookie'))
+    def retrieve(self, request, *args, **kwargs):
+        return super().retrieve(request, *args, **kwargs)
+
 
 class NumericalScoreValuesView(ISPyBSafeQuerySet):
     """View to retrieve information about numerical computed molecule scores
@@ -1266,6 +1291,28 @@ class ComputedMolAndScoreView(ISPyBSafeQuerySet):
     serializer_class = serializers.ComputedMolAndScoreSerializer
     filter_permissions = "compound__project_id"
     filterset_fields = ('computed_set',)
+
+    # Vary keys the cache on Authorization/Cookie so per-user
+    # proposal filtering from ISPyBSafeQuerySet is preserved.
+    @method_decorator(
+        cache_page(
+            settings.CACHE_MIDDLEWARE_SECONDS,
+            cache=settings.CACHE_MIDDLEWARE_ALIAS,
+        )
+    )
+    @method_decorator(vary_on_headers('Authorization', 'Cookie'))
+    def list(self, request, *args, **kwargs):
+        return super().list(request, *args, **kwargs)
+
+    @method_decorator(
+        cache_page(
+            settings.CACHE_MIDDLEWARE_SECONDS,
+            cache=settings.CACHE_MIDDLEWARE_ALIAS,
+        )
+    )
+    @method_decorator(vary_on_headers('Authorization', 'Cookie'))
+    def retrieve(self, request, *args, **kwargs):
+        return super().retrieve(request, *args, **kwargs)
 
 
 class DiscoursePostView(viewsets.ViewSet):
@@ -1449,6 +1496,28 @@ class SiteObservationTagView(
         'mol_group',
     )
 
+    # Vary keys the cache on Authorization/Cookie so per-user
+    # proposal filtering from ISPyBSafeQuerySet is preserved.
+    @method_decorator(
+        cache_page(
+            settings.CACHE_MIDDLEWARE_SECONDS,
+            cache=settings.CACHE_MIDDLEWARE_ALIAS,
+        )
+    )
+    @method_decorator(vary_on_headers('Authorization', 'Cookie'))
+    def list(self, request, *args, **kwargs):
+        return super().list(request, *args, **kwargs)
+
+    @method_decorator(
+        cache_page(
+            settings.CACHE_MIDDLEWARE_SECONDS,
+            cache=settings.CACHE_MIDDLEWARE_ALIAS,
+        )
+    )
+    @method_decorator(vary_on_headers('Authorization', 'Cookie'))
+    def retrieve(self, request, *args, **kwargs):
+        return super().retrieve(request, *args, **kwargs)
+
 
 class PoseView(
     mixins.UpdateModelMixin,
@@ -1462,6 +1531,28 @@ class PoseView(
     filter_permissions = "compound__project_id"
     serializer_class = serializers.PoseSerializer
     filterset_class = filters.PoseFilter
+
+    # Vary keys the cache on Authorization/Cookie so per-user
+    # proposal filtering from ISPyBSafeQuerySet is preserved.
+    @method_decorator(
+        cache_page(
+            settings.CACHE_MIDDLEWARE_SECONDS,
+            cache=settings.CACHE_MIDDLEWARE_ALIAS,
+        )
+    )
+    @method_decorator(vary_on_headers('Authorization', 'Cookie'))
+    def list(self, request, *args, **kwargs):
+        return super().list(request, *args, **kwargs)
+
+    @method_decorator(
+        cache_page(
+            settings.CACHE_MIDDLEWARE_SECONDS,
+            cache=settings.CACHE_MIDDLEWARE_ALIAS,
+        )
+    )
+    @method_decorator(vary_on_headers('Authorization', 'Cookie'))
+    def retrieve(self, request, *args, **kwargs):
+        return super().retrieve(request, *args, **kwargs)
 
 
 class SessionProjectTagView(
@@ -2243,6 +2334,28 @@ class SiteObservationView(ISPyBSafeQuerySet):
     serializer_class = serializers.SiteObservationReadSerializer
     filterset_class = filters.SiteObservationFilter
     filter_permissions = "experiment__experiment_upload__project"
+
+    # Vary keys the cache on Authorization/Cookie so per-user
+    # proposal filtering from ISPyBSafeQuerySet is preserved.
+    @method_decorator(
+        cache_page(
+            settings.CACHE_MIDDLEWARE_SECONDS,
+            cache=settings.CACHE_MIDDLEWARE_ALIAS,
+        )
+    )
+    @method_decorator(vary_on_headers('Authorization', 'Cookie'))
+    def list(self, request, *args, **kwargs):
+        return super().list(request, *args, **kwargs)
+
+    @method_decorator(
+        cache_page(
+            settings.CACHE_MIDDLEWARE_SECONDS,
+            cache=settings.CACHE_MIDDLEWARE_ALIAS,
+        )
+    )
+    @method_decorator(vary_on_headers('Authorization', 'Cookie'))
+    def retrieve(self, request, *args, **kwargs):
+        return super().retrieve(request, *args, **kwargs)
 
 
 class SiteObservationIDView(ISPyBSafeQuerySet):
