@@ -21,10 +21,11 @@ services:
       retries: 5
       start_period: 10s
 
-  # Redis (Celery/Worker Broker)
+  # Redis (Celery/Worker Broker in DB/0 & Django Cache in DB/1)
   redis:
-    image: redis:7.2.3-alpine3.18
+    image: redis:7.4.8-alpine3.21
     container_name: redis
+    command: redis-server --databases 2
     volumes:
     - ./data/redis/data:/data
     ports:
