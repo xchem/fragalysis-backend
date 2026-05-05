@@ -12,12 +12,12 @@ The aligned directory contains a subdirectory for each dataset that was selected
 - `[target-name_crystal-name]_delig-desolv.pdb --- Protein model only. Ligand and water/ion/buffer molecules removed
 - `[target-name_crystal-name]_delig-solv.pdb --- Water/ion/buffer molecules molecules only. Protein and ligand molecules removed
 - `[target-name_crystal-name]_delig.pdb --- Protein and solvent/ion/buffer molecules. Ligand molecules removed
-- `[target-name_crystal-name]_event.ccp4 --- PanDDA event electron density map cut to around 12 Å around the ligand - Background-corrected reflection data higher signal-to-noise enhances ligand evidence corresponding to the PDB file
-- `[target-name_crystal-name]_sigmaa.ccp4 --- 2mFo-DFc σA-weighted map cut to around 12 Å around the ligand - Estimate of the true electron density from diffraction data and atomic model
-- `[target-name_crystal-name]_diff.ccp4 --- mFo-DFc σA-weighted difference map cut to around 12 Å around the ligand - Negative density indicates model without supporting density, positive density indicates unmodelled features
-- `[target-name_crystal-name]_event_crystallographic.ccp4 --- PanDDA event electron density map cut to around 12 Å around the ligand - Background-corrected reflection data higher signal-to-noise enhances ligand evidence corresponding to the PDB file
-- `[target-name_crystal-name]_sigmaa_crystallographic.ccp4 --- 2mFo-DFc σA-weighted map cut to around 12 Å around the ligand - Estimate of the true electron density from diffraction data and atomic model
-- `[target-name_crystal-name]_diff_crystallographic.ccp4 --- mFo-DFc σA-weighted difference map cut to around 12 Å around the ligand - Negative density indicates model without supporting density, positive density indicates unmodelled features
+- `[target-name_crystal-name]_event.ccp4 --- PanDDA event electron density map cut to around 12 Ang around the ligand - Background-corrected reflection data higher signal-to-noise enhances ligand evidence corresponding to the PDB file
+- `[target-name_crystal-name]_sigmaa.ccp4 --- 2mFo-DFc σA-weighted map cut to around 12 Ang around the ligand - Estimate of the true electron density from diffraction data and atomic model
+- `[target-name_crystal-name]_diff.ccp4 --- mFo-DFc σA-weighted difference map cut to around 12 Ang around the ligand - Negative density indicates model without supporting density, positive density indicates unmodelled features
+- `[target-name_crystal-name]_event_crystallographic.ccp4 --- PanDDA event electron density map cut to around 12 Ang around the ligand - Background-corrected reflection data higher signal-to-noise enhances ligand evidence corresponding to the PDB file
+- `[target-name_crystal-name]_sigmaa_crystallographic.ccp4 --- 2mFo-DFc σA-weighted map cut to around 12 Ang around the ligand - Estimate of the true electron density from diffraction data and atomic model
+- `[target-name_crystal-name]_diff_crystallographic.ccp4 --- mFo-DFc σA-weighted difference map cut to around 12 Ang around the ligand - Negative density indicates model without supporting density, positive density indicates unmodelled features
 - `[target-name_crystal-name]_ligand.pdb --- Ligand structure in PDB format
 - `[target-name_crystal-name]_ligand.sdf --- Ligand structure in SDF format
 - `[target-name_crystal-name]_ligand.smi --- Ligand structure in SMILES format
