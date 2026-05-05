@@ -248,16 +248,17 @@ TIME_ZONE = "UTC"
 CACHE_DISABLED = os.environ.get("CACHE_DISABLED", "No").lower() in ["true", "yes"]
 
 # Which CACHES alias cache_page (and signal-driven invalidation) uses. Set
-# CACHE_MIDDLEWARE_ALIAS=memcached in the environment to route through the
-# memcached entry below; "default" uses the in-process LocMemCache.
+# CACHE_MIDDLEWARE_ALIAS=redis in the environment to route through the
+# redis entry below; "default" uses the in-process LocMemCache.
 CACHE_MIDDLEWARE_ALIAS = os.environ.get("CACHE_MIDDLEWARE_ALIAS", "default")
 CACHE_MIDDLEWARE_SECONDS = 60 * 60 * 24 * 28  # 28 days
 CACHE_MIDDLEWARE_KEY_PREFIX = ""
 
-# An optional memcached backend, addressable via caches["memcached"]. Override
-# the host:port via MEMCACHED_LOCATION; the backend module is loaded lazily so
-# this entry is harmless if no code uses the alias.
-MEMCACHED_LOCATION = os.environ.get("MEMCACHED_LOCATION", "memcached:11211")
+# An optional redis backend, addressable via caches["redis"]. Override the
+# connection URL via REDIS_CACHE_LOCATION; the backend module is loaded lazily
+# so this entry is harmless if no code uses the alias. db=1 keeps the cache
+# isolated from celery (db=0).
+REDIS_CACHE_LOCATION = os.environ.get("REDIS_CACHE_LOCATION", "redis://redis:6379/1")
 
 CACHES = {
     "default": {
@@ -267,13 +268,13 @@ CACHES = {
             else "django.core.cache.backends.locmem.LocMemCache"
         ),
     },
-    "memcached": {
+    "redis": {
         "BACKEND": (
             "django.core.cache.backends.dummy.DummyCache"
             if CACHE_DISABLED
-            else "django.core.cache.backends.memcached.PyMemcacheCache"
+            else "django.core.cache.backends.redis.RedisCache"
         ),
-        "LOCATION": MEMCACHED_LOCATION,
+        "LOCATION": REDIS_CACHE_LOCATION,
     },
 }
 
