@@ -37,7 +37,6 @@ from viewer.utils import clean_filename
 
 from .logger_adapters import TaskLoggerAdapter
 from .tags import get_metadata_fields
-from .target_loader import strip_exp_code
 
 logger = logging.getLogger(__name__)
 
@@ -81,7 +80,7 @@ _SCRIPTS = {
 }
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, eq=True)
 class ArchiveFile:
     path: str
     archive_path: str
@@ -297,28 +296,24 @@ class DownloadStructures:
 
                         afile = []
                         for f in model_attr:
-                            # here the model_attr is already stringified
-                            try:
-                                exp_path = strip_exp_code(so.experiment.code)
-                            except ValueError:
-                                self._logger.error(
-                                    'Unexpected experiment code format: %s',
-                                    so.experiment.code,
-                                )
-                                exp_path = so.code
-
-                            apath = Path('crystallographic_files').joinpath(exp_path)
+                            apath = Path('crystallographic_files', so.experiment.code)
                             if model_attr and model_attr != 'None':
-                                archive_path = str(
-                                    apath.joinpath(
-                                        Path(f)
-                                        .parts[-1]
-                                        .replace(so.experiment.code, so.code)
-                                    )
-                                )
+                                archive_path = str(apath.joinpath(Path(f).parts[-1]))
                             else:
                                 archive_path = str(apath.joinpath(param))
                             afile.append(ArchiveFile(path=f, archive_path=archive_path))
+
+                        # changed in [can't find the ticket
+                        # number]. previously zip_contents was updated
+                        # in the end of for cycle instead of
+                        # crystallographic and aligned separately, but
+                        # in attempt to deduplicate files in
+                        # crystallographic dir, I'm moving the update
+                        # statement to each category's section. I'm a
+                        # bit worried it might silently overwrite some
+                        # files but I can't think of any other than
+                        # those I actually want to
+                        zip_contents['proteins'][param][so.experiment.code] = afile
 
                     elif param in [
                         'bound_file',
@@ -360,11 +355,11 @@ class DownloadStructures:
                             )
                         ]
 
+                        zip_contents['proteins'][param][so.code] = afile
+
                     else:
                         self._logger.warning('Unexpected param: %s', param)
                         continue
-
-                    zip_contents['proteins'][param][so.code] = afile
 
                     # add additional ccp4 files (issue 1448)
                     ccps = ('sigmaa_file', 'diff_file', 'event_file')
