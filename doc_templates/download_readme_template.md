@@ -1,6 +1,6 @@
 ## Directory structure
 
-A Fragalysis download will contain a minimum of 2 directories, `aligned_files` and `crytallographic_files`. The download will typically include the additional directories `extra_files`, `scripts` and `yaml_files`, as well as some additional files at the top level directory.
+A Fragalysis download will contain a minimum of 2 directories, `aligned_files` and `crytallographic_files`. The download will typically include the additional directories `extra_files` (including affinity data files when available), `scripts` and `yaml_files`, as well as some additional files at the top level directory.
 
 Two important top level files are `metadata.csv` and `smiles.smi`. These are both plain-text files. `metadata.csv` will contain information about the context of each ligand and may provide a convenient way to browse through smiles, site labels and PDB codes for each ligand. `smiles.smi` contains a list of all smiles strings that you have downloaded separated by commans. `[target-name]_combined.sdf` may also be present which will contain all the ligand sdf files in a single sdf file.
 
@@ -37,8 +37,9 @@ The `crystallographic_files` directory contains versions of data found in the al
 
 ### Extra files
 
-If the SoakDB CSV and/or SQLite option(s) have been selected, their corresponding files can be found in this directory. Beyond this, if this directory is present the files will have been added by the uploader of the data, and therefore has no defined structure. As a result we cannot guess what the contents of the file may be, but we hope that the uploader of the extra files will have provided a readme inside to describe each of the added files. Some examples of extra files:
+If the SoakDB CSV and/or SQLite option(s) have been selected, their corresponding files can be found in this directory. If affinity data files are available, an extra affinity_data subdirectory containing all the affinity data will be accessible. A README inside this subdirectory will explain every file in detail. Beyond this, if this directory is present the files will have been added by the uploader of the data, and therefore has no defined structure. As a result we cannot guess what the contents of the file may be, but we hope that the uploader of the extra files will have provided a readme inside to describe each of the added files. Some examples of extra files:
 
+- `affinity_data.zip`              | Target affinity data in a ZIP/TAR archive                                                                                                       |
 - `protein-sequence.fasta`         | Target sequence in FASTA format                                                                                                        |
 - `soakdb_[session_number].sqlite` | SoakDB file in SQLite format - Experimental details for each crystal, including soaking conditions, data collection parameters, and processing results. |
 - `soakdb_[session_number].csv`    | SoakDB file in CSV format - Experimental details for each crystal, including soaking conditions, data collection parameters, and processing results.           |
