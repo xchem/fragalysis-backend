@@ -251,14 +251,20 @@ CACHE_DISABLED = os.environ.get("CACHE_DISABLED", "No").lower() in ["true", "yes
 # CACHE_MIDDLEWARE_ALIAS=redis in the environment to route through the
 # redis entry below; "default" uses the in-process LocMemCache.
 CACHE_MIDDLEWARE_ALIAS = os.environ.get("CACHE_MIDDLEWARE_ALIAS", "default")
-CACHE_MIDDLEWARE_SECONDS = 60 * 60 * 24 * 28  # 28 days
-CACHE_MIDDLEWARE_KEY_PREFIX = ""
+# User can specify a cached timeout (in minutes).
+# The default is 28 days.
+CACHE_MIDDLEWARE_TIMEOUT_MINUTES: int = int(
+    os.environ.get("CACHE_MIDDLEWARE_TIMEOUT_MINUTES", 28 * 24 * 60)
+)
+CACHE_MIDDLEWARE_SECONDS = CACHE_MIDDLEWARE_TIMEOUT_MINUTES * 60
+CACHE_MIDDLEWARE_KEY_PREFIX = "frag-cache"
 
 # An optional redis backend, addressable via caches["redis"]. Override the
 # connection URL via REDIS_CACHE_LOCATION; the backend module is loaded lazily
-# so this entry is harmless if no code uses the alias. db=1 keeps the cache
-# isolated from celery (db=0).
-REDIS_CACHE_LOCATION = os.environ.get("REDIS_CACHE_LOCATION", "redis://redis:6379/1")
+# so this entry is harmless if no code uses the alias. db=0 is shared with
+# celery — CACHE_MIDDLEWARE_KEY_PREFIX above keeps the keyspaces from
+# colliding.
+REDIS_CACHE_LOCATION = os.environ.get("REDIS_CACHE_LOCATION", "redis://redis:6379/0")
 
 CACHES = {
     "default": {
