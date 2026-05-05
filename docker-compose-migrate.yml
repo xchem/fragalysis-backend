@@ -32,6 +32,8 @@ services:
     environment:
       AUTHENTICATE_UPLOAD: ${AUTHENTICATE_UPLOAD:-True}
       POSTGRESQL_USER: postgres
+      # Django cache
+      CACHE_DISABLED: "Yes"
       # Celery tasks need to run synchronously
       CELERY_TASK_ALWAYS_EAGER: 'True'
       # Default/root log-level

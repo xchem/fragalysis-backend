@@ -238,6 +238,51 @@ TEMPLATES = [
 
 TIME_ZONE = "UTC"
 
+# Cache framework.
+# We use per-view cache, so views that need caching
+# should use the '@cache_page' decorator.
+# See https://docs.djangoproject.com/en/6.0/topics/cache/#the-per-view-cache
+
+# Set CACHE_DISABLED=True in the environment to bypass caching — DummyCache
+# implements the cache API but stores nothing, so cache_page becomes a no-op.
+CACHE_DISABLED = os.environ.get("CACHE_DISABLED", "No").lower() in ["true", "yes"]
+
+# Which CACHES alias cache_page (and signal-driven invalidation) uses. Set
+# CACHE_MIDDLEWARE_ALIAS=redis in the environment to route through the
+# redis entry below; "default" uses the in-process LocMemCache.
+CACHE_MIDDLEWARE_ALIAS = os.environ.get("CACHE_MIDDLEWARE_ALIAS", "default")
+# User can specify a cached timeout (in minutes).
+# The default is 28 days.
+CACHE_MIDDLEWARE_TIMEOUT_MINUTES: int = int(
+    os.environ.get("CACHE_MIDDLEWARE_TIMEOUT_MINUTES", 28 * 24 * 60)
+)
+CACHE_MIDDLEWARE_SECONDS = CACHE_MIDDLEWARE_TIMEOUT_MINUTES * 60
+CACHE_MIDDLEWARE_KEY_PREFIX = ""
+
+# An optional redis backend, addressable via caches["redis"]. Override the
+# connection URL via REDIS_CACHE_LOCATION; the backend module is loaded lazily
+# so this entry is harmless if no code uses the alias. db=1 keeps the cache
+# isolated from celery (db=0).
+REDIS_CACHE_LOCATION = os.environ.get("REDIS_CACHE_LOCATION", "redis://redis:6379/1")
+
+CACHES = {
+    "default": {
+        "BACKEND": (
+            "django.core.cache.backends.dummy.DummyCache"
+            if CACHE_DISABLED
+            else "django.core.cache.backends.locmem.LocMemCache"
+        ),
+    },
+    "redis": {
+        "BACKEND": (
+            "django.core.cache.backends.dummy.DummyCache"
+            if CACHE_DISABLED
+            else "django.core.cache.backends.redis.RedisCache"
+        ),
+        "LOCATION": REDIS_CACHE_LOCATION,
+    },
+}
+
 # mozilla_django_oidc.
 # See: https://mozilla-django-oidc.readthedocs.io/en/stable/
 # Before you can configure your application, you need to set up a client with
