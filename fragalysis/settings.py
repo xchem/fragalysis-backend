@@ -247,9 +247,17 @@ TIME_ZONE = "UTC"
 # implements the cache API but stores nothing, so cache_page becomes a no-op.
 CACHE_DISABLED = os.environ.get("CACHE_DISABLED", "No").lower() in ["true", "yes"]
 
-CACHE_MIDDLEWARE_ALIAS = "default"
+# Which CACHES alias cache_page (and signal-driven invalidation) uses. Set
+# CACHE_MIDDLEWARE_ALIAS=memcached in the environment to route through the
+# memcached entry below; "default" uses the in-process LocMemCache.
+CACHE_MIDDLEWARE_ALIAS = os.environ.get("CACHE_MIDDLEWARE_ALIAS", "default")
 CACHE_MIDDLEWARE_SECONDS = 60 * 60 * 24 * 28  # 28 days
 CACHE_MIDDLEWARE_KEY_PREFIX = ""
+
+# An optional memcached backend, addressable via caches["memcached"]. Override
+# the host:port via MEMCACHED_LOCATION; the backend module is loaded lazily so
+# this entry is harmless if no code uses the alias.
+MEMCACHED_LOCATION = os.environ.get("MEMCACHED_LOCATION", "memcached:11211")
 
 CACHES = {
     "default": {
@@ -258,7 +266,15 @@ CACHES = {
             if CACHE_DISABLED
             else "django.core.cache.backends.locmem.LocMemCache"
         ),
-    }
+    },
+    "memcached": {
+        "BACKEND": (
+            "django.core.cache.backends.dummy.DummyCache"
+            if CACHE_DISABLED
+            else "django.core.cache.backends.memcached.PyMemcacheCache"
+        ),
+        "LOCATION": MEMCACHED_LOCATION,
+    },
 }
 
 # mozilla_django_oidc.
