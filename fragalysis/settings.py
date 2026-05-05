@@ -243,15 +243,23 @@ TIME_ZONE = "UTC"
 # should use the '@cache_page' decorator.
 # See https://docs.djangoproject.com/en/6.0/topics/cache/#the-per-view-cache
 
-CACHES = {
-    "default": {
-        "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
-    }
-}
+# Set CACHE_DISABLED=True in the environment to bypass caching — DummyCache
+# implements the cache API but stores nothing, so cache_page becomes a no-op.
+CACHE_DISABLED = os.environ.get("CACHE_DISABLED", "No").lower() in ["true", "yes"]
 
 CACHE_MIDDLEWARE_ALIAS = "default"
 CACHE_MIDDLEWARE_SECONDS = 60 * 60 * 24 * 28  # 28 days
 CACHE_MIDDLEWARE_KEY_PREFIX = ""
+
+CACHES = {
+    "default": {
+        "BACKEND": (
+            "django.core.cache.backends.dummy.DummyCache"
+            if CACHE_DISABLED
+            else "django.core.cache.backends.locmem.LocMemCache"
+        ),
+    }
+}
 
 # mozilla_django_oidc.
 # See: https://mozilla-django-oidc.readthedocs.io/en/stable/
