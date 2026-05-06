@@ -243,9 +243,10 @@ TIME_ZONE = "UTC"
 # should use the '@cache_page' decorator.
 # See https://docs.djangoproject.com/en/6.0/topics/cache/#the-per-view-cache
 
-# Set CACHE_DISABLED=True in the environment to bypass caching — DummyCache
+# Set CACHE_ENABLED=No in the environment to bypass caching — DummyCache
 # implements the cache API but stores nothing, so cache_page becomes a no-op.
-CACHE_DISABLED = os.environ.get("CACHE_DISABLED", "No").lower() in ["true", "yes"]
+# Default is enabled.
+CACHE_ENABLED = os.environ.get("CACHE_ENABLED", "Yes").lower() in ["true", "yes"]
 
 # Which CACHES alias cache_page (and signal-driven invalidation) uses. Set
 # CACHE_MIDDLEWARE_ALIAS=redis in the environment to route through the
@@ -268,16 +269,16 @@ REDIS_CACHE_LOCATION = os.environ.get("REDIS_CACHE_LOCATION", "redis://redis:637
 CACHES = {
     "default": {
         "BACKEND": (
-            "django.core.cache.backends.dummy.DummyCache"
-            if CACHE_DISABLED
-            else "django.core.cache.backends.locmem.LocMemCache"
+            "django.core.cache.backends.locmem.LocMemCache"
+            if CACHE_ENABLED
+            else "django.core.cache.backends.dummy.DummyCache"
         ),
     },
     "redis": {
         "BACKEND": (
-            "django.core.cache.backends.dummy.DummyCache"
-            if CACHE_DISABLED
-            else "django.core.cache.backends.redis.RedisCache"
+            "django.core.cache.backends.redis.RedisCache"
+            if CACHE_ENABLED
+            else "django.core.cache.backends.dummy.DummyCache"
         ),
         "LOCATION": REDIS_CACHE_LOCATION,
     },
