@@ -27,7 +27,7 @@ import pandas as pd
 import pandoc
 import requests
 from django.conf import settings
-from django.db.models import Exists, F, OuterRef, Value
+from django.db.models import Exists, F, OuterRef, Q, Value
 from django.db.models.fields import CharField
 from django.db.models.functions import Concat
 from rdkit import Chem
@@ -44,6 +44,9 @@ logger = logging.getLogger(__name__)
 KEEP_UNTIL_DURATION = timedelta(minutes=settings.DOWNLOAD_KEEP_UNTIL_DURATION_M)
 # Length of time to "expired" records
 HARD_EXPIRY_GRACE_PERIOD = timedelta(minutes=settings.HARD_EXPIRY_GRACE_PERIOD_M)
+# Records that never got a keep_zip_until set are treated as abandoned once
+# create_date is older than this; the soft-erase pass expires them.
+ORPHAN_GRACE_PERIOD = timedelta(minutes=settings.DOWNLOAD_ORPHAN_GRACE_M)
 
 # Filepaths mapping for writing associated files to the zip archive.
 # Note that if this is set to 'aligned' then the files will be placed in
@@ -1334,11 +1337,21 @@ def soft_erase_out_of_date_download_records():
     not already been soft-deleted (i.e. where an 'expired_date' is not set)
     and we set the 'expired_date'.
 
+    A record is considered out of date when either:
+
+    - its keep_zip_until is in the past, or
+    - keep_zip_until was never set and the record was created more than
+      ORPHAN_GRACE_PERIOD ago (treated as abandoned).
+
     Users should not use records that have an expired date.
     """
     now: datetime = datetime.now(timezone.utc)
+    orphan_cutoff = now - ORPHAN_GRACE_PERIOD
     new_expired_records = (
-        DownloadLinks.objects.filter(keep_zip_until__lt=now)
+        DownloadLinks.objects.filter(
+            Q(keep_zip_until__lt=now)
+            | Q(keep_zip_until__isnull=True, create_date__lt=orphan_cutoff)
+        )
         .filter(expired_date__isnull=True)
         .filter(static_link=False)
     )
