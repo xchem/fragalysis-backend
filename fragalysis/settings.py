@@ -243,10 +243,10 @@ TIME_ZONE = "UTC"
 # should use the '@cache_page' decorator.
 # See https://docs.djangoproject.com/en/6.0/topics/cache/#the-per-view-cache
 
-# Set CACHE_ENABLED=No in the environment to bypass caching — DummyCache
-# implements the cache API but stores nothing, so cache_page becomes a no-op.
-# Default is enabled.
-CACHE_ENABLED = os.environ.get("CACHE_ENABLED", "Yes").lower() in ["true", "yes"]
+# Set CACHE_ENABLED to "Yes" (or "True") in the environment to enable caching,
+# otherwise a DummyCache is used, which implements the cache API but stores nothing,
+# so cache_page becomes a no-op. Default is disabled.
+CACHE_ENABLED = os.environ.get("CACHE_ENABLED", "No").lower() in ["true", "yes"]
 
 # Which CACHES alias cache_page (and signal-driven invalidation) uses. Set
 # CACHE_MIDDLEWARE_ALIAS=redis in the environment to route through the
