@@ -251,6 +251,8 @@ CACHE_ENABLED = os.environ.get("CACHE_ENABLED", "No").lower() in ["true", "yes"]
 # Which CACHES alias cache_page (and signal-driven invalidation) uses. Set
 # CACHE_MIDDLEWARE_ALIAS=redis in the environment to route through the
 # redis entry below; "default" uses the in-process LocMemCache.
+# The redis sever will need to support at least two databases, ID 0 will be used for
+# celery tasks and ID 1 will be used for the cache.
 CACHE_MIDDLEWARE_ALIAS = os.environ.get("CACHE_MIDDLEWARE_ALIAS", "default")
 # User can specify a cached timeout (in minutes).
 # The default is 28 days.
