@@ -66,6 +66,7 @@ from viewer.utils import (
 )
 
 from .assay_data import AssayData, convert
+from .cache import clear_view_cache
 from .discourse import (
     check_discourse_user,
     create_discourse_post,
@@ -1231,11 +1232,14 @@ class ComputedMoleculesView(ISPyBSafeQuerySet):
     filterset_fields = ('computed_set',)
 
     # Vary keys the cache on Authorization/Cookie so per-user
-    # proposal filtering from ISPyBSafeQuerySet is preserved.
+    # proposal filtering from ISPyBSafeQuerySet is preserved. The key_prefix
+    # is shared with ComputedMolAndScoreView so a single
+    # clear_view_cache("computed-molecules") drops both.
     @method_decorator(
         cache_page(
             settings.CACHE_MIDDLEWARE_SECONDS,
             cache=settings.CACHE_MIDDLEWARE_ALIAS,
+            key_prefix="computed-molecules",
         )
     )
     @method_decorator(vary_on_headers('Authorization', 'Cookie'))
@@ -1246,6 +1250,7 @@ class ComputedMoleculesView(ISPyBSafeQuerySet):
         cache_page(
             settings.CACHE_MIDDLEWARE_SECONDS,
             cache=settings.CACHE_MIDDLEWARE_ALIAS,
+            key_prefix="computed-molecules",
         )
     )
     @method_decorator(vary_on_headers('Authorization', 'Cookie'))
@@ -1292,12 +1297,13 @@ class ComputedMolAndScoreView(ISPyBSafeQuerySet):
     filter_permissions = "compound__project_id"
     filterset_fields = ('computed_set',)
 
-    # Vary keys the cache on Authorization/Cookie so per-user
-    # proposal filtering from ISPyBSafeQuerySet is preserved.
+    # Shares the "computed-molecules" key_prefix with ComputedMoleculesView
+    # since both depend on the same underlying ComputedMolecule model.
     @method_decorator(
         cache_page(
             settings.CACHE_MIDDLEWARE_SECONDS,
             cache=settings.CACHE_MIDDLEWARE_ALIAS,
+            key_prefix="computed-molecules",
         )
     )
     @method_decorator(vary_on_headers('Authorization', 'Cookie'))
@@ -1308,6 +1314,7 @@ class ComputedMolAndScoreView(ISPyBSafeQuerySet):
         cache_page(
             settings.CACHE_MIDDLEWARE_SECONDS,
             cache=settings.CACHE_MIDDLEWARE_ALIAS,
+            key_prefix="computed-molecules",
         )
     )
     @method_decorator(vary_on_headers('Authorization', 'Cookie'))
@@ -1496,12 +1503,11 @@ class SiteObservationTagView(
         'mol_group',
     )
 
-    # Vary keys the cache on Authorization/Cookie so per-user
-    # proposal filtering from ISPyBSafeQuerySet is preserved.
     @method_decorator(
         cache_page(
             settings.CACHE_MIDDLEWARE_SECONDS,
             cache=settings.CACHE_MIDDLEWARE_ALIAS,
+            key_prefix="tag",
         )
     )
     @method_decorator(vary_on_headers('Authorization', 'Cookie'))
@@ -1512,11 +1518,24 @@ class SiteObservationTagView(
         cache_page(
             settings.CACHE_MIDDLEWARE_SECONDS,
             cache=settings.CACHE_MIDDLEWARE_ALIAS,
+            key_prefix="tag",
         )
     )
     @method_decorator(vary_on_headers('Authorization', 'Cookie'))
     def retrieve(self, request, *args, **kwargs):
         return super().retrieve(request, *args, **kwargs)
+
+    def perform_create(self, serializer):
+        super().perform_create(serializer)
+        clear_view_cache("tag")
+
+    def perform_update(self, serializer):
+        super().perform_update(serializer)
+        clear_view_cache("tag")
+
+    def perform_destroy(self, instance):
+        super().perform_destroy(instance)
+        clear_view_cache("tag")
 
 
 class PoseView(
@@ -1532,12 +1551,11 @@ class PoseView(
     serializer_class = serializers.PoseSerializer
     filterset_class = filters.PoseFilter
 
-    # Vary keys the cache on Authorization/Cookie so per-user
-    # proposal filtering from ISPyBSafeQuerySet is preserved.
     @method_decorator(
         cache_page(
             settings.CACHE_MIDDLEWARE_SECONDS,
             cache=settings.CACHE_MIDDLEWARE_ALIAS,
+            key_prefix="pose",
         )
     )
     @method_decorator(vary_on_headers('Authorization', 'Cookie'))
@@ -1548,11 +1566,24 @@ class PoseView(
         cache_page(
             settings.CACHE_MIDDLEWARE_SECONDS,
             cache=settings.CACHE_MIDDLEWARE_ALIAS,
+            key_prefix="pose",
         )
     )
     @method_decorator(vary_on_headers('Authorization', 'Cookie'))
     def retrieve(self, request, *args, **kwargs):
         return super().retrieve(request, *args, **kwargs)
+
+    def perform_create(self, serializer):
+        super().perform_create(serializer)
+        clear_view_cache("pose")
+
+    def perform_update(self, serializer):
+        super().perform_update(serializer)
+        clear_view_cache("pose")
+
+    def perform_destroy(self, instance):
+        super().perform_destroy(instance)
+        clear_view_cache("pose")
 
 
 class SessionProjectTagView(
@@ -2335,12 +2366,11 @@ class SiteObservationView(ISPyBSafeQuerySet):
     filterset_class = filters.SiteObservationFilter
     filter_permissions = "experiment__experiment_upload__project"
 
-    # Vary keys the cache on Authorization/Cookie so per-user
-    # proposal filtering from ISPyBSafeQuerySet is preserved.
     @method_decorator(
         cache_page(
             settings.CACHE_MIDDLEWARE_SECONDS,
             cache=settings.CACHE_MIDDLEWARE_ALIAS,
+            key_prefix="site-observation",
         )
     )
     @method_decorator(vary_on_headers('Authorization', 'Cookie'))
@@ -2351,6 +2381,7 @@ class SiteObservationView(ISPyBSafeQuerySet):
         cache_page(
             settings.CACHE_MIDDLEWARE_SECONDS,
             cache=settings.CACHE_MIDDLEWARE_ALIAS,
+            key_prefix="site-observation",
         )
     )
     @method_decorator(vary_on_headers('Authorization', 'Cookie'))
@@ -3209,8 +3240,10 @@ class UploadMetadataView(ISPyBSafeQuerySet):
         errors = load_tags_from_file(filename=filename, target=target, user=user)
         if errors:
             return Response({"errors": errors}, status=status.HTTP_400_BAD_REQUEST)
-        else:
-            return Response({'success': True}, status=status.HTTP_200_OK)
+        # load_tags_from_file mutates SiteObservationTag, SiteObservation,
+        # and Pose; drop the corresponding cached responses.
+        clear_view_cache("tag", "site-observation", "pose")
+        return Response({'success': True}, status=status.HTTP_200_OK)
 
 
 class DownloadComputedSetView(ISPyBSafeQuerySet):

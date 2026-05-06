@@ -27,6 +27,7 @@ from fragalysis.celery import app as celery_app
 from viewer.models import Compound, DesignSet
 from viewer.target_loader import load_target
 
+from .cache import clear_view_cache
 from .cset_upload import MolOps, PdbOps, blank_mol_vals
 from .download_structures import create_download
 from .models import ComputedSet, JobFileTransfer, JobRequest, SiteObservation
@@ -133,6 +134,10 @@ def process_compound_set(validate_output):
         computed_set_id=computed_set_id,
     )
     compound_set, process_messages = save_mols.task()
+
+    # ComputedMolecule rows have just been written; drop both
+    # ComputedMoleculesView and ComputedMolAndScoreView caches.
+    clear_view_cache("computed-molecules")
 
     logger.info('process_compound_set() EXIT (CompoundSet.id="%s")', compound_set.id)
     return 'process', compound_set.id, process_messages
@@ -533,6 +538,9 @@ def task_load_target(self, data_bundle=None, proposal_ref=None, user_id=None):
         user_id=user_id,
         task=self,
     )
+    # Target ingestion creates SiteObservation, Pose and SiteObservationTag
+    # rows — drop the cached views that read those models.
+    clear_view_cache("tag", "pose", "site-observation")
     logger.info(
         'TASK %s load_target completed, target_zip=%s', self.request.id, data_bundle
     )
