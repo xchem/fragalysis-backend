@@ -271,13 +271,6 @@ REDIS_CACHE_LOCATION = os.environ.get("REDIS_CACHE_LOCATION", "redis://redis:637
 CACHES = {
     "default": {
         "BACKEND": (
-            "django.core.cache.backends.locmem.LocMemCache"
-            if CACHE_ENABLED
-            else "django.core.cache.backends.dummy.DummyCache"
-        ),
-    },
-    "redis": {
-        "BACKEND": (
             "django.core.cache.backends.redis.RedisCache"
             if CACHE_ENABLED
             else "django.core.cache.backends.dummy.DummyCache"
