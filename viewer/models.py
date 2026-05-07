@@ -1,5 +1,6 @@
 import contextlib
 import logging
+import os
 import uuid
 from dataclasses import dataclass
 from pathlib import Path
@@ -1536,8 +1537,11 @@ class DiscourseTopic(models.Model):
 class DownloadLinks(models.Model):
     """Searches made with the download_structures api."""
 
+    # Stores the basename of the download file (e.g. "TARGET.zip"). The
+    # absolute path is reconstructed via get_file_url() using MEDIA_ROOT,
+    # the "downloads" subdir and task_id. Not unique because two records
+    # for different tasks can produce the same filename.
     file_url = models.TextField(
-        unique=True,
         db_index=True,
         null=True,
     )
@@ -1606,6 +1610,19 @@ class DownloadLinks(models.Model):
             self.file_url,
             self.user,
             self.target,
+        )
+
+    def get_file_url(self):
+        """Reconstruct the absolute filesystem path of the download file.
+
+        Returns None when either file_url (the basename) or task_id (the
+        per-download directory name) is missing — i.e. the download has
+        not been built or has been hard-erased.
+        """
+        if not self.file_url or not self.task_id:
+            return None
+        return os.path.join(
+            settings.MEDIA_ROOT, 'downloads', self.task_id, self.file_url
         )
 
     class Meta:

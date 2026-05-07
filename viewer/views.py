@@ -1590,17 +1590,27 @@ class DownloadStructuresView(
         file_url = request.GET.get('file_url')
 
         if file_url:
-            if models.DownloadLinks.objects.filter(file_url=file_url).first():
+            # The DB now stores the basename only; the per-download directory
+            # is the task_id. Extract both from the client-supplied path so
+            # the lookup remains exact rather than substring-matching.
+            task_id = os.path.basename(os.path.dirname(file_url))
+            file_name = os.path.basename(file_url)
+            record = models.DownloadLinks.objects.filter(
+                task_id=task_id,
+                file_url=file_name,
+            ).first()
+            if record:
                 logger.info('Got DownloadLinks record for %s', file_url)
-                assert os.path.isfile(file_url)
+                full_path = record.get_file_url()
+                assert full_path is not None
+                assert os.path.isfile(full_path)
 
-                file_name = os.path.basename(file_url)
-                wrapper = FileWrapper(open(file_url, 'rb'))
+                wrapper = FileWrapper(open(full_path, 'rb'))
                 response = FileResponse(wrapper, content_type='application/zip')
                 response['Content-Disposition'] = (
                     'attachment; filename="%s"' % file_name
                 )
-                response['Content-Length'] = os.path.getsize(file_url)
+                response['Content-Length'] = os.path.getsize(full_path)
                 return response
             else:
                 content = {'message': 'file_url is not found'}
@@ -1669,16 +1679,18 @@ class DownloadStructuresView(
             file_url = serializer.validated_data['file_url']
             logger.info('Given file_url "%s"', file_url)
             existing_link = models.DownloadLinks.objects.filter(
-                file_url=file_url
+                task_id=os.path.basename(os.path.dirname(file_url)),
+                file_url=os.path.basename(file_url),
             ).first()
 
             if existing_link and existing_link.static_link:
                 # A record exists, the file _must_ exist.
-                file_url = existing_link.file_url
-                logger.info('Existing static link found for file_url "%s"', file_url)
-                assert os.path.isfile(file_url)
+                full_path = existing_link.get_file_url()
+                logger.info('Existing static link found for file_url "%s"', full_path)
+                assert full_path is not None
+                assert os.path.isfile(full_path)
                 return Response(
-                    {"file_url": file_url},
+                    {"file_url": full_path},
                     status=status.HTTP_200_OK,
                 )
 
@@ -1813,7 +1825,7 @@ class DownloadStructuresView(
 
         # Did we find an existing DownloadLink with exact same parameters?
         if existing_link:
-            return Response({"file_url": existing_link.file_url})
+            return Response({"file_url": existing_link.get_file_url()})
 
         # Do we have a suitable record for a compression task that's underway
         # (i.e. has a Task ID) and not expired?

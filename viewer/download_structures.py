@@ -12,7 +12,6 @@ import os
 import shutil
 import subprocess
 import time
-import uuid
 import zipfile
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
@@ -1282,8 +1281,10 @@ def create_download(download_link_id: int, task, use_zip: bool = False):
         filename = f'{download_link.target.title}.zip'
     else:
         filename = f'{download_link.target.title}.tar.gz'
+    # The per-download directory uses the task_id (set above) so the path is
+    # reproducible from the model alone — see DownloadLinks.get_file_url().
     file_url = os.path.join(
-        settings.MEDIA_ROOT, 'downloads', str(uuid.uuid4()), filename
+        settings.MEDIA_ROOT, 'downloads', download_link.task_id, filename
     )
 
     with TemporaryDirectory() as tempdir:
@@ -1315,8 +1316,10 @@ def create_download(download_link_id: int, task, use_zip: bool = False):
     )
 
     # We now have a download file
-    # so record it and set the 'keep unitl' (expiry) time
-    download_link.file_url = file_url
+    # so record it and set the 'keep unitl' (expiry) time. file_url stores
+    # the basename only; the absolute path is reconstructed by
+    # DownloadLinks.get_file_url().
+    download_link.file_url = filename
     download_link.keep_zip_until = datetime.now(timezone.utc) + KEEP_UNTIL_DURATION
     download_link.save()
 
@@ -1387,8 +1390,13 @@ def hard_erase_out_of_date_download_records():
             num_pending += 1
             continue
 
-        file_url = dead_dynamic_record.file_url
-        dir_name = os.path.dirname(file_url)
+        full_path = dead_dynamic_record.get_file_url()
+        if full_path is None:
+            # Already cleared (no file_url / task_id); nothing to remove.
+            dead_dynamic_record.deleted = True
+            dead_dynamic_record.save()
+            continue
+        dir_name = os.path.dirname(full_path)
         logger.debug('Deleting %s...', dir_name)
         if os.path.isdir(dir_name):
             try:
