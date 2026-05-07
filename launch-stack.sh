@@ -53,6 +53,8 @@ echo "Testing nginx config..."
 nginx -tq
 
 if [ "${HOSTNAME}" = "stack-0" ]; then
+    echo "Clearing the page cache"
+    python manage.py clear_cache
     echo "Launching service health check queries"
     python manage.py start_service_queries &
     echo "Launching download cleanup scheduler"
