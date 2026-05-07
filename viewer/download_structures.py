@@ -963,10 +963,21 @@ class DownloadStructures:
         with open(str(readme_filepath), "a", encoding="utf-8") as readme:
             self._build_readme(readme, original_search, template_file)
 
-        # Convert markdown to pdf file
+        # Convert markdown to pdf file. Pandoc invokes external tools (the
+        # pandoc binary, latex) that can fail for many reasons we don't want
+        # to abort the whole download for — log and continue without README.pdf.
         pdf_filepath = self.temp_path.joinpath('README.pdf')
-        doc = pandoc.read(open(readme_filepath, "r", encoding="utf-8").read())
-        pandoc.write(doc, file=pdf_filepath, format='latex', options=["--columns=72"])
+        try:
+            doc = pandoc.read(open(readme_filepath, "r", encoding="utf-8").read())
+            pandoc.write(
+                doc, file=pdf_filepath, format='latex', options=["--columns=72"]
+            )
+        except Exception as exc:  # pylint: disable=broad-except
+            self._logger.warning(
+                'Pandoc README PDF generation failed (%s); '
+                'continuing without README.pdf',
+                exc,
+            )
 
         # self.write_symlink(pdf_filepath, os.path.join(_ZIP_FILEPATHS['readme'], 'README.pdf'))
 
