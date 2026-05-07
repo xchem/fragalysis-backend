@@ -6,6 +6,7 @@ from django.utils import timezone
 
 # from scoring.models import MolGroup
 from scoring.models import SiteObservationGroup
+from viewer.cache import clear_all_view_caches
 from viewer.models import SiteObservation, SiteObservationTag, TagCategory, Target
 
 
@@ -137,6 +138,10 @@ class Command(BaseCommand):
 
         if tags_created == expected_sites:
             self.stdout.write('Looking good - tags_created = expected sites')
+
+        if update and tags_created:
+            # New SiteObservationTag rows; flush cached responses.
+            clear_all_view_caches()
 
         time_end = timezone.now().strftime('%X')
         self.stdout.write("End %s" % time_end)

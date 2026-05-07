@@ -1,5 +1,6 @@
 from django.core.management.base import BaseCommand
 
+from viewer.cache import clear_all_view_caches
 from viewer.utils import dump_curated_tags, restore_curated_tags
 
 
@@ -25,3 +26,6 @@ class Command(BaseCommand):
             dump_curated_tags(filename=kwargs["dump"])
         if kwargs["load"]:
             restore_curated_tags(filename=kwargs["load"])
+            # Tag rows have changed; cached tag/observation/pose responses
+            # may be stale.
+            clear_all_view_caches()

@@ -1,5 +1,6 @@
 from django.core.management.base import BaseCommand
 
+from viewer.cache import clear_all_view_caches
 from viewer.utils import change_target_project
 
 
@@ -37,3 +38,7 @@ class Command(BaseCommand):
             )
         except ValueError as exc:
             self.stdout.write(self.style.ERROR(exc.args[0]))
+            return
+        # Reproject changes which users see this target's data via
+        # ISPyBSafeQuerySet's project filter; flush cached responses.
+        clear_all_view_caches()

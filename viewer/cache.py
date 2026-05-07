@@ -36,3 +36,12 @@ def clear_view_cache(*prefixes: str) -> None:
         for pattern in (f"*.cache_page.{prefix}.*", f"*.cache_header.{prefix}.*"):
             for key in client.scan_iter(match=pattern, count=500):
                 client.delete(key)
+
+
+def clear_all_view_caches() -> None:
+    """Drop every entry in the configured page-cache alias.
+
+    Coarser than clear_view_cache(...) — used by management commands where
+    the operator wants a full flush rather than per-view invalidation.
+    """
+    caches[settings.CACHE_MIDDLEWARE_ALIAS].clear()
