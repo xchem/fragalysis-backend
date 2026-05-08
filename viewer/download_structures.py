@@ -963,10 +963,32 @@ class DownloadStructures:
         with open(str(readme_filepath), "a", encoding="utf-8") as readme:
             self._build_readme(readme, original_search, template_file)
 
-        # Convert markdown to pdf file
+        # Convert markdown to pdf file. Pandoc invokes external tools (the
+        # pandoc binary, latex) that can fail for many reasons we don't want
+        # to abort the whole download for — log and emit a placeholder PDF
+        # carrying the exception text so the archive still contains README.pdf.
         pdf_filepath = self.temp_path.joinpath('README.pdf')
-        doc = pandoc.read(open(readme_filepath, "r", encoding="utf-8").read())
-        pandoc.write(doc, file=pdf_filepath, format='latex', options=["--columns=72"])
+        try:
+            doc = pandoc.read(open(readme_filepath, "r", encoding="utf-8").read())
+            pandoc.write(
+                doc, file=pdf_filepath, format='latex', options=["--columns=72"]
+            )
+        except Exception as exc:  # pylint: disable=broad-except
+            self._logger.warning(
+                'Pandoc README PDF generation failed (%s); '
+                'writing placeholder README.pdf',
+                exc,
+            )
+            _write_text_pdf(
+                pdf_filepath,
+                'README.pdf could not be generated.\n'
+                '\n'
+                'Pandoc raised the following error:\n'
+                f'{exc}\n'
+                '\n'
+                'Please refer to README.md (in the same archive) for the '
+                'full document.',
+            )
 
         # self.write_symlink(pdf_filepath, os.path.join(_ZIP_FILEPATHS['readme'], 'README.pdf'))
 
@@ -1135,6 +1157,66 @@ class DownloadStructures:
             tarball_path,
             humanize.naturalsize(tarball_size_bytes, binary=True),
         )
+
+
+def _write_text_pdf(pdf_path, message):
+    """Write a minimal one-page PDF whose body is ``message``.
+
+    Used as the README.pdf fallback when pandoc fails — built by hand so it
+    has no dependency on pandoc/latex (which is exactly what's broken when
+    we get here).
+    """
+
+    def _escape(text):
+        return text.replace('\\', '\\\\').replace('(', '\\(').replace(')', '\\)')
+
+    wrapped = []
+    for raw in message.splitlines() or ['']:
+        if not raw:
+            wrapped.append('')
+            continue
+        while len(raw) > 80:
+            wrapped.append(raw[:80])
+            raw = raw[80:]
+        wrapped.append(raw)
+
+    text_ops = ['BT', '/F1 12 Tf', '50 750 Td', '14 TL']
+    for line in wrapped:
+        text_ops.append(f'({_escape(line)}) Tj T*')
+    text_ops.append('ET')
+    content = '\n'.join(text_ops).encode('latin-1', errors='replace')
+
+    objects = [
+        b'<< /Type /Catalog /Pages 2 0 R >>',
+        b'<< /Type /Pages /Kids [3 0 R] /Count 1 >>',
+        b'<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] '
+        b'/Contents 4 0 R /Resources << /Font << /F1 5 0 R >> >> >>',
+        b'<< /Length '
+        + str(len(content)).encode('ascii')
+        + b' >>\nstream\n'
+        + content
+        + b'\nendstream',
+        b'<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>',
+    ]
+
+    out = bytearray(b'%PDF-1.4\n')
+    offsets = []
+    for i, obj in enumerate(objects, start=1):
+        offsets.append(len(out))
+        out += f'{i} 0 obj\n'.encode('ascii') + obj + b'\nendobj\n'
+
+    xref_offset = len(out)
+    out += f'xref\n0 {len(objects) + 1}\n'.encode('ascii')
+    out += b'0000000000 65535 f \n'
+    for off in offsets:
+        out += f'{off:010d} 00000 n \n'.encode('ascii')
+    out += (
+        f'trailer\n<< /Size {len(objects) + 1} /Root 1 0 R >>\n'
+        f'startxref\n{xref_offset}\n%%EOF\n'
+    ).encode('ascii')
+
+    with open(pdf_path, 'wb') as fh:
+        fh.write(out)
 
 
 def _is_mol_or_sdf(path):
