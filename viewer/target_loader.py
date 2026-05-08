@@ -1659,8 +1659,14 @@ class TargetLoader:
                 self.raw_data,
                 Path(ligand_mol),
             )
-            if molpath.exists():
-                mol = Chem.MolFromMolFile(str(molpath))
+            if not molpath.exists():
+                # upload 2+ and mol came from previous upload
+                molpath = self._abs_final_path.joinpath(
+                    Path(ligand_mol),
+                )
+
+            # potentially check db as well
+            mol = Chem.MolFromMolFile(str(molpath))
 
         if mol is None:
             msg = f'No ligand in observation {longcode}'
