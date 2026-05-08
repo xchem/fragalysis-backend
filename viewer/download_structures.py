@@ -866,20 +866,24 @@ class DownloadStructures:
 
         if extra_files.is_dir():
             num_extra_dir = num_extra_dir + 1
-            for dirpath, _, files in os.walk(extra_files):
-                for file in files:
-                    filepath = os.path.join(dirpath, file)
+
+            for src_path in extra_files.rglob("*"):
+                if src_path.is_file():
+                    filepath = src_path.relative_to(extra_files)
+
                     if soakdb_files or (
-                        not soakdb_files and filepath.find('soakdb_') < 0
+                        not soakdb_files and str(filepath).find('soakdb_') < 0
                     ):
-                        self._logger.info('Adding extra file "%s"...', filepath)
+                        self._logger.info('Adding extra file "%s"...', src_path)
                         self.write_symlink(
-                            filepath,
+                            src_path,
                             os.path.join(
-                                f'{_ZIP_FILEPATHS["extra_files"]}_{num_extra_dir}', file
+                                f'{_ZIP_FILEPATHS["extra_files"]}_{num_extra_dir}',
+                                filepath,
                             ),
                         )
                         num_processed += 1
+
         else:
             self._logger.info('Directory does not exist (%s)...', extra_files)
 
