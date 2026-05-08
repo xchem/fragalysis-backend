@@ -3778,23 +3778,6 @@ def load_target(
     user_id=None,
     task=None,
 ):
-    # Any run of load_target may have written (or partially written)
-    # SiteObservation, Pose and SiteObservationTag rows before raising or
-    # returning early — drop the cached views that read those models in a
-    # `finally` so callers don't have to remember, and so invalidation is
-    # guaranteed even on failure paths.
-    try:
-        _load_target(data_bundle, proposal_ref, user_id=user_id, task=task)
-    finally:
-        clear_view_cache("tag", "pose", "site-observation")
-
-
-def _load_target(
-    data_bundle,
-    proposal_ref: str,
-    user_id=None,
-    task=None,
-):
     with TemporaryDirectory(dir=settings.MEDIA_ROOT) as tempdir:
         target_loader = TargetLoader(
             data_bundle, proposal_ref, tempdir, user_id=user_id, task=task
@@ -3855,6 +3838,11 @@ def _load_target(
                     raise IntegrityError(
                         f"Uploading {target_loader.data_bundle} failed"
                     )
+                # process_bundle wrote SiteObservation, Pose and
+                # SiteObservationTag rows — drop the cached views that read
+                # those models. Inside the atomic block so we only invalidate
+                # when the writes are actually going to commit.
+                clear_view_cache("tag", "pose", "site-observation")
         except Exception as exc:
             # Handle _any_ underlying problem.
             # These are errors processing the data, which we handle gracefully.
