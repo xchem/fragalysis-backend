@@ -36,6 +36,7 @@ from rdkit import Chem
 from api.utils import deployment_mode_is_production
 from fragalysis.settings import TARGET_LOADER_MEDIA_DIRECTORY
 from scoring.models import SiteObservationGroup
+from viewer.cache import clear_view_cache
 from viewer.models import (
     AtomCoordinates,
     CanonSite,
@@ -3843,6 +3844,11 @@ def load_target(
                     raise IntegrityError(
                         f"Uploading {target_loader.data_bundle} failed"
                     )
+                # process_bundle wrote SiteObservation, Pose and
+                # SiteObservationTag rows — drop the cached views that read
+                # those models. Inside the atomic block so we only invalidate
+                # when the writes are actually going to commit.
+                clear_view_cache("tag", "pose", "site-observation")
         except Exception as exc:
             # Handle _any_ underlying problem.
             # These are errors processing the data, which we handle gracefully.
