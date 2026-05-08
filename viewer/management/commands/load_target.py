@@ -7,7 +7,6 @@ from django.contrib.auth import get_user_model
 from django.core.management.base import BaseCommand
 from django.db import IntegrityError
 
-from viewer.cache import clear_all_view_caches
 from viewer.target_loader import load_target
 
 
@@ -67,9 +66,6 @@ class Command(BaseCommand):
                 proposal_ref=kwargs['proposal_ref'],
                 user_id=user_id,
             )
-            # SiteObservation, Pose and SiteObservationTag rows have just
-            # been written; flush cached responses that read them.
-            clear_all_view_caches()
             # self.stdout.write(self.style.SUCCESS('Data imported'))
         except KeyError as err:
             self.stdout.write(self.style.ERROR(err.args[0]))

@@ -538,9 +538,6 @@ def task_load_target(self, data_bundle=None, proposal_ref=None, user_id=None):
         user_id=user_id,
         task=self,
     )
-    # Target ingestion creates SiteObservation, Pose and SiteObservationTag
-    # rows — drop the cached views that read those models.
-    clear_view_cache("tag", "pose", "site-observation")
     logger.info(
         'TASK %s load_target completed, target_zip=%s', self.request.id, data_bundle
     )

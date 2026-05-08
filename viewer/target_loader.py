@@ -36,6 +36,7 @@ from rdkit import Chem
 from api.utils import deployment_mode_is_production
 from fragalysis.settings import TARGET_LOADER_MEDIA_DIRECTORY
 from scoring.models import SiteObservationGroup
+from viewer.cache import clear_view_cache
 from viewer.models import (
     AtomCoordinates,
     CanonSite,
@@ -3772,6 +3773,23 @@ def check_decompress_progress(process, archive_path, update, frequency=1.0):
 
 
 def load_target(
+    data_bundle,
+    proposal_ref: str,
+    user_id=None,
+    task=None,
+):
+    # Any run of load_target may have written (or partially written)
+    # SiteObservation, Pose and SiteObservationTag rows before raising or
+    # returning early — drop the cached views that read those models in a
+    # `finally` so callers don't have to remember, and so invalidation is
+    # guaranteed even on failure paths.
+    try:
+        _load_target(data_bundle, proposal_ref, user_id=user_id, task=task)
+    finally:
+        clear_view_cache("tag", "pose", "site-observation")
+
+
+def _load_target(
     data_bundle,
     proposal_ref: str,
     user_id=None,
