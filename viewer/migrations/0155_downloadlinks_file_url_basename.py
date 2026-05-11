@@ -4,11 +4,13 @@ The absolute path is now reconstructed at access time via
 DownloadLinks.get_file_url() using MEDIA_ROOT, the "downloads" subdir and
 task_id. This migration:
 
-  1. Backfills existing rows: copies the per-download UUID directory from
+  1. Drops the unique=True constraint, since two records for different tasks
+     can legitimately produce the same filename (e.g. "TARGET.zip"). This
+     has to happen first — otherwise the backfill below would hit the
+     constraint as soon as it tries to save a duplicate basename.
+  2. Backfills existing rows: copies the per-download UUID directory from
      the old absolute path into task_id and replaces
      file_url with the original basename.
-  2. Drops the unique=True constraint, since two records for different tasks
-     can legitimately produce the same filename (e.g. "TARGET.zip").
 """
 import os
 
@@ -41,10 +43,10 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
-        migrations.RunPython(_strip_path, _noop_reverse),
         migrations.AlterField(
             model_name='downloadlinks',
             name='file_url',
             field=models.TextField(db_index=True, null=True),
         ),
+        migrations.RunPython(_strip_path, _noop_reverse),
     ]
