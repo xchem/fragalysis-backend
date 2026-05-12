@@ -37,9 +37,9 @@ The `crystallographic_files` directory contains versions of data found in the al
 
 ### Extra files
 
-If the SoakDB CSV and/or SQLite option(s) have been selected, their corresponding files can be found in this directory. If affinity data files are available, an extra affinity_data archive containing all the affinity data will be accessible. A README inside this archive will explain every file in detail. Beyond this, if this directory is present the files will have been added by the uploader of the data, and therefore has no defined structure. As a result we cannot guess what the contents of the file may be, but we hope that the uploader of the extra files will have provided a readme inside to describe each of the added files. Some examples of extra files:
+If the SoakDB CSV and/or SQLite option(s) have been selected, their corresponding files can be found in this directory. If affinity data files are available, an extra affinity_files subdirectory containing all the affinity data will be accessible. A README inside this subdirectory will explain every file in detail. Beyond this, if this directory is present the files will have been added by the uploader of the data, and therefore has no defined structure. As a result we cannot guess what the contents of the file may be, but we hope that the uploader of the extra files will have provided a readme inside to describe each of the added files. Some examples of extra files:
 
-- `affinity_data.zip` --- Target affinity data in a ZIP/TAR archive
+- `affinity_files/` --- Target affinity data in a subdirectory
 - `protein-sequence.fasta` --- Target sequence in FASTA format
 - `soakdb_[session_number].sqlite` --- SoakDB file in SQLite format - Experimental details for each crystal, including soaking conditions, data collection parameters, and processing results.
 - `soakdb_[session_number].csv` --- SoakDB file in CSV format - Experimental details for each crystal, including soaking conditions, data collection parameters, and processing results.
