@@ -12,7 +12,6 @@ import os
 import shutil
 import subprocess
 import time
-import uuid
 import zipfile
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
@@ -27,7 +26,7 @@ import pandas as pd
 import pandoc
 import requests
 from django.conf import settings
-from django.db.models import Exists, F, OuterRef, Value
+from django.db.models import Exists, F, OuterRef, Q, Value
 from django.db.models.fields import CharField
 from django.db.models.functions import Concat
 from rdkit import Chem
@@ -37,7 +36,6 @@ from viewer.utils import clean_filename
 
 from .logger_adapters import TaskLoggerAdapter
 from .tags import get_metadata_fields
-from .target_loader import strip_exp_code
 
 logger = logging.getLogger(__name__)
 
@@ -45,6 +43,9 @@ logger = logging.getLogger(__name__)
 KEEP_UNTIL_DURATION = timedelta(minutes=settings.DOWNLOAD_KEEP_UNTIL_DURATION_M)
 # Length of time to "expired" records
 HARD_EXPIRY_GRACE_PERIOD = timedelta(minutes=settings.HARD_EXPIRY_GRACE_PERIOD_M)
+# Records that never got a keep_zip_until set are treated as abandoned once
+# create_date is older than this; the soft-erase pass expires them.
+ORPHAN_GRACE_PERIOD = timedelta(minutes=settings.DOWNLOAD_ORPHAN_GRACE_M)
 
 # Filepaths mapping for writing associated files to the zip archive.
 # Note that if this is set to 'aligned' then the files will be placed in
@@ -81,7 +82,7 @@ _SCRIPTS = {
 }
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, eq=True)
 class ArchiveFile:
     path: str
     archive_path: str
@@ -297,28 +298,24 @@ class DownloadStructures:
 
                         afile = []
                         for f in model_attr:
-                            # here the model_attr is already stringified
-                            try:
-                                exp_path = strip_exp_code(so.experiment.code)
-                            except ValueError:
-                                self._logger.error(
-                                    'Unexpected experiment code format: %s',
-                                    so.experiment.code,
-                                )
-                                exp_path = so.code
-
-                            apath = Path('crystallographic_files').joinpath(exp_path)
+                            apath = Path('crystallographic_files', so.experiment.code)
                             if model_attr and model_attr != 'None':
-                                archive_path = str(
-                                    apath.joinpath(
-                                        Path(f)
-                                        .parts[-1]
-                                        .replace(so.experiment.code, so.code)
-                                    )
-                                )
+                                archive_path = str(apath.joinpath(Path(f).parts[-1]))
                             else:
                                 archive_path = str(apath.joinpath(param))
                             afile.append(ArchiveFile(path=f, archive_path=archive_path))
+
+                        # changed in [can't find the ticket
+                        # number]. previously zip_contents was updated
+                        # in the end of for cycle instead of
+                        # crystallographic and aligned separately, but
+                        # in attempt to deduplicate files in
+                        # crystallographic dir, I'm moving the update
+                        # statement to each category's section. I'm a
+                        # bit worried it might silently overwrite some
+                        # files but I can't think of any other than
+                        # those I actually want to
+                        zip_contents['proteins'][param][so.experiment.code] = afile
 
                     elif param in [
                         'bound_file',
@@ -360,11 +357,11 @@ class DownloadStructures:
                             )
                         ]
 
+                        zip_contents['proteins'][param][so.code] = afile
+
                     else:
                         self._logger.warning('Unexpected param: %s', param)
                         continue
-
-                    zip_contents['proteins'][param][so.code] = afile
 
                     # add additional ccp4 files (issue 1448)
                     ccps = ('sigmaa_file', 'diff_file', 'event_file')
@@ -868,20 +865,24 @@ class DownloadStructures:
 
         if extra_files.is_dir():
             num_extra_dir = num_extra_dir + 1
-            for dirpath, _, files in os.walk(extra_files):
-                for file in files:
-                    filepath = os.path.join(dirpath, file)
+
+            for src_path in extra_files.rglob("*"):
+                if src_path.is_file():
+                    filepath = src_path.relative_to(extra_files)
+
                     if soakdb_files or (
-                        not soakdb_files and filepath.find('soakdb_') < 0
+                        not soakdb_files and str(filepath).find('soakdb_') < 0
                     ):
-                        self._logger.info('Adding extra file "%s"...', filepath)
+                        self._logger.info('Adding extra file "%s"...', src_path)
                         self.write_symlink(
-                            filepath,
+                            src_path,
                             os.path.join(
-                                f'{_ZIP_FILEPATHS["extra_files"]}_{num_extra_dir}', file
+                                f'{_ZIP_FILEPATHS["extra_files"]}_{num_extra_dir}',
+                                filepath,
                             ),
                         )
                         num_processed += 1
+
         else:
             self._logger.info('Directory does not exist (%s)...', extra_files)
 
@@ -965,10 +966,32 @@ class DownloadStructures:
         with open(str(readme_filepath), "a", encoding="utf-8") as readme:
             self._build_readme(readme, original_search, template_file)
 
-        # Convert markdown to pdf file
+        # Convert markdown to pdf file. Pandoc invokes external tools (the
+        # pandoc binary, latex) that can fail for many reasons we don't want
+        # to abort the whole download for — log and emit a placeholder PDF
+        # carrying the exception text so the archive still contains README.pdf.
         pdf_filepath = self.temp_path.joinpath('README.pdf')
-        doc = pandoc.read(open(readme_filepath, "r", encoding="utf-8").read())
-        pandoc.write(doc, file=pdf_filepath, format='latex', options=["--columns=72"])
+        try:
+            doc = pandoc.read(open(readme_filepath, "r", encoding="utf-8").read())
+            pandoc.write(
+                doc, file=pdf_filepath, format='latex', options=["--columns=72"]
+            )
+        except Exception as exc:  # pylint: disable=broad-except
+            self._logger.warning(
+                'Pandoc README PDF generation failed (%s); '
+                'writing placeholder README.pdf',
+                exc,
+            )
+            _write_text_pdf(
+                pdf_filepath,
+                'README.pdf could not be generated.\n'
+                '\n'
+                'Pandoc raised the following error:\n'
+                f'{exc}\n'
+                '\n'
+                'Please refer to README.md (in the same archive) for the '
+                'full document.',
+            )
 
         # self.write_symlink(pdf_filepath, os.path.join(_ZIP_FILEPATHS['readme'], 'README.pdf'))
 
@@ -1139,6 +1162,66 @@ class DownloadStructures:
         )
 
 
+def _write_text_pdf(pdf_path, message):
+    """Write a minimal one-page PDF whose body is ``message``.
+
+    Used as the README.pdf fallback when pandoc fails — built by hand so it
+    has no dependency on pandoc/latex (which is exactly what's broken when
+    we get here).
+    """
+
+    def _escape(text):
+        return text.replace('\\', '\\\\').replace('(', '\\(').replace(')', '\\)')
+
+    wrapped = []
+    for raw in message.splitlines() or ['']:
+        if not raw:
+            wrapped.append('')
+            continue
+        while len(raw) > 80:
+            wrapped.append(raw[:80])
+            raw = raw[80:]
+        wrapped.append(raw)
+
+    text_ops = ['BT', '/F1 12 Tf', '50 750 Td', '14 TL']
+    for line in wrapped:
+        text_ops.append(f'({_escape(line)}) Tj T*')
+    text_ops.append('ET')
+    content = '\n'.join(text_ops).encode('latin-1', errors='replace')
+
+    objects = [
+        b'<< /Type /Catalog /Pages 2 0 R >>',
+        b'<< /Type /Pages /Kids [3 0 R] /Count 1 >>',
+        b'<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] '
+        b'/Contents 4 0 R /Resources << /Font << /F1 5 0 R >> >> >>',
+        b'<< /Length '
+        + str(len(content)).encode('ascii')
+        + b' >>\nstream\n'
+        + content
+        + b'\nendstream',
+        b'<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>',
+    ]
+
+    out = bytearray(b'%PDF-1.4\n')
+    offsets = []
+    for i, obj in enumerate(objects, start=1):
+        offsets.append(len(out))
+        out += f'{i} 0 obj\n'.encode('ascii') + obj + b'\nendobj\n'
+
+    xref_offset = len(out)
+    out += f'xref\n0 {len(objects) + 1}\n'.encode('ascii')
+    out += b'0000000000 65535 f \n'
+    for off in offsets:
+        out += f'{off:010d} 00000 n \n'.encode('ascii')
+    out += (
+        f'trailer\n<< /Size {len(objects) + 1} /Root 1 0 R >>\n'
+        f'startxref\n{xref_offset}\n%%EOF\n'
+    ).encode('ascii')
+
+    with open(pdf_path, 'wb') as fh:
+        fh.write(out)
+
+
 def _is_mol_or_sdf(path):
     """Returns True if the file and path look like a MOL or SDF file.
     It does this by simply checking the file's extension.
@@ -1284,8 +1367,10 @@ def create_download(download_link_id: int, task, use_zip: bool = False):
         filename = f'{download_link.target.title}.zip'
     else:
         filename = f'{download_link.target.title}.tar.gz'
+    # The per-download directory uses the task_id (set above) so the path is
+    # reproducible from the model alone — see DownloadLinks.get_file_url().
     file_url = os.path.join(
-        settings.MEDIA_ROOT, 'downloads', str(uuid.uuid4()), filename
+        settings.MEDIA_ROOT, 'downloads', download_link.task_id, filename
     )
 
     with TemporaryDirectory() as tempdir:
@@ -1317,8 +1402,10 @@ def create_download(download_link_id: int, task, use_zip: bool = False):
     )
 
     # We now have a download file
-    # so record it and set the 'keep unitl' (expiry) time
-    download_link.file_url = file_url
+    # so record it and set the 'keep unitl' (expiry) time. file_url stores
+    # the basename only; the absolute path is reconstructed by
+    # DownloadLinks.get_file_url().
+    download_link.file_url = filename
     download_link.keep_zip_until = datetime.now(timezone.utc) + KEEP_UNTIL_DURATION
     download_link.save()
 
@@ -1339,11 +1426,21 @@ def soft_erase_out_of_date_download_records():
     not already been soft-deleted (i.e. where an 'expired_date' is not set)
     and we set the 'expired_date'.
 
+    A record is considered out of date when either:
+
+    - its keep_zip_until is in the past, or
+    - keep_zip_until was never set and the record was created more than
+      ORPHAN_GRACE_PERIOD ago (treated as abandoned).
+
     Users should not use records that have an expired date.
     """
     now: datetime = datetime.now(timezone.utc)
+    orphan_cutoff = now - ORPHAN_GRACE_PERIOD
     new_expired_records = (
-        DownloadLinks.objects.filter(keep_zip_until__lt=now)
+        DownloadLinks.objects.filter(
+            Q(keep_zip_until__lt=now)
+            | Q(keep_zip_until__isnull=True, create_date__lt=orphan_cutoff)
+        )
         .filter(expired_date__isnull=True)
         .filter(static_link=False)
     )
@@ -1379,8 +1476,13 @@ def hard_erase_out_of_date_download_records():
             num_pending += 1
             continue
 
-        file_url = dead_dynamic_record.file_url
-        dir_name = os.path.dirname(file_url)
+        full_path = dead_dynamic_record.get_file_url()
+        if full_path is None:
+            # Already cleared (no file_url / task_id); nothing to remove.
+            dead_dynamic_record.deleted = True
+            dead_dynamic_record.save()
+            continue
+        dir_name = os.path.dirname(full_path)
         logger.debug('Deleting %s...', dir_name)
         if os.path.isdir(dir_name):
             try:

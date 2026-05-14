@@ -238,6 +238,47 @@ TEMPLATES = [
 
 TIME_ZONE = "UTC"
 
+# Cache framework.
+# We use per-view cache, so views that need caching
+# should use the '@cache_page' decorator.
+# See https://docs.djangoproject.com/en/6.0/topics/cache/#the-per-view-cache
+
+# Set CACHE_ENABLED to "Yes" (or "True") in the environment to enable caching,
+# otherwise a DummyCache is used, which implements the cache API but stores nothing,
+# so cache_page becomes a no-op. Default is disabled.
+CACHE_ENABLED = os.environ.get("CACHE_ENABLED", "No").lower() in ["true", "yes"]
+
+# Which CACHES alias cache_page (and signal-driven invalidation) uses. Set
+# CACHE_MIDDLEWARE_ALIAS=redis in the environment to route through the
+# redis entry below; "default" uses the in-process LocMemCache.
+# The redis sever will need to support at least two databases, ID 0 will be used for
+# celery tasks and ID 1 will be used for the cache.
+CACHE_MIDDLEWARE_ALIAS = os.environ.get("CACHE_MIDDLEWARE_ALIAS", "default")
+# User can specify a cached timeout (in minutes).
+# The default is 28 days.
+CACHE_MIDDLEWARE_TIMEOUT_MINUTES: int = int(
+    os.environ.get("CACHE_MIDDLEWARE_TIMEOUT_MINUTES", 28 * 24 * 60)
+)
+CACHE_MIDDLEWARE_SECONDS = CACHE_MIDDLEWARE_TIMEOUT_MINUTES * 60
+CACHE_MIDDLEWARE_KEY_PREFIX = ""
+
+# An optional redis backend, addressable via caches["redis"]. Override the
+# connection URL via REDIS_CACHE_LOCATION; the backend module is loaded lazily
+# so this entry is harmless if no code uses the alias. db=1 keeps the cache
+# isolated from celery (db=0).
+REDIS_CACHE_LOCATION = os.environ.get("REDIS_CACHE_LOCATION", "redis://redis:6379/1")
+
+CACHES = {
+    "default": {
+        "BACKEND": (
+            "django.core.cache.backends.redis.RedisCache"
+            if CACHE_ENABLED
+            else "django.core.cache.backends.dummy.DummyCache"
+        ),
+        "LOCATION": REDIS_CACHE_LOCATION,
+    },
+}
+
 # mozilla_django_oidc.
 # See: https://mozilla-django-oidc.readthedocs.io/en/stable/
 # Before you can configure your application, you need to set up a client with
@@ -534,8 +575,12 @@ HARD_EXPIRY_GRACE_PERIOD_M: int = int(
 )
 # How often (minutes) the background download-cleanup scheduler runs.
 DOWNLOAD_CLEANUP_INTERVAL_M: int = int(
-    os.environ.get("DOWNLOAD_CLEANUP_INTERVAL_M", "17")
+    os.environ.get("DOWNLOAD_CLEANUP_INTERVAL_M", "4")
 )
+# Records that never had a keep_zip_until set are considered abandoned once
+# their create_date is older than this many minutes — the soft-erase pass
+# expires them so the hard-erase pass can clean them up.
+DOWNLOAD_ORPHAN_GRACE_M: int = int(os.environ.get("DOWNLOAD_ORPHAN_GRACE_M", "6"))
 
 # Some Squonk2 developer/debug variables.
 # Unused in production.

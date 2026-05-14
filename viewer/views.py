@@ -20,7 +20,10 @@ from django.contrib.auth import get_user_model
 from django.http import FileResponse, HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
+from django.utils.decorators import method_decorator
 from django.views import View
+from django.views.decorators.cache import cache_page
+from django.views.decorators.vary import vary_on_headers
 from python_ipware import IpWare
 from rest_framework import generics, mixins, permissions, status, viewsets
 from rest_framework.decorators import action
@@ -63,6 +66,7 @@ from viewer.utils import (
 )
 
 from .assay_data import AssayData, convert
+from .cache import clear_view_cache
 from .discourse import (
     check_discourse_user,
     create_discourse_post,
@@ -1227,6 +1231,32 @@ class ComputedMoleculesView(ISPyBSafeQuerySet):
     filter_permissions = "compound__project_id"
     filterset_fields = ('computed_set',)
 
+    # Vary keys the cache on Authorization/Cookie so per-user
+    # proposal filtering from ISPyBSafeQuerySet is preserved. The key_prefix
+    # is shared with ComputedMolAndScoreView so a single
+    # clear_view_cache("computed-molecules") drops both.
+    @method_decorator(
+        cache_page(
+            settings.CACHE_MIDDLEWARE_SECONDS,
+            cache=settings.CACHE_MIDDLEWARE_ALIAS,
+            key_prefix="computed-molecules",
+        )
+    )
+    @method_decorator(vary_on_headers('Authorization', 'Cookie'))
+    def list(self, request, *args, **kwargs):
+        return super().list(request, *args, **kwargs)
+
+    @method_decorator(
+        cache_page(
+            settings.CACHE_MIDDLEWARE_SECONDS,
+            cache=settings.CACHE_MIDDLEWARE_ALIAS,
+            key_prefix="computed-molecules",
+        )
+    )
+    @method_decorator(vary_on_headers('Authorization', 'Cookie'))
+    def retrieve(self, request, *args, **kwargs):
+        return super().retrieve(request, *args, **kwargs)
+
 
 class NumericalScoreValuesView(ISPyBSafeQuerySet):
     """View to retrieve information about numerical computed molecule scores
@@ -1266,6 +1296,30 @@ class ComputedMolAndScoreView(ISPyBSafeQuerySet):
     serializer_class = serializers.ComputedMolAndScoreSerializer
     filter_permissions = "compound__project_id"
     filterset_fields = ('computed_set',)
+
+    # Shares the "computed-molecules" key_prefix with ComputedMoleculesView
+    # since both depend on the same underlying ComputedMolecule model.
+    @method_decorator(
+        cache_page(
+            settings.CACHE_MIDDLEWARE_SECONDS,
+            cache=settings.CACHE_MIDDLEWARE_ALIAS,
+            key_prefix="computed-molecules",
+        )
+    )
+    @method_decorator(vary_on_headers('Authorization', 'Cookie'))
+    def list(self, request, *args, **kwargs):
+        return super().list(request, *args, **kwargs)
+
+    @method_decorator(
+        cache_page(
+            settings.CACHE_MIDDLEWARE_SECONDS,
+            cache=settings.CACHE_MIDDLEWARE_ALIAS,
+            key_prefix="computed-molecules",
+        )
+    )
+    @method_decorator(vary_on_headers('Authorization', 'Cookie'))
+    def retrieve(self, request, *args, **kwargs):
+        return super().retrieve(request, *args, **kwargs)
 
 
 class DiscoursePostView(viewsets.ViewSet):
@@ -1449,6 +1503,40 @@ class SiteObservationTagView(
         'mol_group',
     )
 
+    @method_decorator(
+        cache_page(
+            settings.CACHE_MIDDLEWARE_SECONDS,
+            cache=settings.CACHE_MIDDLEWARE_ALIAS,
+            key_prefix="tag",
+        )
+    )
+    @method_decorator(vary_on_headers('Authorization', 'Cookie'))
+    def list(self, request, *args, **kwargs):
+        return super().list(request, *args, **kwargs)
+
+    @method_decorator(
+        cache_page(
+            settings.CACHE_MIDDLEWARE_SECONDS,
+            cache=settings.CACHE_MIDDLEWARE_ALIAS,
+            key_prefix="tag",
+        )
+    )
+    @method_decorator(vary_on_headers('Authorization', 'Cookie'))
+    def retrieve(self, request, *args, **kwargs):
+        return super().retrieve(request, *args, **kwargs)
+
+    def perform_create(self, serializer):
+        super().perform_create(serializer)
+        clear_view_cache("tag")
+
+    def perform_update(self, serializer):
+        super().perform_update(serializer)
+        clear_view_cache("tag")
+
+    def perform_destroy(self, instance):
+        super().perform_destroy(instance)
+        clear_view_cache("tag")
+
 
 class PoseView(
     mixins.UpdateModelMixin,
@@ -1462,6 +1550,40 @@ class PoseView(
     filter_permissions = "compound__project_id"
     serializer_class = serializers.PoseSerializer
     filterset_class = filters.PoseFilter
+
+    @method_decorator(
+        cache_page(
+            settings.CACHE_MIDDLEWARE_SECONDS,
+            cache=settings.CACHE_MIDDLEWARE_ALIAS,
+            key_prefix="pose",
+        )
+    )
+    @method_decorator(vary_on_headers('Authorization', 'Cookie'))
+    def list(self, request, *args, **kwargs):
+        return super().list(request, *args, **kwargs)
+
+    @method_decorator(
+        cache_page(
+            settings.CACHE_MIDDLEWARE_SECONDS,
+            cache=settings.CACHE_MIDDLEWARE_ALIAS,
+            key_prefix="pose",
+        )
+    )
+    @method_decorator(vary_on_headers('Authorization', 'Cookie'))
+    def retrieve(self, request, *args, **kwargs):
+        return super().retrieve(request, *args, **kwargs)
+
+    def perform_create(self, serializer):
+        super().perform_create(serializer)
+        clear_view_cache("pose")
+
+    def perform_update(self, serializer):
+        super().perform_update(serializer)
+        clear_view_cache("pose")
+
+    def perform_destroy(self, instance):
+        super().perform_destroy(instance)
+        clear_view_cache("pose")
 
 
 class SessionProjectTagView(
@@ -1499,17 +1621,27 @@ class DownloadStructuresView(
         file_url = request.GET.get('file_url')
 
         if file_url:
-            if models.DownloadLinks.objects.filter(file_url=file_url).first():
+            # The DB now stores the basename only; the per-download directory
+            # is the task_id. Extract both from the client-supplied path so
+            # the lookup remains exact rather than substring-matching.
+            task_id = os.path.basename(os.path.dirname(file_url))
+            file_name = os.path.basename(file_url)
+            record = models.DownloadLinks.objects.filter(
+                task_id=task_id,
+                file_url=file_name,
+            ).first()
+            if record:
                 logger.info('Got DownloadLinks record for %s', file_url)
-                assert os.path.isfile(file_url)
+                full_path = record.get_file_url()
+                assert full_path is not None
+                assert os.path.isfile(full_path)
 
-                file_name = os.path.basename(file_url)
-                wrapper = FileWrapper(open(file_url, 'rb'))
+                wrapper = FileWrapper(open(full_path, 'rb'))
                 response = FileResponse(wrapper, content_type='application/zip')
                 response['Content-Disposition'] = (
                     'attachment; filename="%s"' % file_name
                 )
-                response['Content-Length'] = os.path.getsize(file_url)
+                response['Content-Length'] = os.path.getsize(full_path)
                 return response
             else:
                 content = {'message': 'file_url is not found'}
@@ -1578,16 +1710,18 @@ class DownloadStructuresView(
             file_url = serializer.validated_data['file_url']
             logger.info('Given file_url "%s"', file_url)
             existing_link = models.DownloadLinks.objects.filter(
-                file_url=file_url
+                task_id=os.path.basename(os.path.dirname(file_url)),
+                file_url=os.path.basename(file_url),
             ).first()
 
             if existing_link and existing_link.static_link:
                 # A record exists, the file _must_ exist.
-                file_url = existing_link.file_url
-                logger.info('Existing static link found for file_url "%s"', file_url)
-                assert os.path.isfile(file_url)
+                full_path = existing_link.get_file_url()
+                logger.info('Existing static link found for file_url "%s"', full_path)
+                assert full_path is not None
+                assert os.path.isfile(full_path)
                 return Response(
-                    {"file_url": file_url},
+                    {"file_url": full_path},
                     status=status.HTTP_200_OK,
                 )
 
@@ -1722,7 +1856,7 @@ class DownloadStructuresView(
 
         # Did we find an existing DownloadLink with exact same parameters?
         if existing_link:
-            return Response({"file_url": existing_link.file_url})
+            return Response({"file_url": existing_link.get_file_url()})
 
         # Do we have a suitable record for a compression task that's underway
         # (i.e. has a Task ID) and not expired?
@@ -2243,6 +2377,28 @@ class SiteObservationView(ISPyBSafeQuerySet):
     serializer_class = serializers.SiteObservationReadSerializer
     filterset_class = filters.SiteObservationFilter
     filter_permissions = "experiment__experiment_upload__project"
+
+    @method_decorator(
+        cache_page(
+            settings.CACHE_MIDDLEWARE_SECONDS,
+            cache=settings.CACHE_MIDDLEWARE_ALIAS,
+            key_prefix="site-observation",
+        )
+    )
+    @method_decorator(vary_on_headers('Authorization', 'Cookie'))
+    def list(self, request, *args, **kwargs):
+        return super().list(request, *args, **kwargs)
+
+    @method_decorator(
+        cache_page(
+            settings.CACHE_MIDDLEWARE_SECONDS,
+            cache=settings.CACHE_MIDDLEWARE_ALIAS,
+            key_prefix="site-observation",
+        )
+    )
+    @method_decorator(vary_on_headers('Authorization', 'Cookie'))
+    def retrieve(self, request, *args, **kwargs):
+        return super().retrieve(request, *args, **kwargs)
 
 
 class SiteObservationIDView(ISPyBSafeQuerySet):
@@ -3096,8 +3252,10 @@ class UploadMetadataView(ISPyBSafeQuerySet):
         errors = load_tags_from_file(filename=filename, target=target, user=user)
         if errors:
             return Response({"errors": errors}, status=status.HTTP_400_BAD_REQUEST)
-        else:
-            return Response({'success': True}, status=status.HTTP_200_OK)
+        # load_tags_from_file mutates SiteObservationTag, SiteObservation,
+        # and Pose; drop the corresponding cached responses.
+        clear_view_cache("tag", "site-observation", "pose")
+        return Response({'success': True}, status=status.HTTP_200_OK)
 
 
 class DownloadComputedSetView(ISPyBSafeQuerySet):
