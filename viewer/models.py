@@ -70,6 +70,17 @@ class Project(models.Model):
         return "<Project %r %r %r>" % (self.id, self.title, self.open_to_public)
 
 
+class UserRole(models.Model):
+    name = models.CharField(max_length=100, unique=True)
+    users = models.ManyToManyField(User, related_name="roles", blank=True)
+
+    def __str__(self) -> str:
+        return f"{self.name}"
+
+    def __repr__(self) -> str:
+        return "<UserRole %r %r>" % (self.id, self.name)
+
+
 class Target(models.Model):
     PENDING = "PENDING"
     STARTED = "STARTED"
