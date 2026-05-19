@@ -71,6 +71,8 @@ class Project(models.Model):
 
 
 class UserRole(models.Model):
+    LOADER_ROLE = "Loader"
+
     name = models.CharField(max_length=100, unique=True)
     users = models.ManyToManyField(User, related_name="roles", blank=True)
 

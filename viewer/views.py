@@ -1907,6 +1907,81 @@ class DownloadStructuresView(
         return Response({'task_status_url': url}, status=status.HTTP_202_ACCEPTED)
 
 
+def _check_upload_tas_authorisation(request, target_access_string):
+    """Authorise an upload/validate request against `target_access_string`.
+
+    Returns a Response (error 403 / login redirect) that the caller must
+    return immediately, or None when the user is authorised to proceed.
+
+    A user holding the UserRole.LOADER_ROLE role bypasses the target-access
+    membership check; the bypass is logged as a warning naming the user and
+    the role.
+    """
+    if not settings.AUTHENTICATE_UPLOAD:
+        return None
+
+    if request.user.username == 'asap-service':
+        logger.warning(
+            'Upload attempted with "%s" service account, trying uploader-supplied user',
+            request.user.username,
+        )
+        if 'django-user' in request.headers.keys():
+            try:
+                user = get_user_model().objects.get(
+                    username=request.headers['django-user']
+                )
+            except get_user_model().DoesNotExist:
+                msg = (
+                    f'Upload from "{request.user.username}" '
+                    + 'service account but fragalysis user not found'
+                )
+                logger.error(msg)
+                return Response({'error': msg}, status=status.HTTP_403_FORBIDDEN)
+        else:
+            msg = (
+                f'Upload from "{request.user.username}" service '
+                'account but fragalysis user not supplied'
+            )
+            logger.error(msg)
+            return Response({'error': msg}, status=status.HTTP_403_FORBIDDEN)
+    else:
+        user = request.user
+
+    if not user.is_authenticated:
+        return redirect(settings.LOGIN_URL)
+
+    if user.roles.filter(name=models.UserRole.LOADER_ROLE).exists():
+        logger.warning(
+            'User "%s" bypassing target-access authorisation for "%s" '
+            'via the "%s" role',
+            user.username,
+            target_access_string,
+            models.UserRole.LOADER_ROLE,
+        )
+        return None
+
+    proposals = _ISPYB_SAFE_QUERY_SET.get_proposals_for_user(
+        user, restrict_public_to_membership=True
+    )
+    if target_access_string not in proposals:
+        logger.warning(
+            '(#1712) User %s does not have access to %s (checked %d proposals)',
+            user.username,
+            target_access_string,
+            len(proposals),
+        )
+        return Response(
+            {
+                "target_access_string": [
+                    f"You are not authorized to upload data to '{target_access_string}'"
+                ]
+            },
+            status=status.HTTP_403_FORBIDDEN,
+        )
+
+    return None
+
+
 class UploadExperimentUploadView(viewsets.ViewSet):
     http_method_names = ('post',)
     serializer_class = serializers.TargetExperimentWriteSerializer
@@ -1933,58 +2008,9 @@ class UploadExperimentUploadView(viewsets.ViewSet):
 
         target_access_string = serializer.validated_data['target_access_string']
 
-        if settings.AUTHENTICATE_UPLOAD:
-            if self.request.user.username == 'asap-service':
-                logger.warning(
-                    'Upload attempted with "%s" service account, trying uploader-supplied user',
-                    self.request.user.username,
-                )
-                if 'django-user' in request.headers.keys():
-                    try:
-                        user = get_user_model().objects.get(
-                            username=request.headers['django-user']
-                        )
-                    except get_user_model().DoesNotExist:
-                        msg = (
-                            f'Upload from "{self.request.user.username}" '
-                            + 'service account but fragalysis user not found'
-                        )
-                        logger.error(msg)
-                        return Response(
-                            {'error': msg}, status=status.HTTP_403_FORBIDDEN
-                        )
-                else:
-                    msg = (
-                        f'Upload from "{self.request.user.username}" service '
-                        'account but fragalysis user not supplied'
-                    )
-                    logger.error(msg)
-                    return Response({'error': msg}, status=status.HTTP_403_FORBIDDEN)
-
-            else:
-                user = self.request.user
-
-            if not user.is_authenticated:
-                return redirect(settings.LOGIN_URL)
-            else:
-                proposals = _ISPYB_SAFE_QUERY_SET.get_proposals_for_user(
-                    user, restrict_public_to_membership=True
-                )
-                if target_access_string not in proposals:
-                    logger.warning(
-                        '(#1712) User %s does not have access to %s (checked %d proposals)',
-                        user.username,
-                        target_access_string,
-                        len(proposals),
-                    )
-                    return Response(
-                        {
-                            "target_access_string": [
-                                f"You are not authorized to upload data to '{target_access_string}'"
-                            ]
-                        },
-                        status=status.HTTP_403_FORBIDDEN,
-                    )
+        auth_response = _check_upload_tas_authorisation(request, target_access_string)
+        if auth_response is not None:
+            return auth_response
 
         filename = serializer.validated_data['file']
 
@@ -2055,58 +2081,9 @@ class UploadExperimentValidateView(viewsets.ViewSet):
 
         target_access_string = serializer.validated_data['target_access_string']
 
-        if settings.AUTHENTICATE_UPLOAD:
-            if self.request.user.username == 'asap-service':
-                logger.warning(
-                    'Upload attempted with "%s" service account, trying uploader-supplied user',
-                    self.request.user.username,
-                )
-                if 'django-user' in request.headers.keys():
-                    try:
-                        user = get_user_model().objects.get(
-                            username=request.headers['django-user']
-                        )
-                    except get_user_model().DoesNotExist:
-                        msg = (
-                            f'Upload from "{self.request.user.username}" '
-                            + 'service account but fragalysis user not found'
-                        )
-                        logger.error(msg)
-                        return Response(
-                            {'error': msg}, status=status.HTTP_403_FORBIDDEN
-                        )
-                else:
-                    msg = (
-                        f'Upload from "{self.request.user.username}" service '
-                        'account but fragalysis user not supplied'
-                    )
-                    logger.error(msg)
-                    return Response({'error': msg}, status=status.HTTP_403_FORBIDDEN)
-
-            else:
-                user = self.request.user
-
-            if not user.is_authenticated:
-                return redirect(settings.LOGIN_URL)
-            else:
-                proposals = _ISPYB_SAFE_QUERY_SET.get_proposals_for_user(
-                    user, restrict_public_to_membership=True
-                )
-                if target_access_string not in proposals:
-                    logger.warning(
-                        '(#1712) User %s does not have access to %s (checked %d proposals)',
-                        user.username,
-                        target_access_string,
-                        len(proposals),
-                    )
-                    return Response(
-                        {
-                            "target_access_string": [
-                                f"You are not authorized to upload data to '{target_access_string}'"
-                            ]
-                        },
-                        status=status.HTTP_403_FORBIDDEN,
-                    )
+        auth_response = _check_upload_tas_authorisation(request, target_access_string)
+        if auth_response is not None:
+            return auth_response
 
         validation_response = {
             'success': True,
