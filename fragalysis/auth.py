@@ -3,9 +3,16 @@
 import logging
 
 from django.conf import settings
+from django.db import IntegrityError, transaction
 from mozilla_django_oidc.auth import OIDCAuthenticationBackend
 
 logger = logging.getLogger(__name__)
+
+# Prefix applied to a pre-existing account whose username collides with the
+# one an incoming (email-matched) login is claiming. Renaming the stale
+# account frees the username so the user does not have to log in again.
+# See m2ms-2116.
+_CONFLICT_PREFIX = "m2ms-2116-"
 
 
 class KeycloakOIDCAuthenticationBackend(OIDCAuthenticationBackend):
@@ -62,6 +69,58 @@ class KeycloakOIDCAuthenticationBackend(OIDCAuthenticationBackend):
 
         return users
 
+    def _save_resolving_username_conflict(self, user, username):
+        """Save 'user', recovering from the auth_user_username_key collision.
+
+        'user' has been matched by email but is being assigned a username
+        that another (stale) row already owns, so user.save() raises
+        IntegrityError. We rename the stale row (see _CONFLICT_PREFIX) to
+        free the username and retry, so the user does not have to log in
+        again. The first save runs in a savepoint so the connection stays
+        usable after the rollback.
+        """
+        try:
+            with transaction.atomic():
+                user.save()
+            return user
+        except IntegrityError:
+            conflicting = list(
+                self.UserModel.objects.filter(username__iexact=username).exclude(
+                    pk=user.pk
+                )
+            )
+            if not conflicting:
+                # Not the username collision we know how to resolve.
+                raise
+
+            for other in conflicting:
+                new_username = f"{_CONFLICT_PREFIX}{other.username}"
+                # A repeat collision (prefixed name already taken) would
+                # just violate the constraint again on retry, so fall
+                # back to a pk-qualified name that is guaranteed unique.
+                if (
+                    self.UserModel.objects.filter(username__iexact=new_username)
+                    .exclude(pk=other.pk)
+                    .exists()
+                ):
+                    new_username = f"{_CONFLICT_PREFIX}{other.pk}-{other.username}"
+                new_username = new_username[:150]
+                logger.warning(
+                    "Freeing username '%s': renaming conflicting"
+                    " id=%s username=%s -> %s",
+                    username,
+                    other.pk,
+                    other.username,
+                    new_username,
+                )
+                other.username = new_username
+                with transaction.atomic():
+                    other.save()
+
+            with transaction.atomic():
+                user.save()
+            return user
+
     def update_user(self, user, claims):
         """Update a user from a claim.
         We need the expected username field.
@@ -98,5 +157,4 @@ class KeycloakOIDCAuthenticationBackend(OIDCAuthenticationBackend):
         user.first_name = new_given_name
         user.last_name = new_last_name
 
-        user.save()
-        return user
+        return self._save_resolving_username_conflict(user, username)
