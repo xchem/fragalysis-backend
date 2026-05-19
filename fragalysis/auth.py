@@ -3,6 +3,7 @@
 import logging
 
 from django.conf import settings
+from django.core.exceptions import PermissionDenied
 from django.db import IntegrityError, transaction
 from mozilla_django_oidc.auth import OIDCAuthenticationBackend
 
@@ -13,6 +14,10 @@ logger = logging.getLogger(__name__)
 # account frees the username so the user does not have to log in again.
 # See m2ms-2116.
 _CONFLICT_PREFIX = "m2ms-2116-"
+
+# Only the username-collision IntegrityError carries this (Postgres) text.
+# Any other IntegrityError is not something we know how to recover from.
+_DUPLICATE_KEY_MESSAGE = "duplicate key value violates unique constraint"
 
 
 class KeycloakOIDCAuthenticationBackend(OIDCAuthenticationBackend):
@@ -83,15 +88,38 @@ class KeycloakOIDCAuthenticationBackend(OIDCAuthenticationBackend):
             with transaction.atomic():
                 user.save()
             return user
-        except IntegrityError:
+        except IntegrityError as exc:
+            if _DUPLICATE_KEY_MESSAGE not in str(exc):
+                # A different IntegrityError (not the username collision):
+                # fail the login cleanly with a 403 rather than a 500.
+                logger.error(
+                    "Unrecoverable IntegrityError saving id=%s username=%s: %s",
+                    user.id,
+                    username,
+                    exc,
+                )
+                raise PermissionDenied(
+                    "Could not complete login (database integrity error)."
+                ) from exc
+
             conflicting = list(
                 self.UserModel.objects.filter(username__iexact=username).exclude(
                     pk=user.pk
                 )
             )
             if not conflicting:
-                # Not the username collision we know how to resolve.
-                raise
+                # The username collision text was present but no other row
+                # holds it: we cannot recover, so 403 rather than 500.
+                logger.error(
+                    "Username collision for id=%s username=%s but no"
+                    " conflicting row found: %s",
+                    user.id,
+                    username,
+                    exc,
+                )
+                raise PermissionDenied(
+                    "Could not complete login (username conflict)."
+                ) from exc
 
             for other in conflicting:
                 new_username = f"{_CONFLICT_PREFIX}{other.username}"
