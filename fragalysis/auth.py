@@ -4,8 +4,16 @@ import logging
 
 from django.conf import settings
 from mozilla_django_oidc.auth import OIDCAuthenticationBackend
+from requests.exceptions import HTTPError
+from rest_framework.exceptions import PermissionDenied
 
 logger = logging.getLogger(__name__)
+
+# Shown to the user (HTTP 403) when the OIDC provider rejects their token
+# while resolving the bearer login on an API request.
+_UNSUITABLE_LOGIN_MESSAGE = (
+    "Your login does not appear to be suitable for this application"
+)
 
 
 class KeycloakOIDCAuthenticationBackend(OIDCAuthenticationBackend):
@@ -27,6 +35,29 @@ class KeycloakOIDCAuthenticationBackend(OIDCAuthenticationBackend):
             return False
 
         return True
+
+    def get_or_create_user(self, access_token, id_token, payload):
+        """Resolve the user for a (bearer) token.
+
+        The OIDC provider returns 403 for an invalid/unsuitable token,
+        which surfaces from get_userinfo() as requests.exceptions.HTTPError.
+        mozilla-django-oidc's DRF layer only translates 401, so a 403 would
+        otherwise escape as an unhandled error (HTTP 500). Convert it to a
+        DRF PermissionDenied so the user gets a clean 403 with a message.
+        Other HTTP errors (incl. 401) are re-raised unchanged so the
+        library's existing handling still applies.
+        """
+        try:
+            return super().get_or_create_user(access_token, id_token, payload)
+        except HTTPError as exc:
+            response = exc.response
+            if response is not None and response.status_code == 403:
+                logger.warning(
+                    "OIDC provider returned 403 for token; rejecting login: %s",
+                    exc,
+                )
+                raise PermissionDenied(_UNSUITABLE_LOGIN_MESSAGE) from exc
+            raise
 
     def create_user(self, claims):
         user = super(KeycloakOIDCAuthenticationBackend, self).create_user(claims)
