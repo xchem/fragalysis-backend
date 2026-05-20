@@ -28,7 +28,7 @@ class Migration(migrations.Migration):
             name='UserRole',
             fields=[
                 ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('name', models.CharField(max_length=100, unique=True)),
+                ('name', models.TextField(unique=True)),
                 ('users', models.ManyToManyField(blank=True, related_name='roles', to=settings.AUTH_USER_MODEL)),
             ],
         ),
