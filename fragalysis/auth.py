@@ -3,7 +3,6 @@
 import logging
 
 from django.conf import settings
-from django.core.exceptions import PermissionDenied
 from django.db import IntegrityError, transaction
 from mozilla_django_oidc.auth import OIDCAuthenticationBackend
 from requests.exceptions import HTTPError
