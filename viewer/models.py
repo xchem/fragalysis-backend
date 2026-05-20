@@ -1796,7 +1796,7 @@ class TagCategory(models.Model):
 
 
 class Tag(models.Model):
-    tag = models.CharField(max_length=200, help_text="The (unique) name of the tag")
+    tag = models.TextField(help_text="The (unique) name of the tag")
     short_tag = models.TextField(
         null=True,
         help_text="The generated shorter version of tag (without target name)",
@@ -1804,9 +1804,7 @@ class Tag(models.Model):
     tag_prefix = models.TextField(
         null=True, help_text="Tag prefix for auto-generated tags"
     )
-    upload_name = models.CharField(
-        max_length=200, help_text="The generated long name of the tag"
-    )
+    upload_name = models.TextField(null=True)
     category = models.ForeignKey(TagCategory, on_delete=models.CASCADE)
     target = models.ForeignKey(Target, on_delete=models.CASCADE)
     user = models.ForeignKey(User, null=True, on_delete=models.CASCADE)
@@ -1816,6 +1814,7 @@ class Tag(models.Model):
     )
     discourse_url = models.TextField(max_length=1000, null=True)
     help_text = models.TextField(null=True)
+    meta_category = models.TextField(null=True)
     additional_info = models.JSONField(
         encoder=DjangoJSONEncoder,
         null=True,

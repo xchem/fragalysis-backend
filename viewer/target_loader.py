@@ -2381,7 +2381,7 @@ class TargetLoader:
         )
 
         datestr = timezone.now().date().strftime('%Y-%m-%d')
-        tagger = TagManager(self.target)
+        tagger = TagManager(self.target, meta_category='lhs')
         tagger.tag_new_site_observations(
             site_observations=site_observations,
             new_observation_tag=f"{self.version_dir} {datestr}",

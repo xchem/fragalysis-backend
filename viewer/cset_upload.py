@@ -1025,7 +1025,7 @@ class MolOps:
                     )
                     so_ids.append(so_pk)
 
-                tagger = TagManager(computed_set.target)
+                tagger = TagManager(computed_set.target, meta_category='rhs')
                 so_qs = SiteObservation.objects.filter(pk__in=so_ids)
                 datestr = timezone.now().date().strftime('%Y-%m-%d')
                 tagger.tag_new_site_observations(

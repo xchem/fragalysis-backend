@@ -666,8 +666,9 @@ def get_ann_tag(input_str: str) -> str:
 
 
 class TagManager:
-    def __init__(self, target):
+    def __init__(self, target, meta_category: str = ''):
         self.target = target
+        self.meta_category = meta_category
 
     def add_tags_to_canon_sites(self, qs: QuerySet[CanonSite]):
         cat = TagCategory.objects.get(category="CanonSites")
@@ -833,7 +834,9 @@ class TagManager:
     # wasn't a problem because checked if tag exists
 
     def tag_new_site_observations(
-        self, site_observations: QuerySet[SiteObservation], new_observation_tag: str
+        self,
+        site_observations: QuerySet[SiteObservation],
+        new_observation_tag: str,
     ):
         cs_qs = CanonSite.objects.filter(
             pk__in=site_observations.values('canon_site_conf__canon_site')
@@ -962,6 +965,7 @@ class TagManager:
                 mol_group=so_group,
                 hidden=hidden,
                 short_tag=short_name,
+                meta_category=self.meta_category,
             )
 
         so_tag.save()
