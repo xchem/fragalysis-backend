@@ -3638,6 +3638,40 @@ class PlotDataView(
     filterset_fields = ('target',)
 
 
+class UserRoleView(viewsets.ReadOnlyModelViewSet):
+    """List user roles, and (via the 'users' detail action) the users
+    assigned to a specific role.
+
+      GET /api/user_roles/                  list all roles
+      GET /api/user_roles/<role-name>/      one role
+      GET /api/user_roles/<role-name>/users/  users holding that role
+    """
+
+    queryset = models.UserRole.objects.all().order_by('name')
+    serializer_class = serializers.UserRoleSerializer
+    permission_classes = [permissions.IsAuthenticated]
+    # Look up roles by their (unique) name rather than pk, so the URL
+    # reads naturally, e.g. /api/user_roles/Loader/users/.
+    lookup_field = 'name'
+
+    @action(detail=True, methods=['get'])
+    def users(self, request, name=None):
+        # 'name' is supplied via the URL kwarg and consumed by get_object()
+        # through self.kwargs; the method-level argument is unused.
+        del request, name
+        role = self.get_object()
+        # Only expose usernames here -- emails and real names are PII and
+        # not needed to answer "who holds this role".
+        users_qs = role.users.all().order_by('username').only('username')
+        page = self.paginate_queryset(users_qs)
+        serializer = serializers.RoleUsernameSerializer(
+            page if page is not None else users_qs, many=True
+        )
+        if page is not None:
+            return self.get_paginated_response(serializer.data)
+        return Response(serializer.data)
+
+
 class TASStatsView(viewsets.ViewSet):
     # memo: there's no need for enforcing authentication, the logged
     # in user is fetched from the request. If not logged in, it
