@@ -569,6 +569,24 @@ class UserSerializer(serializers.ModelSerializer):
         fields = ('id', 'username', 'email', 'first_name', 'last_name')
 
 
+class UserRoleSerializer(serializers.ModelSerializer):
+    user_count = serializers.IntegerField(source='users.count', read_only=True)
+
+    class Meta:
+        model = models.UserRole
+        fields = ('id', 'name', 'user_count')
+
+
+class RoleUsernameSerializer(serializers.ModelSerializer):
+    """Username-only view of a User, used by the user_roles 'users' action
+    so role membership can be queried without exposing email / real names.
+    """
+
+    class Meta:
+        model = User
+        fields = ('username',)
+
+
 # GET
 class ActionTypeSerializer(serializers.ModelSerializer):
     class Meta:
