@@ -29,35 +29,27 @@ the target model we have two files that are served as files:
 .. code-block:: python
 
     class Target(models.Model):
-        """Django model to define a Target - a protein.
-
-        Parameters
-        ----------
-        title: CharField
-            The name of the target
-        init_date: DateTimeField
-            The date the target was initiated (autofield)
-        project_id: ManyToManyField
-            Links targets to projects for authentication
-        uniprot_id: Charfield
-            Optional field where a uniprot id can be stored
-        metadata: FileField
-            Optional file upload defining metadata about the target - can be used to add custom site labels
-        zip_archive: FileField
-            Link to zip file created from targets uploaded with the loader
-        """
-        # The title of the project_id -> userdefined
-        title = models.CharField(unique=True, max_length=200)
-        # The date it was made
+        title = models.CharField(max_length=200, help_text="A title, i.e. Mpro")
         init_date = models.DateTimeField(auto_now_add=True)
-        # A field to link projects and targets together
-        project_id = models.ManyToManyField(Project)
-        # Indicates the uniprot_id id for the target. Is a unique key
-        uniprot_id = models.CharField(max_length=100, null=True)
-        # metadatafile containing sites info for download
-        metadata = models.FileField(upload_to="metadata/", null=True, max_length=255)
-        # zip archive to download uploaded data from
-        zip_archive = models.FileField(upload_to="archive/", null=True, max_length=255)
+        project = models.ForeignKey(Project, on_delete=models.CASCADE)
+        uniprot_id = models.CharField(
+            max_length=100,
+            null=True,
+            help_text="The uniprot ID id for the target. A unique key",
+        )
+        metadata = models.FileField(
+            upload_to="metadata/",
+            null=True,
+            max_length=255,
+            help_text="Optional file upload defining metadata about the target."
+            " Can be used to add custom site labels",
+        )
+        zip_archive = models.FileField(
+            upload_to="archive/",
+            null=True,
+            max_length=255,
+            help_text="Link to zip file created from targets uploaded with the loader",
+        )
 
 The :code:`metadata` file and the :code:`zip_archive` file. To make sure that these :code:`Files` are served as download links
 , we have to tell nginx to allow access to the media area where the files are uploaded/saved to.
@@ -79,7 +71,7 @@ view for serving :code:`metadata` files can be found in :code:`media_serve/views
 
 .. code-block:: python
 
-    from api.security import ISpyBSafeStaticFiles
+    from api.security import ISPyBSafeStaticFiles
     from viewer.models import Target
 
     def metadata_download(request, file_path):
@@ -89,10 +81,10 @@ view for serving :code:`metadata` files can be found in :code:`media_serve/views
         :param file_path: the file path we're getting from the static
         :return: the response (a redirect to nginx internal)
         """
-        ispy_b_static = ISpyBSafeStaticFiles()
+        ispy_b_static = ISPyBSafeStaticFiles()
         ispy_b_static.model = Target
         ispy_b_static.request = request
-        ispy_b_static.permission_string = "project_id"
+        ispy_b_static.permission_string = "project"
         ispy_b_static.field_name = "metadata"
         ispy_b_static.content_type = "application/x-pilot"
         ispy_b_static.prefix = "/metadata/"
@@ -100,18 +92,18 @@ view for serving :code:`metadata` files can be found in :code:`media_serve/views
         return ispy_b_static.get_response()
 
 
-For our files, we're authenticating user access to file downloads with :code:`ISpyBSafeStaticFiles`, which is a custom
-class inheriting :code:`ISpyBSafeQuerySet(viewsets.ReadOnlyModelViewSet)`: the same View method we use to authenticate
-user access for all non-media views. The difference between :code:`ISpyBSafeQuerySet` and :code:`ISpyBSafeStaticFiles`
-is that :code:`ISpyBSafeStaticFiles` contains a method that sets the context of the response using NGINX's redirect
+For our files, we're authenticating user access to file downloads with :code:`ISPyBSafeStaticFiles`, which is a custom
+class inheriting :code:`ISPyBSafeQuerySet(viewsets.ReadOnlyModelViewSet)`: the same View method we use to authenticate
+user access for all non-media views. The difference between :code:`ISPyBSafeQuerySet` and :code:`ISPyBSafeStaticFiles`
+is that :code:`ISPyBSafeStaticFiles` contains a method that sets the context of the response using NGINX's redirect
 method, returning the response including the file as an attachment:
 
 .. code-block:: python
 
-    class ISpyBSafeStaticFiles:
+    class ISPyBSafeStaticFiles:
 
         def get_queryset(self):
-            query = ISpyBSafeQuerySet()
+            query = ISPyBSafeQuerySet()
             query.request = self.request
             query.filter_permissions = self.permission_string
             query.queryset = self.model.objects.filter()
@@ -148,4 +140,4 @@ in :code:`media_serve/urls.py`:
 
 .. code-block:: python
 
-    url(r"^metadata/(?P<file_path>.+)", views.metadata_download, name="get_metadata"),
+    path("metadata/<file_path>/", views.metadata_download, name="get_metadata"),

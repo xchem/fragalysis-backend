@@ -71,6 +71,12 @@ httpie = "^3.2"
 black = "^25.9"
 mypy = "^1.18"
 
+# Documentation (Sphinx) - used by the 'build docs' GitHub Action.
+# Note: building the docs also requires the 'main' dependencies, as
+# conf.py runs django.setup() and autodoc imports the viewer app.
+[tool.poetry.group.docs.dependencies]
+sphinx = "^9.1"
+
 [build-system]
 requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
