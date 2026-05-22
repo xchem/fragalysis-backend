@@ -4,7 +4,7 @@ Download data
 Fragalysis provides functionality to flexibly download subsets of data as follows:
 
 - **Subset of Target Data** - Given a permitted target, a list of protein codes, and a series of booleans indicating which
-  information is requested, the DownloadStructures view will construct a zip file of the requested information (if available).
+  information is requested, the DownloadStructuresView will construct a zip file of the requested information (if available).
   For example, the user could request to download only PDB files for a particular list of protein codes.
 
 - **Subset of Computed Set Data** - Constructs a csv file for download based on a dictionary constructed in the react
@@ -13,8 +13,8 @@ Fragalysis provides functionality to flexibly download subsets of data as follow
 Views
 -----
 
-.. autoclass:: viewer.views.DownloadStructures
+.. autoclass:: viewer.views.DownloadStructuresView
     :members:
 
-.. autoclass:: viewer.views.DictToCsv
+.. autoclass:: viewer.views.DictToCSVView
     :members:
