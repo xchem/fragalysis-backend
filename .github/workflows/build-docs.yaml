@@ -42,7 +42,11 @@ jobs:
     - name: Install dependencies (main + docs)
       run: poetry install --only main,docs --no-root
     - name: Build docs
-      run: poetry run sphinx-build -b html docs/source docs/build/html
+      # conf.py runs django.setup(), and the Django LOGGING config writes
+      # to logs/backend.log - create the directory so the handler can open.
+      run: |
+        mkdir -p logs
+        poetry run sphinx-build -b html docs/source docs/build/html
     - name: Upload docs artifact
       uses: actions/upload-artifact@v4
       with:
