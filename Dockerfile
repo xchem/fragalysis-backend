@@ -33,8 +33,11 @@ WORKDIR /
 COPY poetry.lock pyproject.toml /
 
 # POETRY_VIRTUALENVS_IN_PROJECT tells poetry to create the venv to
-# project's directory (.venv). This way the location is predictable
-RUN POETRY_VIRTUALENVS_IN_PROJECT=true poetry install --no-root --only main --no-directory
+# project's directory (.venv). This way the location is predictable.
+# The 'test' group is included so that 'pytest' is present in the image when
+# docker-compose.test.yml runs test-entry.sh (the same image is used for the
+# app and for tests).
+RUN POETRY_VIRTUALENVS_IN_PROJECT=true poetry install --no-root --only main,test --no-directory
 
 # final stage. only copy the venv with installed packages and point
 # paths to it
