@@ -31,6 +31,7 @@ from django.db.models.fields import CharField
 from django.db.models.functions import Concat
 from rdkit import Chem
 
+from fragalysis.celery import app as celery_app
 from viewer.models import DownloadLinks, SiteObservation
 from viewer.utils import clean_filename
 
@@ -1316,8 +1317,6 @@ def download_capacity_exceeded() -> bool:
     percent = settings.MAX_DOWNLOAD_CONCURRENCY_PERCENT
     if percent <= 0:
         return False
-
-    from fragalysis.celery import app as celery_app
 
     try:
         worker_stats = celery_app.control.inspect().stats()
