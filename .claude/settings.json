@@ -1,0 +1,15 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(docker buildx *)",
+      "Bash(git add *)",
+      "Bash(git branch *)",
+      "Bash(git commit -m ' *)",
+      "Bash(git config *)",
+      "Bash(gh api *)",
+      "Bash(gh pr *)",
+      "Bash(poetry run *)",
+      "Skill(build-stack)"
+    ]
+  }
+}
