@@ -72,7 +72,7 @@ from .discourse import (
     create_discourse_post,
     list_discourse_posts_for_topic,
 )
-from .download_structures import get_download_params
+from .download_structures import download_capacity_exceeded, get_download_params
 from .forms import CSetForm
 from .squonk_job_file_transfer import (
     TfrFileNotFoundError,
@@ -1890,6 +1890,19 @@ class DownloadStructuresView(
                 'viewer:task_status', kwargs={'task_id': in_progress_link.task_id}
             )
         else:
+            # No existing link and nothing in progress - we'd start a new
+            # celery task, but first refuse if the workers are already at
+            # the configured capacity. The newly-created (idle) DownloadLinks
+            # row above carries no task_id, so it's not counted as in-progress
+            # and is left for the cleanup job to reap.
+            if download_capacity_exceeded():
+                return Response(
+                    {
+                        'message': 'Fragalysis is serving too many download'
+                        ' requests. Please try again later.'
+                    },
+                    status=status.HTTP_429_TOO_MANY_REQUESTS,
+                )
             # No existing link and nothing on progress ... start a new celery task to create it
             task = task_create_download.delay(
                 download_link_id=download_link.pk,
