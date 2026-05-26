@@ -589,7 +589,7 @@ DOWNLOAD_ORPHAN_GRACE_M: int = int(os.environ.get("DOWNLOAD_ORPHAN_GRACE_M", "6"
 # that would launch a new Task are rejected with HTTP 429.
 # Set to 0 to disable the guard.
 MAX_DOWNLOAD_CONCURRENCY_PERCENT: int = int(
-    os.environ.get("MAX_DOWNLOAD_CONCURRENCY_PERCENT", "80")
+    os.environ.get("MAX_DOWNLOAD_CONCURRENCY_PERCENT", "0")
 )
 
 # Some Squonk2 developer/debug variables.
