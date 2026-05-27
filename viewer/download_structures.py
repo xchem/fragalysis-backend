@@ -33,6 +33,7 @@ from django.db.models.functions import Concat
 from rdkit import Chem
 
 from api.infections import INFECTION_STRUCTURE_DOWNLOAD_TASK, have_infection
+from fragalysis.celery import app as celery_app
 from viewer.models import DownloadLinks, SiteObservation
 from viewer.utils import clean_filename
 
@@ -1307,6 +1308,64 @@ def get_download_params(validated_data):
     static_link = validated_data['static_link']
 
     return protein_params, other_params, static_link
+
+
+def download_capacity_exceeded() -> bool:
+    """Return True when too many download-build tasks are already in flight.
+
+    The cap is derived dynamically from the celery workers' advertised
+    concurrency: we sum each worker's pool max-concurrency, multiply by
+    settings.MAX_DOWNLOAD_CONCURRENCY_PERCENT/100, and compare against the
+    number of DownloadLinks rows that have a task_id but no file_url
+    (i.e. still being built).
+    """
+    percent = settings.MAX_DOWNLOAD_CONCURRENCY_PERCENT
+    if percent <= 0:
+        return False
+
+    try:
+        worker_stats = celery_app.control.inspect().stats()
+    except Exception as exc:
+        logger.warning("Celery inspect.stats() failed (%s); skipping cap check", exc)
+        return False
+
+    if not worker_stats:
+        logger.warning("No celery workers responded to stats(); skipping cap check")
+        return False
+
+    total_concurrency = 0
+    for stats in worker_stats.values():
+        try:
+            total_concurrency += int(stats["pool"]["max-concurrency"])
+        except (KeyError, TypeError, ValueError):
+            continue
+
+    if total_concurrency <= 0:
+        logger.warning("Celery workers report zero concurrency; skipping cap check")
+        return False
+
+    cap = (total_concurrency * percent) // 100
+    if cap <= 0:
+        cap = 1
+
+    in_progress = DownloadLinks.objects.filter(
+        task_id__isnull=False,
+        file_url__isnull=True,
+    ).count()
+
+    if in_progress >= cap:
+        logger.warning(
+            "Download capacity exceeded: in_progress=%d cap=%d "
+            "(workers=%d total_concurrency=%d percent=%d)",
+            in_progress,
+            cap,
+            len(worker_stats),
+            total_concurrency,
+            percent,
+        )
+        return True
+
+    return False
 
 
 def create_download(download_link_id: int, task, use_zip: bool = False):

@@ -588,6 +588,16 @@ DOWNLOAD_TASK_MAX_RUNTIME_M: int = int(
     os.environ.get("DOWNLOAD_TASK_MAX_RUNTIME_M", "60")
 )
 
+# Upper bound (as a percentage of the celery workers' total prefork capacity)
+# on the number of concurrent download-build tasks the stack will accept.
+# When the count of in-progress DownloadLinks records reaches this fraction of
+# the inspected worker concurrency, new POSTs to /api/download_structures/
+# that would launch a new Task are rejected with HTTP 429.
+# Set to 0 to disable the guard.
+MAX_DOWNLOAD_CONCURRENCY_PERCENT: int = int(
+    os.environ.get("MAX_DOWNLOAD_CONCURRENCY_PERCENT", "0")
+)
+
 # Some Squonk2 developer/debug variables.
 # Unused in production.
 DUMMY_TARGET_TITLE: str = os.environ.get("DUMMY_TARGET_TITLE", "")
