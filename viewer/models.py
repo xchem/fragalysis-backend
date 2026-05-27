@@ -1609,6 +1609,11 @@ class DownloadLinks(models.Model):
         null=True,
         help_text="Set when the download file has been removed from the filesystem.",
     )
+    expiry_reason = models.TextField(
+        null=True,
+        help_text="Why the download was expired (e.g. the task was lost)."
+        " Shown to users querying a failed download.",
+    )
     # TODO - zip_file is no longer Used (A.Christie 2024-01-19)
     zip_file = models.BooleanField(default=False)
     original_search = models.JSONField(encoder=DjangoJSONEncoder, null=True)

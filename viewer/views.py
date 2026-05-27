@@ -2175,6 +2175,26 @@ class TaskStatusView(APIView):
 
         # task_id is a UUID, but Celery expects a string
         task_id_str = str(task_id)
+
+        # If a download with this task was expired because its task was lost
+        # (see viewer.download_structures.expire_lost_download_records) the Celery
+        # result may be long gone, so return the recorded reason directly. This is
+        # the meaningful error the user should see on their next query.
+        lost_link = models.DownloadLinks.objects.filter(
+            task_id=task_id_str,
+            expired_date__isnull=False,
+            expiry_reason__isnull=False,
+        ).first()
+        if lost_link:
+            return JsonResponse(
+                {
+                    'started': True,
+                    'finished': True,
+                    'status': 'FAILED',
+                    'messages': [lost_link.expiry_reason],
+                }
+            )
+
         result = None
         try:
             result = AsyncResult(task_id_str)
