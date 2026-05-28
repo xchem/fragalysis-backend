@@ -43,13 +43,16 @@ touch /srv/logs/access.log
 touch /code/logs/logfile.log
 
 CONCURRENCY=${STACK_CONCURRENCY:-4}
+# Gunicorn worker timeout (seconds). Default 3600 (1 hour) to support
+# large file uploads (#942); override with STACK_GUNICORN_TIMEOUT_S.
+GUNICORN_TIMEOUT=${STACK_GUNICORN_TIMEOUT_S:-3600}
 
-echo "Starting Gunicorn (CONCURRENCY=${CONCURRENCY})..."
+echo "Starting Gunicorn (CONCURRENCY=${CONCURRENCY}, TIMEOUT=${GUNICORN_TIMEOUT}s)..."
 gunicorn fragalysis.wsgi:application \
     --daemon \
     --name fragalysis \
     --bind unix:django_app.sock \
-    --timeout 3000 \
+    --timeout ${GUNICORN_TIMEOUT} \
     --workers ${CONCURRENCY} \
     --log-level=debug \
     --log-file=/srv/logs/gunicorn.log \
@@ -63,6 +66,19 @@ gunicorn fragalysis.wsgi:application \
 # discovered yet. It suddenly broke but right now seems to work in
 # firefox. 12Hopefully won't be necessary soon
 echo proxy_set_header X-Forwarded-Proto "${PROXY_FORWARDED_PROTO_HEADER:-https};"  >> /etc/nginx/frag_proxy_params
+
+# Render nginx config templates. Default of 3600s (1 hour) supports
+# large file uploads (#942); override with NGINX_TIMEOUT_S.
+# Only ${NGINX_TIMEOUT_S} is substituted so nginx's own $vars
+# (e.g. $http_host, regex anchors) pass through untouched.
+export NGINX_TIMEOUT_S="${NGINX_TIMEOUT_S:-3600}"
+echo "Rendering nginx config (NGINX_TIMEOUT_S=${NGINX_TIMEOUT_S})..."
+envsubst '${NGINX_TIMEOUT_S}' \
+    < /etc/nginx/templates/nginx.conf.template \
+    > /etc/nginx/nginx.conf
+envsubst '${NGINX_TIMEOUT_S}' \
+    < /etc/nginx/templates/default.conf.template \
+    > /etc/nginx/sites-available/default.conf
 
 echo "Testing nginx config..."
 nginx -tq
