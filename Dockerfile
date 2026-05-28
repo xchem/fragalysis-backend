@@ -53,7 +53,7 @@ ENV TMPDIR=/tmp
 WORKDIR /code/logs
 WORKDIR /code
 
-# nginx.conf and django_nginx.conf carry ${STACK_NGINX_TIMEOUT_S}
+# nginx.conf and django_nginx.conf carry ${NGINX_TIMEOUT_S}
 # placeholders that are resolved by envsubst in launch-stack.sh at
 # container startup. They land as templates here and are rendered into
 # /etc/nginx/nginx.conf and /etc/nginx/sites-available/default.conf

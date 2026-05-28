@@ -50,15 +50,15 @@ gunicorn --config gunicorn.conf.py fragalysis.wsgi:application
 echo proxy_set_header X-Forwarded-Proto "${PROXY_FORWARDED_PROTO_HEADER:-https};"  >> /etc/nginx/frag_proxy_params
 
 # Render nginx config templates. Default of 3600s (1 hour) supports
-# large file uploads (#942); override with STACK_NGINX_TIMEOUT_S.
-# Only ${STACK_NGINX_TIMEOUT_S} is substituted so nginx's own $vars
+# large file uploads (#942); override with NGINX_TIMEOUT_S.
+# Only ${NGINX_TIMEOUT_S} is substituted so nginx's own $vars
 # (e.g. $http_host, regex anchors) pass through untouched.
-export STACK_NGINX_TIMEOUT_S="${STACK_NGINX_TIMEOUT_S:-3600}"
-echo "Rendering nginx config (STACK_NGINX_TIMEOUT_S=${STACK_NGINX_TIMEOUT_S})..."
-envsubst '${STACK_NGINX_TIMEOUT_S}' \
+export NGINX_TIMEOUT_S="${NGINX_TIMEOUT_S:-3600}"
+echo "Rendering nginx config (NGINX_TIMEOUT_S=${NGINX_TIMEOUT_S})..."
+envsubst '${NGINX_TIMEOUT_S}' \
     < /etc/nginx/templates/nginx.conf.template \
     > /etc/nginx/nginx.conf
-envsubst '${STACK_NGINX_TIMEOUT_S}' \
+envsubst '${NGINX_TIMEOUT_S}' \
     < /etc/nginx/templates/default.conf.template \
     > /etc/nginx/sites-available/default.conf
 
