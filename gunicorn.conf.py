@@ -3,6 +3,7 @@ import os
 import sys
 
 _CONCURRENCY: int = int(os.environ.get("STACK_CONCURRENCY", "4"))
+_TIMEOUT_S: int = int(os.environ.get("STACK_GUNICORN_TIMEOUT_S", "3600"))
 
 _GUNICORN_LOGGING_DIR: str = os.environ.get("GUNICORN_LOGGING_DIR", "/code/logs")
 _GUNICORN_ROOT_LOGGING_LEVEL: str = os.environ.get(
@@ -42,7 +43,7 @@ access_log_format = '%(t)s %(m)s %(U)s %(s)s %(b)s %(L)s "%(a)s"'
 
 bind = "unix:django_app.sock"
 daemon = True
-timeout = 3_000
+timeout = _TIMEOUT_S
 workers = _CONCURRENCY
 disable_redirect_access_to_syslog = True
 
