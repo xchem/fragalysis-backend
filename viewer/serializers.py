@@ -1,4 +1,5 @@
 import logging
+import math
 from pathlib import Path
 from urllib.parse import urljoin
 
@@ -1101,6 +1102,18 @@ class ExperimentReadSerializer(serializers.ModelSerializer):
     class Meta:
         model = models.Experiment
         fields = '__all__'
+
+    def to_representation(self, instance):
+        # SoakDB-sourced float fields (e.g. resolution/refinement metrics) can
+        # hold NaN/inf, which DRF's strict JSON renderer refuses to encode
+        # ("Out of range float values are not JSON compliant"), 500ing the
+        # endpoint. Map any non-finite float to null so we emit valid JSON.
+        # See ticket #939.
+        ret = super().to_representation(instance)
+        for key, value in ret.items():
+            if isinstance(value, float) and not math.isfinite(value):
+                ret[key] = None
+        return ret
 
 
 class CanonSiteConfReadSerializer(serializers.ModelSerializer):
