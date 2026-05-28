@@ -14,11 +14,14 @@ from api.utils import deployment_mode_is_production
 # Must be lowercase, but user can use any case in the environment variable.
 # Define every name as a constant, and add it and a description to the _CATALOGUE.
 INFECTION_STRUCTURE_DOWNLOAD: str = 'structure-download'
+INFECTION_STRUCTURE_DOWNLOAD_TASK: str = 'structure-download-task'
 
 # The index is the short-form name of the infection, and the value is the
 # description of the infection.
 _CATALOGUE: Dict[str, str] = {
-    INFECTION_STRUCTURE_DOWNLOAD: 'An error in the DownloadStructures view'
+    INFECTION_STRUCTURE_DOWNLOAD: 'An error in the DownloadStructures view',
+    INFECTION_STRUCTURE_DOWNLOAD_TASK: 'A crash in the download task (after it has'
+    ' started but before the file is built), to simulate a lost/stuck download',
 }
 
 
