@@ -8,6 +8,7 @@ USER root
 RUN apt-get update -y && \
     apt-get install --no-install-recommends -y \
       default-libmysqlclient-dev \
+      gettext-base \
       nginx \
       pandoc \
       texlive-latex-base \
@@ -49,8 +50,14 @@ WORKDIR /srv/logs
 WORKDIR /code/logs
 WORKDIR /code
 
-COPY nginx.conf /etc/nginx/nginx.conf
-COPY django_nginx.conf /etc/nginx/sites-available/default.conf
+# nginx.conf and django_nginx.conf carry ${NGINX_TIMEOUT_S}
+# placeholders that are resolved by envsubst in launch-stack.sh at
+# container startup. They land as templates here and are rendered into
+# /etc/nginx/nginx.conf and /etc/nginx/sites-available/default.conf
+# before nginx -tq runs.
+RUN mkdir -p /etc/nginx/templates
+COPY nginx.conf /etc/nginx/templates/nginx.conf.template
+COPY django_nginx.conf /etc/nginx/templates/default.conf.template
 COPY proxy_params /etc/nginx/frag_proxy_params
 RUN ln -s /etc/nginx/sites-available/default.conf /etc/nginx/sites-enabled
 

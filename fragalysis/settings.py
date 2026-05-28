@@ -467,6 +467,28 @@ if not DISABLE_LOGGING_FRAMEWORK:
         },
     }
 
+# Upload size limits (see #942).
+# DATA_UPLOAD_MAX_MEMORY_SIZE caps the size, in bytes, of any non-file
+# request body before Django raises RequestDataTooBig. Multipart file
+# uploads stream through FILE_UPLOAD_HANDLERS and are not subject to it,
+# but raising the cap avoids surprises for code paths that buffer a
+# request body. Default 18 GiB; set the env var to "0" to disable the
+# cap entirely (mapped to None, matching Django's "no limit" sentinel).
+_DATA_UPLOAD_MAX_MEMORY_SIZE = int(
+    os.environ.get("DATA_UPLOAD_MAX_MEMORY_SIZE", str(18 * 1024**3))
+)
+DATA_UPLOAD_MAX_MEMORY_SIZE: Optional[int] = (
+    _DATA_UPLOAD_MAX_MEMORY_SIZE if _DATA_UPLOAD_MAX_MEMORY_SIZE > 0 else None
+)
+
+# Files larger than this (bytes) spool to disk via the
+# TemporaryFileUploadHandler instead of being held in memory. Default
+# 2_621_440 (2.5 MiB) — Django's own default, set explicitly so the
+# behaviour is visible alongside DATA_UPLOAD_MAX_MEMORY_SIZE.
+FILE_UPLOAD_MAX_MEMORY_SIZE: int = int(
+    os.environ.get("FILE_UPLOAD_MAX_MEMORY_SIZE", str(2_621_440))
+)
+
 # --------------------------------------------------------------------------------------
 # FRAGALYSIS SETTINGS
 # --------------------------------------------------------------------------------------
