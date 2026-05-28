@@ -521,10 +521,10 @@ if not DISABLE_LOGGING_FRAMEWORK:
 # request body before Django raises RequestDataTooBig. Multipart file
 # uploads stream through FILE_UPLOAD_HANDLERS and are not subject to it,
 # but raising the cap avoids surprises for code paths that buffer a
-# request body. Default 10 GiB; set the env var to "0" to disable the
+# request body. Default 18 GiB; set the env var to "0" to disable the
 # cap entirely (mapped to None, matching Django's "no limit" sentinel).
 _DATA_UPLOAD_MAX_MEMORY_SIZE = int(
-    os.environ.get("DATA_UPLOAD_MAX_MEMORY_SIZE", str(10 * 1024**3))
+    os.environ.get("DATA_UPLOAD_MAX_MEMORY_SIZE", str(18 * 1024**3))
 )
 DATA_UPLOAD_MAX_MEMORY_SIZE: Optional[int] = (
     _DATA_UPLOAD_MAX_MEMORY_SIZE if _DATA_UPLOAD_MAX_MEMORY_SIZE > 0 else None
