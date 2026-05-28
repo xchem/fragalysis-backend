@@ -101,6 +101,10 @@ def keycloak() -> str:
     keycloak_realm = settings.OIDC_KEYCLOAK_REALM
     if not keycloak_realm:
         return State.NOT_CONFIGURED
-    response = requests.get(keycloak_realm, timeout=REQUEST_TIMEOUT_S)
+    try:
+        response = requests.get(keycloak_realm, timeout=REQUEST_TIMEOUT_S)
+    except requests.exceptions.RequestException as r_ex:
+        logger.error('Keycloak GET:%s RequestException (%s)', keycloak_realm, r_ex)
+        return State.DEGRADED
     logger.debug("keycloak response: %s", response)
     return State.OK if response.ok else State.DEGRADED
