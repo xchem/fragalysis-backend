@@ -2781,7 +2781,15 @@ class TargetLoader:
                     # I don't know if this can happen but this (due to
                     # other bugs) is what allowed me to find this
                     # error. Make a note in the logs.
-                    logger.warning("No observations left to assign to pose")
+                    logger.info(
+                        "No observations left to assign to pose from group %s",
+                        group,
+                    )
+                    # update: apparently can happen when user decides
+                    # to split apart existing group. in this case, all
+                    # observations are assigned to poses and there's
+                    # nothing to do. demoting log entry to info
+                    continue
 
             # finally add observations to the (new or existing) pose
             for obvs in pose_items:
