@@ -99,4 +99,16 @@ testpaths = ["viewer/tests"]
 #   pass --create-db explicitly when migrations change. CI containers are
 #   ephemeral so the first (and only) run always creates it.
 # --strict-markers: typo'd/unknown @pytest.mark markers become errors.
-addopts = "--reuse-db --strict-markers --cov=viewer --cov-report=term-missing"
+addopts = "--reuse-db --strict-markers --cov=viewer --cov-report=term-missing --cov-report=html"
+
+[tool.coverage.run]
+# Coverage measures the viewer app's hand-written code. Auto-generated
+# migrations (excluded from all lint hooks too) and the tests themselves
+# would otherwise distort the headline figure.
+omit = [
+    "viewer/migrations/*",
+    "viewer/tests/*",
+]
+
+[tool.coverage.html]
+directory = "htmlcov"
