@@ -25,12 +25,15 @@ import humanize
 import pandas as pd
 import pandoc
 import requests
+from celery.result import AsyncResult
 from django.conf import settings
-from django.db.models import Exists, F, OuterRef, Q, Value
+from django.db.models import Exists, F, OuterRef, Value
 from django.db.models.fields import CharField
 from django.db.models.functions import Concat
 from rdkit import Chem
 
+from api.infections import INFECTION_STRUCTURE_DOWNLOAD_TASK, have_infection
+from fragalysis.celery import app as celery_app
 from viewer.models import DownloadLinks, SiteObservation
 from viewer.utils import clean_filename
 
@@ -43,9 +46,12 @@ logger = logging.getLogger(__name__)
 KEEP_UNTIL_DURATION = timedelta(minutes=settings.DOWNLOAD_KEEP_UNTIL_DURATION_M)
 # Length of time to "expired" records
 HARD_EXPIRY_GRACE_PERIOD = timedelta(minutes=settings.HARD_EXPIRY_GRACE_PERIOD_M)
-# Records that never got a keep_zip_until set are treated as abandoned once
-# create_date is older than this; the soft-erase pass expires them.
-ORPHAN_GRACE_PERIOD = timedelta(minutes=settings.DOWNLOAD_ORPHAN_GRACE_M)
+# An in-progress download is given this long to start before the "lost task"
+# housekeeping pass will consider it (see expire_lost_download_records).
+TASK_START_GRACE_PERIOD = timedelta(minutes=settings.DOWNLOAD_TASK_START_GRACE_M)
+# The longest an in-progress download may run before it is presumed lost (e.g.
+# the worker was restarted, leaving the Celery result frozen "in progress").
+TASK_MAX_RUNTIME = timedelta(minutes=settings.DOWNLOAD_TASK_MAX_RUNTIME_M)
 
 # Filepaths mapping for writing associated files to the zip archive.
 # Note that if this is set to 'aligned' then the files will be placed in
@@ -1304,6 +1310,64 @@ def get_download_params(validated_data):
     return protein_params, other_params, static_link
 
 
+def download_capacity_exceeded() -> bool:
+    """Return True when too many download-build tasks are already in flight.
+
+    The cap is derived dynamically from the celery workers' advertised
+    concurrency: we sum each worker's pool max-concurrency, multiply by
+    settings.MAX_DOWNLOAD_CONCURRENCY_PERCENT/100, and compare against the
+    number of DownloadLinks rows that have a task_id but no file_url
+    (i.e. still being built).
+    """
+    percent = settings.MAX_DOWNLOAD_CONCURRENCY_PERCENT
+    if percent <= 0:
+        return False
+
+    try:
+        worker_stats = celery_app.control.inspect().stats()
+    except Exception as exc:
+        logger.warning("Celery inspect.stats() failed (%s); skipping cap check", exc)
+        return False
+
+    if not worker_stats:
+        logger.warning("No celery workers responded to stats(); skipping cap check")
+        return False
+
+    total_concurrency = 0
+    for stats in worker_stats.values():
+        try:
+            total_concurrency += int(stats["pool"]["max-concurrency"])
+        except (KeyError, TypeError, ValueError):
+            continue
+
+    if total_concurrency <= 0:
+        logger.warning("Celery workers report zero concurrency; skipping cap check")
+        return False
+
+    cap = (total_concurrency * percent) // 100
+    if cap <= 0:
+        cap = 1
+
+    in_progress = DownloadLinks.objects.filter(
+        task_id__isnull=False,
+        file_url__isnull=True,
+    ).count()
+
+    if in_progress >= cap:
+        logger.warning(
+            "Download capacity exceeded: in_progress=%d cap=%d "
+            "(workers=%d total_concurrency=%d percent=%d)",
+            in_progress,
+            cap,
+            len(worker_stats),
+            total_concurrency,
+            percent,
+        )
+        return True
+
+    return False
+
+
 def create_download(download_link_id: int, task, use_zip: bool = False):
     """Check/create a download zip file.
 
@@ -1325,6 +1389,11 @@ def create_download(download_link_id: int, task, use_zip: bool = False):
     download_link = DownloadLinks.objects.get(pk=download_link_id)
     download_link.task_id = str(task.request.id)
     download_link.save()
+
+    # Simulate a worker crashing mid-build (task_id set, but file_url never written)
+    # so the "lost task" housekeeping can be exercised. Ignored in production.
+    if have_infection(INFECTION_STRUCTURE_DOWNLOAD_TASK):
+        raise RuntimeError(f'Download Error! ({INFECTION_STRUCTURE_DOWNLOAD_TASK})')
 
     # error checking is not necessary because all these objects are
     # already resolved in the view and then passed through task
@@ -1426,21 +1495,15 @@ def soft_erase_out_of_date_download_records():
     not already been soft-deleted (i.e. where an 'expired_date' is not set)
     and we set the 'expired_date'.
 
-    A record is considered out of date when either:
-
-    - its keep_zip_until is in the past, or
-    - keep_zip_until was never set and the record was created more than
-      ORPHAN_GRACE_PERIOD ago (treated as abandoned).
+    A record is considered out of date when its keep_zip_until is in the past.
+    In-progress records (keep_zip_until still null) are handled separately by
+    expire_lost_download_records(), which inspects the Celery task.
 
     Users should not use records that have an expired date.
     """
     now: datetime = datetime.now(timezone.utc)
-    orphan_cutoff = now - ORPHAN_GRACE_PERIOD
     new_expired_records = (
-        DownloadLinks.objects.filter(
-            Q(keep_zip_until__lt=now)
-            | Q(keep_zip_until__isnull=True, create_date__lt=orphan_cutoff)
-        )
+        DownloadLinks.objects.filter(keep_zip_until__lt=now)
         .filter(expired_date__isnull=True)
         .filter(static_link=False)
     )
@@ -1448,6 +1511,84 @@ def soft_erase_out_of_date_download_records():
     if num_expired := new_expired_records.update(expired_date=now):
         msg = "1 record has" if num_expired == 1 else f"{num_expired} records have"
         logger.info('%s now expired', msg)
+
+
+def expire_lost_download_records():
+    """Find in-progress download records whose Celery task will never finish and
+    expire them, recording a human-readable reason.
+
+    An in-progress record is one that has not yet been given a keep_zip_until
+    (that is only set when create_download() completes) and has not already been
+    expired. Such a record can be left "stuck" forever if its task crashed or its
+    worker was rebooted before it could write file_url / keep_zip_until.
+
+    Each candidate is given TASK_START_GRACE_PERIOD to get going, then its task is
+    inspected:
+
+    - no task_id ........ the task was never launched -> lost
+    - FAILURE / REVOKED . the task ended badly -> lost
+    - PENDING ........... no worker picked it up, or the result was lost -> lost
+    - still running ..... left alone, unless it has been running longer than
+                          TASK_MAX_RUNTIME (a frozen result implies a lost worker)
+
+    Users querying a lost task see the reason via TaskStatusView.
+    """
+    now: datetime = datetime.now(timezone.utc)
+    start_cutoff = now - TASK_START_GRACE_PERIOD
+    runtime_cutoff = now - TASK_MAX_RUNTIME
+
+    in_progress_records = (
+        DownloadLinks.objects.filter(keep_zip_until__isnull=True)
+        .filter(expired_date__isnull=True)
+        .filter(static_link=False)
+    )
+
+    num_lost = 0
+    for record in in_progress_records:
+        # Give the task a chance to start before we judge it.
+        if record.create_date > start_cutoff:
+            continue
+
+        reason: str | None = None
+        if not record.task_id:
+            reason = "The download task was never launched"
+        else:
+            result = AsyncResult(str(record.task_id))
+            state = result.state
+            if state in ('FAILURE', 'REVOKED'):
+                detail = result.info if isinstance(result.info, str) else state
+                reason = f"The download task ended unexpectedly ({detail})"
+            elif state == 'PENDING':
+                reason = (
+                    "The download task was lost"
+                    " (no worker result - it may never have run)"
+                )
+            elif record.create_date < runtime_cutoff:
+                runtime_m = settings.DOWNLOAD_TASK_MAX_RUNTIME_M
+                reason = (
+                    f"The download task exceeded the maximum runtime ({runtime_m} min)"
+                    " and is presumed lost (e.g. the worker was restarted)"
+                )
+
+        if reason:
+            record.expired_date = now
+            record.expiry_reason = reason
+            record.save(update_fields=['expired_date', 'expiry_reason'])
+            logger.info(
+                "Expired lost download (pk=%s task=%s): %s",
+                record.pk,
+                record.task_id,
+                reason,
+            )
+            num_lost += 1
+
+    if num_lost:
+        msg = (
+            "1 lost download has"
+            if num_lost == 1
+            else f"{num_lost} lost downloads have"
+        )
+        logger.info('%s now been expired', msg)
 
 
 def hard_erase_out_of_date_download_records():

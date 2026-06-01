@@ -72,7 +72,7 @@ from .discourse import (
     create_discourse_post,
     list_discourse_posts_for_topic,
 )
-from .download_structures import get_download_params
+from .download_structures import download_capacity_exceeded, get_download_params
 from .forms import CSetForm
 from .squonk_job_file_transfer import (
     TfrFileNotFoundError,
@@ -1890,6 +1890,19 @@ class DownloadStructuresView(
                 'viewer:task_status', kwargs={'task_id': in_progress_link.task_id}
             )
         else:
+            # No existing link and nothing in progress - we'd start a new
+            # celery task, but first refuse if the workers are already at
+            # the configured capacity. The newly-created (idle) DownloadLinks
+            # row above carries no task_id, so it's not counted as in-progress
+            # and is left for the cleanup job to reap.
+            if download_capacity_exceeded():
+                return Response(
+                    {
+                        'message': 'Fragalysis is serving too many download'
+                        ' requests. Please try again later.'
+                    },
+                    status=status.HTTP_429_TOO_MANY_REQUESTS,
+                )
             # No existing link and nothing on progress ... start a new celery task to create it
             task = task_create_download.delay(
                 download_link_id=download_link.pk,
@@ -1905,6 +1918,81 @@ class DownloadStructuresView(
             url = reverse('viewer:task_status', kwargs={'task_id': task.task_id})
 
         return Response({'task_status_url': url}, status=status.HTTP_202_ACCEPTED)
+
+
+def _check_upload_tas_authorisation(request, target_access_string):
+    """Authorise an upload/validate request against `target_access_string`.
+
+    Returns a Response (error 403 / login redirect) that the caller must
+    return immediately, or None when the user is authorised to proceed.
+
+    A user holding the UserRole.LOADER_ROLE role bypasses the target-access
+    membership check; the bypass is logged as a warning naming the user and
+    the role.
+    """
+    if not settings.AUTHENTICATE_UPLOAD:
+        return None
+
+    if request.user.username == 'asap-service':
+        logger.warning(
+            'Upload attempted with "%s" service account, trying uploader-supplied user',
+            request.user.username,
+        )
+        if 'django-user' in request.headers.keys():
+            try:
+                user = get_user_model().objects.get(
+                    username=request.headers['django-user']
+                )
+            except get_user_model().DoesNotExist:
+                msg = (
+                    f'Upload from "{request.user.username}" '
+                    + 'service account but fragalysis user not found'
+                )
+                logger.error(msg)
+                return Response({'error': msg}, status=status.HTTP_403_FORBIDDEN)
+        else:
+            msg = (
+                f'Upload from "{request.user.username}" service '
+                'account but fragalysis user not supplied'
+            )
+            logger.error(msg)
+            return Response({'error': msg}, status=status.HTTP_403_FORBIDDEN)
+    else:
+        user = request.user
+
+    if not user.is_authenticated:
+        return redirect(settings.LOGIN_URL)
+
+    if user.roles.filter(name=models.UserRole.LOADER_ROLE).exists():
+        logger.warning(
+            'User "%s" bypassing target-access authorisation for "%s" '
+            'via the "%s" role',
+            user.username,
+            target_access_string,
+            models.UserRole.LOADER_ROLE,
+        )
+        return None
+
+    proposals = _ISPYB_SAFE_QUERY_SET.get_proposals_for_user(
+        user, restrict_public_to_membership=True
+    )
+    if target_access_string not in proposals:
+        logger.warning(
+            '(#1712) User %s does not have access to %s (checked %d proposals)',
+            user.username,
+            target_access_string,
+            len(proposals),
+        )
+        return Response(
+            {
+                "target_access_string": [
+                    f"You are not authorized to upload data to '{target_access_string}'"
+                ]
+            },
+            status=status.HTTP_403_FORBIDDEN,
+        )
+
+    return None
 
 
 class UploadExperimentUploadView(viewsets.ViewSet):
@@ -1933,58 +2021,9 @@ class UploadExperimentUploadView(viewsets.ViewSet):
 
         target_access_string = serializer.validated_data['target_access_string']
 
-        if settings.AUTHENTICATE_UPLOAD:
-            if self.request.user.username == 'asap-service':
-                logger.warning(
-                    'Upload attempted with "%s" service account, trying uploader-supplied user',
-                    self.request.user.username,
-                )
-                if 'django-user' in request.headers.keys():
-                    try:
-                        user = get_user_model().objects.get(
-                            username=request.headers['django-user']
-                        )
-                    except get_user_model().DoesNotExist:
-                        msg = (
-                            f'Upload from "{self.request.user.username}" '
-                            + 'service account but fragalysis user not found'
-                        )
-                        logger.error(msg)
-                        return Response(
-                            {'error': msg}, status=status.HTTP_403_FORBIDDEN
-                        )
-                else:
-                    msg = (
-                        f'Upload from "{self.request.user.username}" service '
-                        'account but fragalysis user not supplied'
-                    )
-                    logger.error(msg)
-                    return Response({'error': msg}, status=status.HTTP_403_FORBIDDEN)
-
-            else:
-                user = self.request.user
-
-            if not user.is_authenticated:
-                return redirect(settings.LOGIN_URL)
-            else:
-                proposals = _ISPYB_SAFE_QUERY_SET.get_proposals_for_user(
-                    user, restrict_public_to_membership=True
-                )
-                if target_access_string not in proposals:
-                    logger.warning(
-                        '(#1712) User %s does not have access to %s (checked %d proposals)',
-                        user.username,
-                        target_access_string,
-                        len(proposals),
-                    )
-                    return Response(
-                        {
-                            "target_access_string": [
-                                f"You are not authorized to upload data to '{target_access_string}'"
-                            ]
-                        },
-                        status=status.HTTP_403_FORBIDDEN,
-                    )
+        auth_response = _check_upload_tas_authorisation(request, target_access_string)
+        if auth_response is not None:
+            return auth_response
 
         filename = serializer.validated_data['file']
 
@@ -2055,58 +2094,9 @@ class UploadExperimentValidateView(viewsets.ViewSet):
 
         target_access_string = serializer.validated_data['target_access_string']
 
-        if settings.AUTHENTICATE_UPLOAD:
-            if self.request.user.username == 'asap-service':
-                logger.warning(
-                    'Upload attempted with "%s" service account, trying uploader-supplied user',
-                    self.request.user.username,
-                )
-                if 'django-user' in request.headers.keys():
-                    try:
-                        user = get_user_model().objects.get(
-                            username=request.headers['django-user']
-                        )
-                    except get_user_model().DoesNotExist:
-                        msg = (
-                            f'Upload from "{self.request.user.username}" '
-                            + 'service account but fragalysis user not found'
-                        )
-                        logger.error(msg)
-                        return Response(
-                            {'error': msg}, status=status.HTTP_403_FORBIDDEN
-                        )
-                else:
-                    msg = (
-                        f'Upload from "{self.request.user.username}" service '
-                        'account but fragalysis user not supplied'
-                    )
-                    logger.error(msg)
-                    return Response({'error': msg}, status=status.HTTP_403_FORBIDDEN)
-
-            else:
-                user = self.request.user
-
-            if not user.is_authenticated:
-                return redirect(settings.LOGIN_URL)
-            else:
-                proposals = _ISPYB_SAFE_QUERY_SET.get_proposals_for_user(
-                    user, restrict_public_to_membership=True
-                )
-                if target_access_string not in proposals:
-                    logger.warning(
-                        '(#1712) User %s does not have access to %s (checked %d proposals)',
-                        user.username,
-                        target_access_string,
-                        len(proposals),
-                    )
-                    return Response(
-                        {
-                            "target_access_string": [
-                                f"You are not authorized to upload data to '{target_access_string}'"
-                            ]
-                        },
-                        status=status.HTTP_403_FORBIDDEN,
-                    )
+        auth_response = _check_upload_tas_authorisation(request, target_access_string)
+        if auth_response is not None:
+            return auth_response
 
         validation_response = {
             'success': True,
@@ -2198,6 +2188,26 @@ class TaskStatusView(APIView):
 
         # task_id is a UUID, but Celery expects a string
         task_id_str = str(task_id)
+
+        # If a download with this task was expired because its task was lost
+        # (see viewer.download_structures.expire_lost_download_records) the Celery
+        # result may be long gone, so return the recorded reason directly. This is
+        # the meaningful error the user should see on their next query.
+        lost_link = models.DownloadLinks.objects.filter(
+            task_id=task_id_str,
+            expired_date__isnull=False,
+            expiry_reason__isnull=False,
+        ).first()
+        if lost_link:
+            return JsonResponse(
+                {
+                    'started': True,
+                    'finished': True,
+                    'status': 'FAILED',
+                    'messages': [lost_link.expiry_reason],
+                }
+            )
+
         result = None
         try:
             result = AsyncResult(task_id_str)
@@ -3659,6 +3669,40 @@ class PlotDataView(
     filter_permissions = "project"
     permission_classes = [IsObjectProposalMember]
     filterset_fields = ('target',)
+
+
+class UserRoleView(viewsets.ReadOnlyModelViewSet):
+    """List user roles, and (via the 'users' detail action) the users
+    assigned to a specific role.
+
+      GET /api/user_roles/                  list all roles
+      GET /api/user_roles/<role-name>/      one role
+      GET /api/user_roles/<role-name>/users/  users holding that role
+    """
+
+    queryset = models.UserRole.objects.all().order_by('name')
+    serializer_class = serializers.UserRoleSerializer
+    permission_classes = [permissions.IsAuthenticated]
+    # Look up roles by their (unique) name rather than pk, so the URL
+    # reads naturally, e.g. /api/user_roles/Loader/users/.
+    lookup_field = 'name'
+
+    @action(detail=True, methods=['get'])
+    def users(self, request, name=None):
+        # 'name' is supplied via the URL kwarg and consumed by get_object()
+        # through self.kwargs; the method-level argument is unused.
+        del request, name
+        role = self.get_object()
+        # Only expose usernames here -- emails and real names are PII and
+        # not needed to answer "who holds this role".
+        users_qs = role.users.all().order_by('username').only('username')
+        page = self.paginate_queryset(users_qs)
+        serializer = serializers.RoleUsernameSerializer(
+            page if page is not None else users_qs, many=True
+        )
+        if page is not None:
+            return self.get_paginated_response(serializer.data)
+        return Response(serializer.data)
 
 
 class TASStatsView(viewsets.ViewSet):

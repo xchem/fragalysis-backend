@@ -70,6 +70,19 @@ class Project(models.Model):
         return "<Project %r %r %r>" % (self.id, self.title, self.open_to_public)
 
 
+class UserRole(models.Model):
+    LOADER_ROLE = "Loader"
+
+    name = models.TextField(unique=True)
+    users = models.ManyToManyField(User, related_name="roles", blank=True)
+
+    def __str__(self) -> str:
+        return f"{self.name}"
+
+    def __repr__(self) -> str:
+        return "<UserRole %r %r>" % (self.id, self.name)
+
+
 class Target(models.Model):
     PENDING = "PENDING"
     STARTED = "STARTED"
@@ -1595,6 +1608,11 @@ class DownloadLinks(models.Model):
     deleted = models.BooleanField(
         null=True,
         help_text="Set when the download file has been removed from the filesystem.",
+    )
+    expiry_reason = models.TextField(
+        null=True,
+        help_text="Why the download was expired (e.g. the task was lost)."
+        " Shown to users querying a failed download.",
     )
     # TODO - zip_file is no longer Used (A.Christie 2024-01-19)
     zip_file = models.BooleanField(default=False)

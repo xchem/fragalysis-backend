@@ -577,10 +577,26 @@ HARD_EXPIRY_GRACE_PERIOD_M: int = int(
 DOWNLOAD_CLEANUP_INTERVAL_M: int = int(
     os.environ.get("DOWNLOAD_CLEANUP_INTERVAL_M", "4")
 )
-# Records that never had a keep_zip_until set are considered abandoned once
-# their create_date is older than this many minutes — the soft-erase pass
-# expires them so the hard-erase pass can clean them up.
-DOWNLOAD_ORPHAN_GRACE_M: int = int(os.environ.get("DOWNLOAD_ORPHAN_GRACE_M", "6"))
+# A download task is given this many minutes to start (set its task_id and begin
+# updating its status) before the "lost task" housekeeping pass will consider it.
+DOWNLOAD_TASK_START_GRACE_M: int = int(
+    os.environ.get("DOWNLOAD_TASK_START_GRACE_M", "4")
+)
+# The longest a download task is allowed to run before it is presumed lost (e.g.
+# the worker was restarted, leaving the Celery result frozen "in progress").
+DOWNLOAD_TASK_MAX_RUNTIME_M: int = int(
+    os.environ.get("DOWNLOAD_TASK_MAX_RUNTIME_M", "60")
+)
+
+# Upper bound (as a percentage of the celery workers' total prefork capacity)
+# on the number of concurrent download-build tasks the stack will accept.
+# When the count of in-progress DownloadLinks records reaches this fraction of
+# the inspected worker concurrency, new POSTs to /api/download_structures/
+# that would launch a new Task are rejected with HTTP 429.
+# Set to 0 to disable the guard.
+MAX_DOWNLOAD_CONCURRENCY_PERCENT: int = int(
+    os.environ.get("MAX_DOWNLOAD_CONCURRENCY_PERCENT", "0")
+)
 
 # Some Squonk2 developer/debug variables.
 # Unused in production.

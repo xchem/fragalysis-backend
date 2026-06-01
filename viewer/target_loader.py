@@ -3792,7 +3792,12 @@ def load_target(
     user_id=None,
     task=None,
 ):
-    with TemporaryDirectory(dir=settings.MEDIA_ROOT) as tempdir:
+    # A temporary working directory for decompressing the uploaded bundle.
+    # This lives within the Pod (the default location, an emptyDir mounted at
+    # /tmp), not the (potentially slow) shared MEDIA_ROOT volume. The extracted
+    # data is moved to its final MEDIA_ROOT location with shutil.move(), which
+    # copes with a cross-filesystem move. See ticket #935.
+    with TemporaryDirectory() as tempdir:
         target_loader = TargetLoader(
             data_bundle, proposal_ref, tempdir, user_id=user_id, task=task
         )
