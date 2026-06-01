@@ -1316,8 +1316,10 @@ def download_capacity_exceeded() -> bool:
     The cap is derived dynamically from the celery workers' advertised
     concurrency: we sum each worker's pool max-concurrency, multiply by
     settings.MAX_DOWNLOAD_CONCURRENCY_PERCENT/100, and compare against the
-    number of DownloadLinks rows that have a task_id but no file_url
-    (i.e. still being built).
+    number of DownloadLinks rows that are still being built - a task_id but no
+    file_url, and not already expired. Expired records (expired_date set) are no
+    longer in progress even if they never produced a file_url (e.g. a lost task
+    cleaned up by expire_lost_download_records), so they must not count.
     """
     percent = settings.MAX_DOWNLOAD_CONCURRENCY_PERCENT
     if percent <= 0:
@@ -1351,6 +1353,7 @@ def download_capacity_exceeded() -> bool:
     in_progress = DownloadLinks.objects.filter(
         task_id__isnull=False,
         file_url__isnull=True,
+        expired_date__isnull=True,
     ).count()
 
     if in_progress >= cap:
