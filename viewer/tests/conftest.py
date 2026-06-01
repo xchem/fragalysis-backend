@@ -89,6 +89,25 @@ def authenticated_client(api_client, user) -> APIClient:
 
 
 @pytest.fixture
+def set_restricted_tas_users(settings) -> Callable[[str], None]:
+    """Simulate proposal membership via the RESTRICTED_TAS_USERS debug seam.
+
+    ``api.security.get_restricted_tas_user_proposal`` reads two settings that
+    the application derives from a single ``RESTRICTED_TAS_USERS`` environment
+    variable (see ``fragalysis.settings``): the raw string and its comma-split
+    list form. This fixture returns a setter that takes the same
+    ``"user:tas,user:tas"`` value the env var uses and applies it to both, so a
+    test can grant a user access to a proposal without any external service.
+    """
+
+    def _set(value: str) -> None:
+        settings.RESTRICTED_TAS_USERS = value
+        settings.RESTRICTED_TAS_USERS_LIST = value.split(",") if value else []
+
+    return _set
+
+
+@pytest.fixture
 def mock_target_access(monkeypatch) -> Callable[[Iterable[str]], None]:
     """Patch the single external access-control seam.
 
