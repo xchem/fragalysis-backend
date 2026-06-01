@@ -63,3 +63,16 @@ EMAIL_BACKEND = "django.core.mail.backends.locmem.EmailBackend"
 # writable MEDIA_ROOT. The application default ("/code/media/") only exists in
 # the container, so use an isolated temp directory that also works on the host.
 MEDIA_ROOT = tempfile.mkdtemp(prefix="fragalysis-test-media-")
+
+# The application logging config writes to rotating files under BASE_DIR/logs,
+# a directory that only exists in the container (a mounted volume). Redirect
+# those files to a writable temp directory so the suite runs on a bare host / CI
+# checkout. (Skipped when DISABLE_LOGGING_FRAMEWORK leaves LOGGING undefined.)
+if "LOGGING" in globals():
+    _test_log_dir = tempfile.mkdtemp(prefix="fragalysis-test-logs-")
+    _handlers: dict = LOGGING["handlers"]  # type: ignore[assignment]  # noqa: F405
+    for _handler in _handlers.values():
+        if "filename" in _handler:
+            _handler["filename"] = os.path.join(
+                _test_log_dir, os.path.basename(_handler["filename"])
+            )
