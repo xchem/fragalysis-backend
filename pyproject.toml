@@ -71,9 +71,9 @@ httpie = "^3.2"
 black = "^25.9"
 mypy = "^1.18"
 
-# Test framework - installed into the (test) container image so that
-# 'pytest' is available when docker-compose.test.yml runs test-entry.sh.
-# See the Dockerfile 'poetry install --only main,test' line.
+# Test framework - the unit tests run with pytest in a host/CI Poetry
+# virtualenv (see run-unit-tests.sh), not inside the backend image. Install
+# with 'poetry install --only main,test'.
 [tool.poetry.group.test.dependencies]
 pytest = "^8.3"
 pytest-django = "^4.9"

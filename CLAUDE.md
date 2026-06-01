@@ -45,6 +45,28 @@ pre-commit run --all-files
 Important: linting is intentionally **limited to the `viewer` app** (see
 `.pre-commit-config.yaml`). Migrations are excluded from all hooks.
 
+### Run the unit tests
+The tests run with **pytest** in a host Poetry virtualenv — **no backend image
+build required** (this is what CI does too). They still need a real PostgreSQL
+(pgvector, simple_history); SQLite cannot stand in, so a database container is
+started for them. The simplest path:
+```bash
+poetry install --only main,test    # one-time: add pytest to the host venv
+./run-unit-tests.sh                 # starts the DB container, then runs pytest
+```
+`run-unit-tests.sh` passes any arguments through to pytest, e.g.
+`./run-unit-tests.sh viewer/tests/test_download_capacity.py -k expired`.
+
+To run pytest directly, start just the database and let the test-settings
+defaults point at it (`127.0.0.1:5432`):
+```bash
+docker compose -f docker-compose.test.yml up -d --wait database
+poetry run pytest
+```
+pytest config (settings module, `--reuse-db`, coverage) lives in
+`[tool.pytest.ini_options]` in `pyproject.toml`; test-only Django overrides are
+in `tests/test_settings.py`. Tests live in `viewer/tests/`.
+
 ## Conventions and gotchas
 
 - **Settings are environment-driven.** Almost all runtime configuration lives in

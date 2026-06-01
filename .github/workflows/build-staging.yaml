@@ -77,6 +77,21 @@ jobs:
       push: ${{ steps.vars.outputs.push }}
       tag: ${{ steps.vars.outputs.tag }}
       trigger: ${{ steps.vars.outputs.trigger }}
+    services:
+      # PostgreSQL (pgvector) for the unit tests. pytest connects on
+      # localhost:5432 - see tests/test_settings.py for the connection defaults.
+      database:
+        image: xchem/fragalysis-database:2026.04.1
+        env:
+          POSTGRES_PASSWORD: fragalysis
+          POSTGRES_DB: frag
+        ports:
+        - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d frag"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
     steps:
     - name: Inject slug/short variables
       uses: rlespinasse/github-slug-action@v5
@@ -149,19 +164,24 @@ jobs:
       run: |
         pip install --requirement build-requirements.txt
         pre-commit run --all-files
+    - name: Set up Python (unit tests)
+      uses: actions/setup-python@v6
+      with:
+        python-version: '3.13'
+    - name: Install Poetry
+      run: pipx install poetry==2.1.4
+    - name: Install test dependencies
+      run: poetry install --only main,test --no-root --no-directory
+    - name: Unit tests (pytest)
+      # Runs on the host runner against the 'database' service container; the
+      # backend image is not needed. DB connection defaults live in
+      # tests/test_settings.py.
+      run: poetry run pytest
     - name: Docker build
       uses: docker/build-push-action@v6
       with:
         context: .
         tags: ${{ steps.vars.outputs.BE_NAMESPACE }}/fragalysis-backend:${{ steps.vars.outputs.tag }}
-    - name: Test (docker compose)
-      uses: hoverkraft-tech/compose-action@v2.4.2
-      with:
-        compose-file: ./docker-compose.test.yml
-        up-flags: --build --exit-code-from tests --abort-on-container-exit
-      env:
-        BE_NAMESPACE: ${{ steps.vars.outputs.BE_NAMESPACE }}
-        BE_IMAGE_TAG: ${{ steps.vars.outputs.tag }}
     - name: Login to DockerHub
       if: steps.vars.outputs.push == 'true'
       uses: docker/login-action@v3
