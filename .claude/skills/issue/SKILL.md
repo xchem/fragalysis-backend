@@ -1,6 +1,6 @@
 ---
 name: issue
-description: Work on a GitHub issue end-to-end in a git worktree — read the issue, explore the code, branch from staging, write the test first (TDD), commit, and open a PR. Use when the user says e.g. "work on issue 958", "start issue 1234", "/issue N", or asks to take a fragalysis-backend issue from triage to PR.
+description: Work on a GitHub issue end-to-end in a git worktree — read the issue, move its board card to In Progress, explore the code, branch from staging, write the test first (TDD), commit, and open a PR. Use when the user says e.g. "work on issue 958", "start issue 1234", "/issue N", or asks to take a fragalysis-backend issue from triage to PR.
 ---
 
 # Issue Workflow
@@ -24,13 +24,31 @@ blockers or dependencies. Follow links to source/board issues if the body has
 them (backend issues imported by `create-backend-issue` carry a footer linking
 to their `m2ms/fragalysis-frontend` source).
 
-### 2. Explore the codebase
+### 2. Move the board card to "In Progress"
+
+The m2ms project board (`https://github.com/orgs/m2ms/projects/2`) tracks the
+*frontend* source issue, not this backend issue. Move its card from its backlog
+lane into the matching "In Progress" lane — e.g. `Infra - Backlog` →
+`Infra - In Progress`:
+
+```bash
+.claude/skills/issue/move-board-card.sh <number> --in-progress
+```
+
+The script follows the backend issue's "source issue" footer to the board card,
+derives the lane's category (the text before the first ` - `), and moves the card
+to `{Category} - In Progress`. Cards **already in an "In Progress" lane are left
+untouched.** If there is no matching "In Progress" lane — or no board card can be
+found — it changes nothing and prints why; **relay that to the user**. Requires a
+`gh` token with the `project` (write) scope.
+
+### 3. Explore the codebase
 
 Before coding: search for the related code, understand the current
 implementation, and identify the files that need changing. Read
 `ARCHITECTURE.md` first if the change touches models, security, or the loader.
 
-### 3. Create a worktree
+### 4. Create a worktree
 
 We always branch from **`staging`** (the default branch). The branch name is the
 committer's initials, the issue number, and a brief description:
@@ -56,7 +74,7 @@ cd "../${branch}"
 > `poetry env info --path` (run from the main checkout) and invoke that
 > `…/bin/pytest` directly from inside the worktree.
 
-### 4. Implement the changes (TDD)
+### 5. Implement the changes (TDD)
 
 - **Write the test first**, watch it fail (red), then make it pass (green). See
   `viewer/tests/` for the fixture style (`conftest.py`), and existing regression
@@ -74,12 +92,12 @@ cd "../${branch}"
   with the trailer:
   `Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>`.
 
-### 5. Update the issue
+### 6. Update the issue
 
 As you work, comment on the issue with progress and any blockers/questions, and
 note the PR once it exists.
 
-### 6. Create the PR and link it
+### 7. Create the PR and link it
 
 ```bash
 gh pr create --repo xchem/fragalysis-backend --base staging \
@@ -95,7 +113,16 @@ gh pr create --repo xchem/fragalysis-backend --base staging \
   `--body "$(cat <<EOF …)"` lets the shell evaluate backticks/`$()` in the body
   and mangles it — a file avoids that.
 
-### 7. If you find an unrelated bug
+Once the PR is open, move the board card into the review lane:
+
+```bash
+.claude/skills/issue/move-board-card.sh <number> "Dev Done - Do review (DEV)"
+```
+
+If that lane can't be found or no board card exists, the script changes nothing
+and says why — **relay that to the user**.
+
+### 8. If you find an unrelated bug
 
 1. Create a new issue with the details (`create-backend-issue` if it originates
    on the board).
