@@ -83,21 +83,24 @@ able to push to it directly; if the push is rejected, **stop and ask the user ho
 they want conflicts resolved** rather than forcing anything. Re-check
 mergeability before continuing.
 
-### 5. Approval — normally not needed
+### 5. Approval — normally not needed (the bot bypasses it)
 
-`production` branch protection is configured with
-`required_approving_review_count = 0`, so **no review approval is required** to
-merge; do not try to approve the PR (GitHub forbids approving your *own* PR
-anyway, so it would just error). Skip straight to waiting for CI.
+`production` requires **1 approving review**, but the `claude-im` bot account is
+in the branch's *bypass pull request* allowlist, so it can merge **without** an
+approval. (GitHub forbids approving your *own* PR anyway, so `claude-im` could
+not self-approve even if it wanted to.) Skip straight to waiting for CI.
 
-Only if a merge is later blocked by a required-review rule (i.e. someone has
-re-enabled required approvals) should you stop and ask the user to have a
-*colleague* approve the PR — the author cannot self-approve. Confirm the current
-rule with:
+Only if a merge is later blocked for review reasons — e.g. `claude-im` was
+removed from the bypass list, or you are merging as a non-bypass account —
+should you stop and ask the user to have a *colleague* approve the PR (the
+author cannot self-approve).
+
+Reading the raw protection requires repo admin (it returns 404 for a non-admin
+account like `claude-im`), so check mergeability the author-friendly way:
 
 ```bash
-gh api repos/xchem/fragalysis-backend/branches/production/protection \
-  --jq '.required_pull_request_reviews.required_approving_review_count'
+gh pr view <num> --repo xchem/fragalysis-backend \
+  --json reviewDecision,mergeable,mergeStateStatus
 ```
 
 ### 6. Wait for a successful CI build
