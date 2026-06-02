@@ -1,3 +1,4 @@
+import base64
 import logging
 import math
 from pathlib import Path
@@ -462,11 +463,15 @@ class ProtMapInfoSerializer(serializers.ModelSerializer):
     map_data = serializers.SerializerMethodField()
 
     def get_map_data(self, obj):
-        # TODO: this was formerly protein.map_info. based on
-        # description in the spec, it seems this is equivalent to
-        # event_file in site_observation, but it's binary and not read
+        # event_file (formerly protein.map_info) holds a *binary* electron-
+        # density map, so it cannot be decoded as UTF-8 text: doing so raised
+        # UnicodeDecodeError on the first non-UTF-8 byte and surfaced as a 500
+        # on /api/protmap/ (ticket #958). Return its bytes base64-encoded so the
+        # JSON response is valid and lossless; clients base64-decode to recover
+        # the raw map.
         if obj.event_file:
-            return open(obj.event_file.path, encoding='utf-8').read()
+            with open(obj.event_file.path, "rb") as map_file:
+                return base64.b64encode(map_file.read()).decode("ascii")
         else:
             return None
 
