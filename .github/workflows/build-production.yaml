@@ -173,6 +173,11 @@ jobs:
         tags: |
           ${{ steps.vars.outputs.BE_NAMESPACE }}/fragalysis-backend:${{ steps.vars.outputs.tag }}
           ${{ steps.vars.outputs.BE_NAMESPACE }}/fragalysis-backend:stable
+        # Build a plain single-image manifest. With buildx's default provenance
+        # attestation the build produces an OCI index whose attestation blob the
+        # separate 'docker push' step cannot resolve, failing intermittently
+        # with "unknown blob".
+        provenance: false
     - name: Login to DockerHub
       if: steps.vars.outputs.push == 'true'
       uses: docker/login-action@v3
