@@ -209,7 +209,7 @@ There are two layers of tests:
   running stack (database + redis + celery worker + backend), using large test
   archives downloaded from a public-read S3 bucket. These are deselected from the
   default `pytest` run and only execute inside their own container stack. See the
-  [integration-tests guide](integration-tests.md) for structure, how to run them
+  [integration-tests guide](INTEGRATION-TESTS.md) for structure, how to run them
   locally, and how they run on CI.
 
 ## Database migrations
