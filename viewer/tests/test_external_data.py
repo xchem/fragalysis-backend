@@ -1,7 +1,7 @@
 """Unit tests for the external-data helper's pure logic.
 
 These run unconditionally (no S3 access, no env vars needed); the network-bound
-helpers are exercised by the eager/async tests that the env vars gate on.
+helpers are exercised by the async integration test that the env vars gate on.
 """
 
 import pytest

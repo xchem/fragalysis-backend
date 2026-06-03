@@ -12,9 +12,9 @@
 # per-TAS sub-directory.
 #
 # Each `uploads` entry carries:
-#   tas  - the target_access_string, passed verbatim to the API and added to
-#          PUBLIC_TAS_LIST so the loaded data is visible to GET without
-#          membership (the loaded Project.title equals the TAS).
+#   tas  - the target_access_string, passed verbatim to the API. The integration
+#          stack publishes it via PUBLIC_TAS so the loaded data is visible to GET
+#          without membership (the loaded Project.title equals the TAS).
 #   file - the object name under the identifier directory.
 #
 # `expect` drives the GET assertions. `target_title` and `targets` are always

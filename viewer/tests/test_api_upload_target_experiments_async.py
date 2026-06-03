@@ -1,16 +1,20 @@
 """Async integration test for the target-experiment upload API.
 
-The faithful counterpart to the eager smoke test: instead of running in-process
-under an eager broker, this drives a **running** Fragalysis stack (a real DB, a
-redis broker and a celery worker) purely over HTTP. It uploads the bundle,
-polls the ``task_status`` endpoint until the load finishes, asserts the task
-reached ``SUCCESS``, then asserts the GET endpoints return the expected data.
+The target-upload flow is genuinely asynchronous (the API hands the load to a
+Celery worker), so it is only exercised faithfully against a **running**
+Fragalysis stack - a real DB, a redis broker and a celery worker - driven purely
+over HTTP. Running it under an eager, in-process broker is unwise: eager mode
+does not model the broker/worker handshake the upload view performs, so this
+test deliberately does *not* have an in-process counterpart. It uploads the
+bundle, polls the ``task_status`` endpoint until the load finishes, asserts the
+task reached ``SUCCESS``, then asserts the GET endpoints return the expected
+data.
 
 It is marked ``integration`` (deselected by the default ``-m "not integration"``
 addopts) **and** gated on ``INTEGRATION_BASE_URL`` (the base URL of the running
 stack, e.g. ``http://backend`` - nginx listens on :80 inside the network), so
-it is never collected by the host or
-CI pytest run - only ``docker-compose.integration.yml`` sets that variable.
+it is never collected by the host or CI pytest run - only
+``docker-compose.integration.yml`` sets that variable.
 
 Visibility for the anonymous GET/poll comes from the stack's ``PUBLIC_TAS``,
 which must include the manifest's TAS; the upload itself runs with the stack's

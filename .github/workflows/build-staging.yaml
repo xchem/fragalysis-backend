@@ -183,16 +183,10 @@ jobs:
       run: pipx install poetry==2.1.4
     - name: Install test dependencies
       run: poetry install --only main,test --no-root --no-directory
-    - name: Install pigz
-      # The target loader shells out to 'tar -I pigz', so the eager upload
-      # smoke test (issue #964) needs pigz on the runner.
-      run: sudo apt-get update && sudo apt-get install -y pigz
     - name: Unit tests (pytest)
       # Runs on the host runner against the 'database' service container; the
       # backend image is not needed. DB connection defaults live in
-      # tests/test_settings.py. The workflow-level UNIT_TEST_* env enables the
-      # eager upload smoke test (issue #964), which downloads its archive from
-      # the public-read S3 bucket.
+      # tests/test_settings.py.
       run: poetry run pytest
     - name: Docker build
       uses: docker/build-push-action@v6
