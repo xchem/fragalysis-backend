@@ -198,6 +198,20 @@ using *environment variables* in the deployed Pod/Container).
 Refer to the documentation in the `settings.py` file to understand the environment
 and the style guide for new variables that you need to add.
 
+## Testing
+There are two layers of tests:
+
+- **Unit tests** — fast, host-run `pytest` against a single Postgres container.
+  Install the test deps once (`poetry install --only main,test`) and run
+  `./run-unit-tests.sh` (it starts the database container, then runs pytest).
+  See `pyproject.toml` (`[tool.pytest.ini_options]`) and `tests/test_settings.py`.
+- **API integration tests** — drive the real DRF API end-to-end against a full
+  running stack (database + redis + celery worker + backend), using large test
+  archives downloaded from a public-read S3 bucket. These are deselected from the
+  default `pytest` run and only execute inside their own container stack. See the
+  [integration-tests guide](integration-tests.md) for structure, how to run them
+  locally, and how they run on CI.
+
 ## Database migrations
 The best approach is to spin-up the development backend (locally) using
 `docker-compose` with the custom *migration* compose file and then shell into Django.
