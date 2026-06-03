@@ -127,11 +127,17 @@ jobs:
       with:
         context: .
         tags: ${{ steps.vars.outputs.BE_NAMESPACE }}/fragalysis-backend:${{ env.GITHUB_REF_SLUG }}
+        # Build a plain single-image manifest. With buildx's default provenance
+        # attestation the build produces an OCI index whose attestation blob the
+        # separate 'docker push' step cannot resolve, failing intermittently
+        # with "unknown blob".
+        provenance: false
     - name: Display
       uses: docker/build-push-action@v6
       with:
         context: .
         tags: ${{ steps.vars.outputs.BE_NAMESPACE }}/fragalysis-backend:${{ env.GITHUB_REF_SLUG }}
+        provenance: false
     - name: Vulnerability Scan (OSV)
       # The vulnerability scan (using Google's OSV)
       # Allowed to fail (we force true) as it's used for information only
