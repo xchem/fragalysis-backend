@@ -54,6 +54,21 @@ gh api repos/xchem/fragalysis-backend/compare/production...staging \
 
 If `ahead` is 0, there is nothing to release — stop and tell the user.
 
+Then confirm the **latest `build staging` CI run on the `staging` branch was
+successful** — we never release a branch whose own CI is red or still running:
+
+```bash
+gh run list --repo xchem/fragalysis-backend --workflow "build staging" \
+  --branch staging --limit 1 \
+  --json status,conclusion,headSha,url
+```
+
+The latest run must have `status` = `completed` **and** `conclusion` = `success`.
+If it is anything else — `failure`, `cancelled`, still `in_progress`/`queued`, or
+no run at all — **stop and report it; do not proceed**. (Also sanity-check that
+`headSha` matches the current tip of `staging` from the pre-flight fetch; if a
+newer commit has no run yet, wait for it or stop.)
+
 ### 3. Create (or reuse) the PR
 
 If an open `staging`→`production` PR already exists, reuse it; otherwise create
@@ -159,15 +174,36 @@ gh release create <NEXT_TAG> --repo xchem/fragalysis-backend \
   between `PRIOR_TAG` and this tag) — exactly what's wanted. If `PRIOR_TAG` is
   empty (no previous release), omit `--notes-start-tag`.
 
-### 10. Report
+### 10. Wait for the production build
+
+Publishing the release pushed the `YYYY.MM.N` tag, which triggers
+`build-production.yaml`. Wait for that build to finish before ending the skill.
+
+The tag push may take a few seconds to register a run, so find the run for this
+tag (retry briefly if it hasn't appeared yet):
+
+```bash
+gh run list --repo xchem/fragalysis-backend --workflow "build production" \
+  --limit 5 --json databaseId,headBranch,status,conclusion,url
+```
+
+Identify the run whose `headBranch` is the new tag (`<NEXT_TAG>`), then watch it
+to completion (this blocks until it finishes and exits non-zero on failure):
+
+```bash
+gh run watch <databaseId> --repo xchem/fragalysis-backend --exit-status
+```
+
+### 11. Report
 
 Tell the user, with links:
 
 - the PR (and that it was merged, `staging` preserved),
 - the new release URL and its tag,
-- that pushing the tag has now started the `build production` CI, and they can
-  watch it with
-  `gh run list --repo xchem/fragalysis-backend --workflow "build production"`.
+- **the outcome of the production build** — clearly state whether
+  `build production` **succeeded or failed**, with a link to the run
+  (`url` from step 10). If it failed (or was cancelled), say so plainly and point
+  at the failing run; do not present the release as fully done.
 
 ## Requirements
 
