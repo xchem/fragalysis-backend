@@ -42,12 +42,20 @@ env:
   #   For Jobs conditional on the presence of a secret see this Gist...
   #   https://gist.github.com/jonico/24ffebee6d2fa2e679389fac8aef50a3
   BE_NAMESPACE: xchem
+  # External (public-read S3) test data for the API upload tests (issue #964).
+  # The bucket is anonymous-read, so no credentials are needed.
+  UNIT_TEST_BUCKET_AND_PATH: s3://im-fragalysis-backend/unit-test
+  UNIT_TEST_DATA_IDENTIFIER: ALPHA
 
 jobs:
   build:
     runs-on: ubuntu-latest
     outputs:
       push: ${{ steps.vars.outputs.push }}
+      be_namespace: ${{ steps.vars.outputs.BE_NAMESPACE }}
+      tag: ${{ steps.vars.outputs.tag }}
+      unit_test_bucket_and_path: ${{ steps.vars.outputs.unit_test_bucket_and_path }}
+      unit_test_data_identifier: ${{ steps.vars.outputs.unit_test_data_identifier }}
     services:
       # PostgreSQL (pgvector) for the unit tests. pytest connects on
       # localhost:5432 - see tests/test_settings.py for the connection defaults.
@@ -81,6 +89,12 @@ jobs:
         # Do we push, i.e. is DOCKERHUB_USERNAME defined?
         echo push=${{ env.DOCKERHUB_USERNAME != '' }}
         echo "push=${{ env.DOCKERHUB_USERNAME != '' }}" >> $GITHUB_OUTPUT
+
+        # The image tag (the branch/ref slug) and the external test-data vars,
+        # surfaced as outputs for the downstream integration-tests job.
+        echo "tag=${{ env.GITHUB_REF_SLUG }}" >> $GITHUB_OUTPUT
+        echo "unit_test_bucket_and_path=${{ env.UNIT_TEST_BUCKET_AND_PATH }}" >> $GITHUB_OUTPUT
+        echo "unit_test_data_identifier=${{ env.UNIT_TEST_DATA_IDENTIFIER }}" >> $GITHUB_OUTPUT
     - name: Checkout
       uses: actions/checkout@v6
     - name: Lint Dockerfile
@@ -103,10 +117,16 @@ jobs:
       run: pipx install poetry==2.1.4
     - name: Install test dependencies
       run: poetry install --only main,test --no-root --no-directory
+    - name: Install pigz
+      # The target loader shells out to 'tar -I pigz', so the eager upload
+      # smoke test (issue #964) needs pigz on the runner.
+      run: sudo apt-get update && sudo apt-get install -y pigz
     - name: Unit tests (pytest)
       # Runs on the host runner against the 'database' service container; the
       # backend image is not needed. DB connection defaults live in
-      # tests/test_settings.py.
+      # tests/test_settings.py. The workflow-level UNIT_TEST_* env enables the
+      # eager upload smoke test (issue #964), which downloads its archive from
+      # the public-read S3 bucket.
       run: poetry run pytest
     - name: Docker build
       uses: docker/build-push-action@v6
@@ -144,3 +164,15 @@ jobs:
     - name: Push
       if: steps.vars.outputs.push == 'true'
       run: docker push ${{ steps.vars.outputs.BE_NAMESPACE }}/fragalysis-backend:${{ env.GITHUB_REF_SLUG }}
+
+  # Run the async API integration test (issue #964) against the freshly built
+  # image. Only when the image was pushed, since the test stack pulls it by tag.
+  integration-tests:
+    needs: build
+    if: needs.build.outputs.push == 'true'
+    uses: ./.github/workflows/integration-tests.yaml
+    with:
+      be_namespace: ${{ needs.build.outputs.be_namespace }}
+      be_image_tag: ${{ needs.build.outputs.tag }}
+      unit_test_bucket_and_path: ${{ needs.build.outputs.unit_test_bucket_and_path }}
+      unit_test_data_identifier: ${{ needs.build.outputs.unit_test_data_identifier }}
