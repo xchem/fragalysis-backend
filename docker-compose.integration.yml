@@ -41,14 +41,19 @@ services:
     extends:
       file: common-services.yml
       service: database
-    # The test stack owns an ephemeral database; don't persist it to the host.
-    volumes: []
+    # Override common-services' host bind mount with an ephemeral named volume,
+    # so the test stack starts from a clean database every run (down -v wipes
+    # it). An empty `volumes: []` does NOT clear an inherited bind mount - the
+    # override must re-declare the same target path.
+    volumes:
+    - integration-db:/var/lib/postgresql/data
 
   redis:
     extends:
       file: common-services.yml
       service: redis
-    volumes: []
+    volumes:
+    - integration-redis:/data
 
   # The stack backend (gunicorn + nginx, listening on :80), with Celery
   # running for real against redis.
@@ -108,9 +113,17 @@ services:
       INTEGRATION_BASE_URL: 'http://backend:80'
       UNIT_TEST_BUCKET_AND_PATH: ${UNIT_TEST_BUCKET_AND_PATH}
       UNIT_TEST_DATA_IDENTIFIER: ${UNIT_TEST_DATA_IDENTIFIER}
+      # pyproject points DJANGO_SETTINGS_MODULE at tests.test_settings, but the
+      # top-level tests/ package is .dockerignore'd out of the image. The async
+      # test is pure HTTP, but pytest still imports viewer/tests/conftest.py
+      # (which imports Django models), so Django must be configured - use the
+      # app's real settings module, which is present in the image.
+      DJANGO_SETTINGS_MODULE: fragalysis.settings
     depends_on:
       backend:
         condition: service_healthy
 
 volumes:
   media:
+  integration-db:
+  integration-redis:

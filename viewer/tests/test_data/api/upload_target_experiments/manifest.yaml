@@ -29,6 +29,7 @@ ALPHA:
   expect:
     target_title: A71EV2A
     targets: 1
-    experiments: null
-    site_observations: null
-    poses: null
+    experiments: 7642
+    site_observations: 67
+    poses: 62
+    target_experiment_uploads: 1

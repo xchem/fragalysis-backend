@@ -71,18 +71,30 @@ def _get_json(http: urllib3.PoolManager, url: str) -> dict:
 
 
 def _poll_until_finished(http: urllib3.PoolManager, status_url: str) -> dict:
-    """Poll ``status_url`` until the task reports finished, or time out."""
+    """Poll ``status_url`` until the task reports finished, or time out.
+
+    Transient non-200s are expected *while the load runs* and must not fail the
+    poll: task_status briefly returns 404 ("Proposal not found") because the
+    proposal's Project is not committed until partway through the load, and it
+    reports an unfinished body before that. Either just means "not ready yet",
+    so keep polling until the deadline; only a finished body ends the wait.
+    """
     deadline = time.monotonic() + POLL_TIMEOUT_SECONDS
-    while True:
-        body = _get_json(http, status_url)
-        if body.get("finished"):
-            return body
-        if time.monotonic() >= deadline:
-            raise AssertionError(
-                f"Task at {status_url} did not finish within "
-                f"{POLL_TIMEOUT_SECONDS}s; last status: {body}"
-            )
+    last_seen: object = None
+    while time.monotonic() < deadline:
+        response = http.request("GET", status_url)
+        if response.status == 200:
+            body = json.loads(response.data.decode("utf-8"))
+            if body.get("finished"):
+                return body
+            last_seen = body
+        else:
+            last_seen = f"HTTP {response.status}"
         time.sleep(POLL_INTERVAL_SECONDS)
+    raise AssertionError(
+        f"Task at {status_url} did not finish within {POLL_TIMEOUT_SECONDS}s; "
+        f"last seen: {last_seen}"
+    )
 
 
 @requires_external_data
