@@ -1,0 +1,35 @@
+---
+# Manifest for the upload_target_experiments external-data tests.
+#
+# Each top-level key is a UNIT_TEST_DATA_IDENTIFIER (selected via the env var of
+# the same name). It names the object(s) to upload through the real
+# /api/upload_target_experiments/ endpoint and the results to expect from the
+# GET endpoints afterwards.
+#
+# The objects live in the public-read bucket under
+#   <UNIT_TEST_BUCKET_AND_PATH>/api/upload_target_experiments/<IDENTIFIER>/<file>
+# i.e. a FLAT layout - the file sits directly under the identifier, there is no
+# per-TAS sub-directory.
+#
+# Each `uploads` entry carries:
+#   tas  - the target_access_string, passed verbatim to the API. The integration
+#          stack publishes it via PUBLIC_TAS so the loaded data is visible to GET
+#          without membership (the loaded Project.title equals the TAS).
+#   file - the object name under the identifier directory.
+#
+# `expect` drives the GET assertions. `target_title` and `targets` are always
+# asserted; the remaining counts are only asserted when non-null, so a new
+# identifier can start with placeholders and gain assertions as the real
+# numbers are filled in.
+
+ALPHA:
+  uploads:
+    - tas: lb32627-66
+      file: A71EV2A-20260603.tgz
+  expect:
+    target_title: A71EV2A
+    targets: 1
+    experiments: 7642
+    site_observations: 67
+    poses: 62
+    target_experiment_uploads: 1
