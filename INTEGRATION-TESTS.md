@@ -74,13 +74,33 @@ ALPHA:
     targets: 1
     experiments: 7642
     site_observations: 67
+    canon_sites: null            # other model objects the load produces;
+    canon_site_confs: null       #   null until a real count is filled in
+    xtalform_sites: null
     poses: 62
     target_experiment_uploads: 1
+    objects:                     # optional CONTENT assertions (see below)
+      targets:
+        - title: A71EV2A
 ```
 
-`target_title` and `targets` are always asserted. Each remaining count is only
-asserted when **non-null**, so a new identifier can start with `null`
-placeholders and gain assertions as the real numbers are filled in.
+**Counts.** `target_title` and `targets` are always asserted. Each remaining
+count is only asserted when **non-null**, so a new identifier can start with
+`null` placeholders and gain assertions as the real numbers are filled in. The
+count keys span the model objects a target load produces: `experiments`,
+`site_observations`, `canon_sites`, `canon_site_confs`, `xtalform_sites`,
+`poses` and `target_experiment_uploads`.
+
+**Object content (`expect.objects`).** Beyond bare counts, an optional
+`objects` section content-checks the objects an endpoint returns. Under each
+endpoint name (`targets`, `experiments`, `site_observations`, `canon_sites`,
+`canon_site_confs`, `xtalform_sites`, `poses`) you list one or more
+**field-subsets** — only the fields you name are compared, and the returned
+object may carry many more. The whole *paginated* result set is searched, and
+the test fails naming any expectation it cannot find. This is how a per-identity
+assertion like "the **ALPHA** upload yields a `SiteObservation` with code *X*"
+is expressed; populate it with real values captured from a stack run, exactly
+as the counts are.
 
 ---
 
@@ -99,9 +119,13 @@ running stack owns the one real database. For each manifest upload it:
    `status == "SUCCESS"`. The poll tolerates transient non-200s: while the load
    runs, `task_status` briefly returns **404** ("Proposal not found") because
    the proposal's `Project` is not committed until partway through the load.
-4. **Asserts** the GET endpoints against the manifest `expect`:
-   `/api/targets/`, `/api/experiments/`, `/api/site_observations/`,
-   `/api/poses/`, `/api/target_experiment_uploads/`.
+4. **Asserts** the GET endpoints against the manifest `expect`. First the
+   `count`s — `/api/targets/`, `/api/experiments/`, `/api/site_observations/`,
+   `/api/canon_sites/`, `/api/canon_site_confs/`, `/api/xtalform_sites/`,
+   `/api/poses/`, `/api/target_experiment_uploads/` (each only when its
+   manifest count is non-null) — then any `expect.objects` **content**
+   assertions, paging through each named endpoint's full result set and failing
+   with the unmatched expectations if an expected object is absent.
 
 Visibility for the anonymous GET/poll comes from the stack's `PUBLIC_TAS`, which
 publishes the loaded proposal (the loaded `Project.title` equals the TAS) so the
@@ -241,7 +265,14 @@ identifier are defined once as workflow-level `env` (`UNIT_TEST_BUCKET_AND_PATH`
 3. Capture the real `expect` counts by running the stack once and reading the
    endpoint `count`s back (this is how the `ALPHA` numbers were obtained) — then
    replace the `null`s. A non-null count turns on that endpoint's assertion.
-4. Point CI/local runs at it with `UNIT_TEST_DATA_IDENTIFIER=<IDENTIFIER>`.
+   You don't have to read them by hand: for every endpoint whose manifest count
+   is still `null`, the test emits a **warning** with the observed count (shown
+   in pytest's warnings summary even on a passing run), so one CI run surfaces
+   every number waiting to be pinned down.
+4. (Optional) Add `expect.objects` entries to content-check specific returned
+   objects — e.g. a known `site_observations` code — using real values from the
+   same stack run. Each entry is a field-subset; see *The manifest* above.
+5. Point CI/local runs at it with `UNIT_TEST_DATA_IDENTIFIER=<IDENTIFIER>`.
 
 ---
 
