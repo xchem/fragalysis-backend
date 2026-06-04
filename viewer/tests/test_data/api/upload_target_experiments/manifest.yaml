@@ -40,11 +40,12 @@ ALPHA:
     targets: 1
     experiments: 7642
     site_observations: 67
-    # The remaining model objects a target load produces. Counts captured from
-    # a stack run turn each assertion on (null = not yet asserted).
-    canon_sites: null
-    canon_site_confs: null
-    xtalform_sites: null
+    # The remaining model objects a target load produces; counts captured from
+    # a `build dev` integration run (the test surfaces these as warnings while
+    # they are null - see INTEGRATION-TESTS.md "Adding a new dataset").
+    canon_sites: 11
+    canon_site_confs: 14
+    xtalform_sites: 21
     poses: 62
     target_experiment_uploads: 1
     objects:
