@@ -50,3 +50,50 @@ def test_external_data_disabled_with_only_one_env(monkeypatch):
     monkeypatch.setenv(external_data.BUCKET_AND_PATH_ENV, "s3://bucket/prefix")
     monkeypatch.delenv(external_data.DATA_IDENTIFIER_ENV, raising=False)
     assert external_data.external_data_enabled() is False
+
+
+# --- object_matches / missing_objects --------------------------------------
+#
+# These back the integration test's content assertions: a manifest names the
+# objects (as field-subsets) it expects each endpoint to return, and these
+# helpers decide whether a returned object satisfies an expectation.
+
+
+def test_object_matches_subset_with_extra_fields():
+    # The returned object carries extra fields; only the expected subset matters.
+    row = {"code": "x0123a", "compound_code": "Z42", "id": 7}
+    assert external_data.object_matches(row, {"code": "x0123a"}) is True
+    assert (
+        external_data.object_matches(row, {"code": "x0123a", "compound_code": "Z42"})
+        is True
+    )
+
+
+def test_object_matches_empty_expectation_matches_anything():
+    assert external_data.object_matches({"code": "x0123a"}, {}) is True
+
+
+def test_object_matches_rejects_missing_key():
+    assert (
+        external_data.object_matches({"code": "x0123a"}, {"compound_code": "Z42"})
+        is False
+    )
+
+
+def test_object_matches_rejects_value_mismatch():
+    assert external_data.object_matches({"code": "x0123a"}, {"code": "other"}) is False
+
+
+def test_missing_objects_returns_empty_when_all_found():
+    results = [{"code": "a", "id": 1}, {"code": "b", "id": 2}]
+    expected = [{"code": "a"}, {"code": "b"}]
+    assert external_data.missing_objects(results, expected) == []
+
+
+def test_missing_objects_returns_the_unmatched_expectations():
+    results = [{"code": "a", "id": 1}]
+    expected = [{"code": "a"}, {"code": "b"}, {"code": "c"}]
+    assert external_data.missing_objects(results, expected) == [
+        {"code": "b"},
+        {"code": "c"},
+    ]

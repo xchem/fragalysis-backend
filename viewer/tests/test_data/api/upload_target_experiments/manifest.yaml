@@ -21,6 +21,15 @@
 # asserted; the remaining counts are only asserted when non-null, so a new
 # identifier can start with placeholders and gain assertions as the real
 # numbers are filled in.
+#
+# `expect.objects` (optional) adds CONTENT assertions on top of the counts: for
+# each endpoint it lists the object(s) that endpoint must return for this
+# identifier. Each entry is a FIELD-SUBSET - only the fields you name are
+# compared, and the returned object may carry many more. The whole (paginated)
+# result set is searched, and the test fails naming any expectation not found.
+# Endpoint names: targets, experiments, site_observations, canon_sites,
+# canon_site_confs, xtalform_sites, poses. Fill these in with real values
+# captured from a stack run, exactly as the counts were.
 
 ALPHA:
   uploads:
@@ -31,5 +40,16 @@ ALPHA:
     targets: 1
     experiments: 7642
     site_observations: 67
+    # The remaining model objects a target load produces. Counts captured from
+    # a stack run turn each assertion on (null = not yet asserted).
+    canon_sites: null
+    canon_site_confs: null
+    xtalform_sites: null
     poses: 62
     target_experiment_uploads: 1
+    objects:
+      # The loaded target appears in /api/targets/ under its title. Add
+      # site_observations/poses/etc. entries here with real codes from a stack
+      # run to content-check the other model objects.
+      targets:
+        - title: A71EV2A

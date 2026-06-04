@@ -20,7 +20,7 @@ test, mirroring ``requires_archive`` in ``test_target_loader.py``.
 
 import os
 from pathlib import Path
-from typing import Any, Dict
+from typing import Any, Dict, List
 from urllib.parse import urlparse
 
 import pytest
@@ -126,3 +126,31 @@ def load_manifest(endpoint: str) -> Dict[str, Any]:
             f"{DATA_IDENTIFIER_ENV}={identifier!r}"
         )
     return manifest[identifier]
+
+
+def object_matches(row: Dict[str, Any], expected: Dict[str, Any]) -> bool:
+    """True when ``row`` satisfies every field in the ``expected`` subset.
+
+    A returned API object carries far more fields than a manifest wants to pin
+    down, so an expectation is a *subset*: every key in ``expected`` must be
+    present in ``row`` with an equal value, but ``row`` may carry extra fields.
+    An empty ``expected`` matches any row.
+    """
+    return all(key in row and row[key] == value for key, value in expected.items())
+
+
+def missing_objects(
+    results: List[Dict[str, Any]], expected_objects: List[Dict[str, Any]]
+) -> List[Dict[str, Any]]:
+    """Return the ``expected_objects`` that no row in ``results`` satisfies.
+
+    Each expected object is a field-subset (see :func:`object_matches`). An
+    empty return value means every expectation was found; a non-empty one names
+    exactly which expectations were not, so the caller can fail loudly with the
+    unmatched expectations rather than a bare boolean.
+    """
+    return [
+        expected
+        for expected in expected_objects
+        if not any(object_matches(row, expected) for row in results)
+    ]
