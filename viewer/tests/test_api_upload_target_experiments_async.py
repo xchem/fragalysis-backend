@@ -23,6 +23,7 @@ which must include the manifest's TAS; the upload itself runs with the stack's
 import json
 import os
 import time
+import warnings
 from typing import List, Optional
 
 import pytest
@@ -177,11 +178,21 @@ def test_upload_poll_then_get(tmp_path):
     assert targets["count"] == expect["targets"]
 
     for key, url in COUNT_ENDPOINTS.items():
+        body = _get_json(http, f"{base_url}{url}")
+        observed = body["count"]
         expected_count = expect.get(key)
         if expected_count is None:
+            # The manifest has no count for this endpoint yet. Don't assert -
+            # surface the observed count so it can be filled into the manifest
+            # (see "Adding a new dataset" in INTEGRATION-TESTS.md). The warning
+            # shows in pytest's summary even on an otherwise-passing run, so a
+            # single CI run reveals every count waiting to be pinned down.
+            warnings.warn(
+                f"{key}: manifest count is null; observed {observed} at {url}",
+                stacklevel=2,
+            )
             continue
-        body = _get_json(http, f"{base_url}{url}")
-        assert body["count"] == expected_count, url
+        assert observed == expected_count, url
 
     # Content assertions: beyond the bare counts, the manifest can name specific
     # objects (as field-subsets) it expects an endpoint to return for this

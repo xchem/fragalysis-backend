@@ -265,6 +265,10 @@ identifier are defined once as workflow-level `env` (`UNIT_TEST_BUCKET_AND_PATH`
 3. Capture the real `expect` counts by running the stack once and reading the
    endpoint `count`s back (this is how the `ALPHA` numbers were obtained) — then
    replace the `null`s. A non-null count turns on that endpoint's assertion.
+   You don't have to read them by hand: for every endpoint whose manifest count
+   is still `null`, the test emits a **warning** with the observed count (shown
+   in pytest's warnings summary even on a passing run), so one CI run surfaces
+   every number waiting to be pinned down.
 4. (Optional) Add `expect.objects` entries to content-check specific returned
    objects — e.g. a known `site_observations` code — using real values from the
    same stack run. Each entry is a field-subset; see *The manifest* above.
