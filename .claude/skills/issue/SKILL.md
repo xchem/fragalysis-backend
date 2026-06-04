@@ -1,6 +1,6 @@
 ---
 name: issue
-description: Work on a GitHub issue end-to-end in a git worktree — read the issue, move its board card to In Progress, explore the code, branch from staging, write the test first (TDD), commit, and open a PR. Use when the user says e.g. "work on issue 958", "start issue 1234", "/issue N", or asks to take a fragalysis-backend issue from triage to PR.
+description: Work on a GitHub issue end-to-end in a git worktree — move its board card to In Progress first, read the issue, explore the code, branch from staging, write the test first (TDD), commit, and open a PR. Use when the user says e.g. "work on issue 958", "start issue 1234", "/issue N", or asks to take a fragalysis-backend issue from triage to PR.
 ---
 
 # Issue Workflow
@@ -10,21 +10,9 @@ Take a GitHub issue from triage to an open PR, working in an isolated git
 
 ## Instructions
 
-### 1. Read the issue
+### 1. Move the board card to "In Progress"
 
-Fetch and understand the issue from `xchem/fragalysis-backend`:
-
-```bash
-gh issue view <number> --repo xchem/fragalysis-backend \
-  --json number,title,body,labels,state,comments
-```
-
-Summarise for the user: what needs doing, the acceptance criteria, and any
-blockers or dependencies. Follow links to source/board issues if the body has
-them (backend issues imported by `create-backend-issue` carry a footer linking
-to their `m2ms/fragalysis-frontend` source).
-
-### 2. Move the board card to "In Progress"
+Do this **first**, before reading the issue (which can take some time).
 
 The m2ms project board (`https://github.com/orgs/m2ms/projects/2`) tracks the
 *frontend* source issue, not this backend issue. Move its card from its backlog
@@ -41,6 +29,20 @@ to `{Category} - In Progress`. Cards **already in an "In Progress" lane are left
 untouched.** If there is no matching "In Progress" lane — or no board card can be
 found — it changes nothing and prints why; **relay that to the user**. Requires a
 `gh` token with the `project` (write) scope.
+
+### 2. Read the issue
+
+Fetch and understand the issue from `xchem/fragalysis-backend`:
+
+```bash
+gh issue view <number> --repo xchem/fragalysis-backend \
+  --json number,title,body,labels,state,comments
+```
+
+Summarise for the user: what needs doing, the acceptance criteria, and any
+blockers or dependencies. Follow links to source/board issues if the body has
+them (backend issues imported by `create-backend-issue` carry a footer linking
+to their `m2ms/fragalysis-frontend` source).
 
 ### 3. Explore the codebase
 
