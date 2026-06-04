@@ -2586,6 +2586,7 @@ class TargetLoader:
         self.mol_coords_to_db(site_observation_objects)
 
     def import_compound_identifiers(self, alias_file_path):
+        logger.debug('importing identifiers from %s', alias_file_path)
         try:
             df = pd.read_csv(alias_file_path)
         except UnicodeDecodeError:
@@ -2627,14 +2628,20 @@ class TargetLoader:
         for _, row in df[extended_key_cols].iterrows():
             exp_code, ligand_name, compound_code = row
             compound = compounds.get(exp_code=exp_code, ligand_name=ligand_name)
-            if compound.compound_code != compound_code:
-                self.report.log(
-                    logging.ERROR,
-                    (
-                        f"{exp_code}, {ligand_name}: 'compound_code' not allowed to change."
-                        + " use 'compound_code_update' column instead."
-                    ),
-                )
+            if compound.compound_code:
+                # don't allow updating compound_code
+                if compound.compound_code != compound_code:
+                    self.report.log(
+                        logging.ERROR,
+                        (
+                            f"{exp_code}, {ligand_name}: 'compound_code' not allowed to change."
+                            + " use 'compound_code_update' column instead."
+                        ),
+                    )
+            else:
+                # unless it's missing
+                compound.compound_code = compound_code
+                compound.save()
 
         # but if the correct column is supplied, then update
         if "compound_code_update" in df.columns:
