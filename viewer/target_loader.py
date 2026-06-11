@@ -2627,21 +2627,29 @@ class TargetLoader:
         # validate cols, compound code should be unchanged
         for _, row in df[extended_key_cols].iterrows():
             exp_code, ligand_name, compound_code = row
-            compound = compounds.get(exp_code=exp_code, ligand_name=ligand_name)
-            if compound.compound_code:
-                # don't allow updating compound_code
-                if compound.compound_code != compound_code:
-                    self.report.log(
-                        logging.ERROR,
-                        (
-                            f"{exp_code}, {ligand_name}: 'compound_code' not allowed to change."
-                            + " use 'compound_code_update' column instead."
-                        ),
-                    )
-            else:
-                # unless it's missing
-                compound.compound_code = compound_code
-                compound.save()
+            try:
+                compound = compounds.get(exp_code=exp_code, ligand_name=ligand_name)
+            except Compound.DoesNotExist:
+                msg = (
+                    f'Compound mentioned in {CUSTOM_IDENTIFIER_FILE} does not exist:'
+                    + f'code: {exp_code}, ligand: {ligand_name}'
+                )
+                logger.error(msg)
+                self.report.log(logging.ERROR, msg)
+                continue
+
+            if compound.compound_code and compound.compound_code != compound_code:
+                msg = (
+                    f"{exp_code}, {ligand_name}: 'compound_code' not allowed to change."
+                    + " use 'compound_code_update' column instead."
+                )
+                logger.error(msg)
+                self.report.log(logging.ERROR, msg)
+                continue
+
+        # validation failed, don't continue
+        if self.report.failed:
+            return
 
         # but if the correct column is supplied, then update
         if "compound_code_update" in df.columns:
