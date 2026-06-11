@@ -131,6 +131,7 @@ class TargetSerializer(serializers.ModelSerializer):
     template_protein = serializers.SerializerMethodField()
     zip_archive = serializers.SerializerMethodField()
     metadata = serializers.SerializerMethodField()
+    project_title = serializers.CharField(source="project.title", read_only=True)
 
     def get_template_protein_path(self, experiment_upload) -> Path | None:
         yaml_path = experiment_upload.get_upload_path()
@@ -218,6 +219,7 @@ class TargetSerializer(serializers.ModelSerializer):
             "title",
             "display_name",
             "project",
+            "project_title",
             "default_squonk_project",
             "template_protein",
             "metadata",
