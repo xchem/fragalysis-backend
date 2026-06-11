@@ -891,7 +891,23 @@ class DownloadStructuresSerializer(serializers.Serializer):
         max_length=200, default=None, allow_blank=True
     )
     proteins = serializers.CharField(max_length=5000, default='', allow_blank=True)
+    # Umbrella flag: when True it enables all the individual aligned-structure
+    # file types below (apo_file ... smiles_info). Kept for backwards
+    # compatibility with the current frontend; new clients can instead set any
+    # of the individual flags to download a single file type.
     all_aligned_structures = serializers.BooleanField(default=False)
+    # Individual aligned-structure file types (previously bundled under
+    # all_aligned_structures). Each defaults to False; the effective value is
+    # OR-ed with all_aligned_structures in get_download_params().
+    apo_file = serializers.BooleanField(default=False)
+    bound_file = serializers.BooleanField(default=False)
+    apo_solv_file = serializers.BooleanField(default=False)
+    apo_desolv_file = serializers.BooleanField(default=False)
+    ligand_pdb = serializers.BooleanField(default=False)
+    ligand_sdf = serializers.BooleanField(default=False)
+    ligand_smiles = serializers.BooleanField(default=False)
+    sdf_info = serializers.BooleanField(default=False)
+    smiles_info = serializers.BooleanField(default=False)
     pdb_info = serializers.BooleanField(default=False)
     cif_info = serializers.BooleanField(default=False)
     mtz_info = serializers.BooleanField(default=False)
@@ -904,6 +920,13 @@ class DownloadStructuresSerializer(serializers.Serializer):
     trans_matrix_info = serializers.BooleanField(default=False)
     compound_sets = serializers.BooleanField(default=True)
     soakdb_files = serializers.BooleanField(default=True)
+    # Default-included file groups. Each defaults to True so the existing
+    # frontend (which doesn't send them) keeps getting them; set False to
+    # exclude that group from the download.
+    yaml_files = serializers.BooleanField(default=True)
+    extra_files = serializers.BooleanField(default=True)
+    pymol_scripts = serializers.BooleanField(default=True)
+    readme = serializers.BooleanField(default=True)
     static_link = serializers.BooleanField(default=False)
     file_url = serializers.CharField(max_length=200, default='', allow_blank=True)
     use_zip = serializers.BooleanField(default=False, label='Use ZIP format (slower)')

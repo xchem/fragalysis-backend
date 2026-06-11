@@ -141,6 +141,11 @@ zip_template = {
     'trans_matrix_info': None,
     'compound_sets': None,
     'soakdb_files': None,
+    # Default-included file groups (toggleable via the serializer flags).
+    'yaml_files': True,
+    'extra_files': True,
+    'pymol_scripts': True,
+    'readme': True,
 }
 
 
@@ -465,6 +470,14 @@ class DownloadStructures:
         zip_contents['compound_sets'] = other_params['compound_sets']
         zip_contents['soakdb_files'] = other_params['soakdb_files']
 
+        # Default-included file groups. Use .get(..., True) so that any
+        # pre-existing DownloadLinks record whose stored other_params predates
+        # these flags keeps the original "included" behaviour.
+        zip_contents['yaml_files'] = other_params.get('yaml_files', True)
+        zip_contents['extra_files'] = other_params.get('extra_files', True)
+        zip_contents['pymol_scripts'] = other_params.get('pymol_scripts', True)
+        zip_contents['readme'] = other_params.get('readme', True)
+
         return zip_contents
 
     def create_tarball(
@@ -534,16 +547,21 @@ class DownloadStructures:
             )
             self._trans_matrix_files_zip(self.target)
 
-        self.update_task(ProcessState.PROCESSING, 'Adding extra files...')
-        self._extra_files_zip(self.target, soakdb_files=zip_contents['soakdb_files'])
+        if zip_contents['extra_files']:
+            self.update_task(ProcessState.PROCESSING, 'Adding extra files...')
+            self._extra_files_zip(
+                self.target, soakdb_files=zip_contents['soakdb_files']
+            )
 
-        self.update_task(ProcessState.PROCESSING, 'Adding YAMLs...')
-        self._yaml_files_zip(
-            self.target, transforms_requested=zip_contents['trans_matrix_info']
-        )
+        if zip_contents['yaml_files']:
+            self.update_task(ProcessState.PROCESSING, 'Adding YAMLs...')
+            self._yaml_files_zip(
+                self.target, transforms_requested=zip_contents['trans_matrix_info']
+            )
 
-        self.update_task(ProcessState.PROCESSING, 'Adding scripts...')
-        self._additional_scripts_zip(_SCRIPTS)
+        if zip_contents['pymol_scripts']:
+            self.update_task(ProcessState.PROCESSING, 'Adding scripts...')
+            self._additional_scripts_zip(_SCRIPTS)
 
         self.update_task(ProcessState.PROCESSING, 'Adding compound sets...')
         if zip_contents['compound_sets']:
@@ -553,8 +571,9 @@ class DownloadStructures:
 
         # memo to self: this function includes the file list in
         # the result, so needs to come last
-        self.update_task(ProcessState.PROCESSING, 'Creating documentation...')
-        self._document_file_zip(original_search)
+        if zip_contents['readme']:
+            self.update_task(ProcessState.PROCESSING, 'Creating documentation...')
+            self._document_file_zip(original_search)
 
         import timeit
 
@@ -1277,16 +1296,25 @@ def _read_and_patch_molecule_name(path, molecule_name=None):
 
 
 def get_download_params(validated_data):
-    """Extract download flags from serializer's validated data"""
+    """Extract download flags from serializer's validated data.
+
+    The aligned-structure file types can now be requested individually, but the
+    legacy ``all_aligned_structures`` umbrella flag is still honoured: when it is
+    set, every individual aligned-structure flag is forced on (OR logic). This
+    keeps the current frontend - which only sends the umbrella - working while
+    allowing new clients to request a single file type.
+    """
+    aligned = validated_data['all_aligned_structures']
+
     protein_params = {
         'pdb_info': validated_data['pdb_info'],
-        'apo_file': validated_data['all_aligned_structures'],
-        'bound_file': validated_data['all_aligned_structures'],
-        'apo_solv_file': validated_data['all_aligned_structures'],
-        'apo_desolv_file': validated_data['all_aligned_structures'],
-        'ligand_pdb': validated_data['all_aligned_structures'],
-        'ligand_sdf': validated_data['all_aligned_structures'],
-        'ligand_smiles': validated_data['all_aligned_structures'],
+        'apo_file': validated_data['apo_file'] or aligned,
+        'bound_file': validated_data['bound_file'] or aligned,
+        'apo_solv_file': validated_data['apo_solv_file'] or aligned,
+        'apo_desolv_file': validated_data['apo_desolv_file'] or aligned,
+        'ligand_pdb': validated_data['ligand_pdb'] or aligned,
+        'ligand_sdf': validated_data['ligand_sdf'] or aligned,
+        'ligand_smiles': validated_data['ligand_smiles'] or aligned,
         'cif_info': validated_data['cif_info'],
         'mtz_info': validated_data['mtz_info'],
         'map_info': validated_data['map_info'],
@@ -1296,13 +1324,18 @@ def get_download_params(validated_data):
     }
 
     other_params = {
-        'sdf_info': validated_data['all_aligned_structures'],
+        'sdf_info': validated_data['sdf_info'] or aligned,
         'single_sdf_file': validated_data['single_sdf_file'],
         'metadata_info': validated_data['metadata_info'],
-        'smiles_info': validated_data['all_aligned_structures'],
+        'smiles_info': validated_data['smiles_info'] or aligned,
         'trans_matrix_info': validated_data['trans_matrix_info'],
         'compound_sets': validated_data['compound_sets'],
         'soakdb_files': validated_data['soakdb_files'],
+        # Default-included file groups (each defaults to True in the serializer).
+        'yaml_files': validated_data['yaml_files'],
+        'extra_files': validated_data['extra_files'],
+        'pymol_scripts': validated_data['pymol_scripts'],
+        'readme': validated_data['readme'],
     }
 
     static_link = validated_data['static_link']
