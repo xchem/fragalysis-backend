@@ -29,6 +29,11 @@ export STACK_NAMESPACE=<the developer's DockerHub/GitHub username>
 export CONTROLLER_HOST=https://awx.xchem-dev.diamond.ac.uk
 export CONTROLLER_USERNAME=<the developer's AWX username>
 export CONTROLLER_PASSWORD=<the developer's AWX password>
+
+# Path to the awx launcher that ships with this skill (used by Part 2). Set it
+# now, while we are still in the fragalysis-backend checkout, before Part 1
+# changes directory.
+export AWX_LAUNCH="$(git rev-parse --show-toplevel)/.claude/skills/deploy-stack/awx-launch.py"
 ```
 
 >   Do not print `CONTROLLER_PASSWORD` back to the developer, write it to a file,
@@ -148,19 +153,22 @@ JOB_TEMPLATE="User (${USER_CAPITALISED}) Developer Fragalysis Stack"
 
 ## 2. Launch the Job Template
 
-Use the `awx` CLI (from `awxkit`) to launch the template by name and follow the
-deployment to completion. The Job Template needs two **extra variables** telling it
-which stack image to deploy — these identify the image built and pushed in Part 1,
-so they are derived from the same variables:
+We launch the template with the `awx` CLI (from `awxkit`). The Job Template needs
+two **extra variables** telling it which stack image to deploy — these identify the
+image built and pushed in Part 1, so they are derived from the same variables:
 
 - `stack_image` is `${STACK_NAMESPACE}/fragalysis-stack`
 - `stack_image_tag` is `${STACK_IMAGE_TAG}`
 
+awxkit's `awx` console script is unmaintained against recent Pythons and crashes
+before it ever reaches AWX, so we don't call it directly. Instead run it through the
+`awx-launch.py` shim that ships with this skill (`${AWX_LAUNCH}`, set up front): it
+applies two compatibility fixes at runtime and otherwise behaves exactly like `awx`.
 `--monitor` streams the job output and makes the command exit non-zero if the
 deployment fails, so an error is never swallowed: -
 
 ```
-awx job_templates launch "${JOB_TEMPLATE}" \
+python3 "${AWX_LAUNCH}" job_templates launch "${JOB_TEMPLATE}" \
   --extra_vars "stack_image: ${STACK_NAMESPACE}/fragalysis-stack
 stack_image_tag: ${STACK_IMAGE_TAG}" \
   --monitor --wait
@@ -170,7 +178,11 @@ stack_image_tag: ${STACK_IMAGE_TAG}" \
     keys unquoted and let the shell expand the variables. If you prefer JSON,
     `--extra_vars '{"stack_image": "...", "stack_image_tag": "..."}'` works too.
 
->   If the `awx` CLI is not installed, install it with `pip install awxkit`.
+>   If `awxkit` is not installed, install it with `pip install awxkit`. The
+    `awx-launch.py` shim removes the need to pin the interpreter or `setuptools`: it
+    stubs the `pkg_resources` API that `setuptools` 81+ dropped, and patches the
+    awxkit argument parser that Python 3.13 broke. The bare `awx` command would
+    otherwise need Python ≤ 3.12 with `setuptools<81`.
 
 >   The launch resolves the template by name. If AWX reports that the name is
     ambiguous or not found, list the developer's templates to confirm the exact
