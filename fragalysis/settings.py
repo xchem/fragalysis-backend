@@ -500,7 +500,7 @@ if not DISABLE_LOGGING_FRAMEWORK:
         },
         'loggers': {
             'api.security': {'level': 'INFO'},
-            'api.ta_auth_connector': {'level': 'WARNING'},
+            'ta_auth_connector': {'level': 'WARNING'},
             'apscheduler': {'level': 'WARNING'},
             'asyncio': {'level': 'WARNING'},
             'celery': {'level': 'INFO'},

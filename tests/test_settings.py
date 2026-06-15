@@ -30,7 +30,7 @@ CELERY_TASK_EAGER_PROPAGATES = True
 # By default the security layer resolves a user's proposals from Django
 # (Project.user_id membership). Tests that want the external TA-authenticator
 # path set settings.TA_AUTH_SERVICE themselves (e.g. via the pytest-django
-# `settings` fixture) and patch api.ta_auth_connector.get_auth_target_access.
+# `settings` fixture) and patch ta_auth_connector.get_auth_target_access.
 TA_AUTH_SERVICE = ""
 TA_AUTH_QUERY_KEY = ""
 
