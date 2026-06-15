@@ -10,8 +10,8 @@ from django.contrib.auth.models import User
 from django.db import IntegrityError, transaction
 from django.db.models import Count
 from django.utils import timezone
-from frag.network.decorate import get_3d_vects_for_mol, get_vect_indices_for_mol
-from frag.network.query import get_full_graph
+from fragutils.network.decorate import get_3d_vects_for_mol, get_vect_indices_for_mol
+from fragutils.network.query import get_full_graph
 from rdkit import Chem
 from rdkit.Chem import Descriptors
 from rest_framework import serializers

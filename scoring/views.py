@@ -1,7 +1,7 @@
 import json
 
 from django.http import HttpResponse
-from frag.conf.functions import generate_confs_for_vector
+from fragutils.conf.functions import generate_confs_for_vector
 from rest_framework import mixins
 
 from api.security import ISPyBSafeQuerySet
