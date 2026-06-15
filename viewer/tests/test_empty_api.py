@@ -82,8 +82,8 @@ def test_user_endpoint_reports_no_access_for_authenticated_user(authenticated_cl
     """``/api/user/`` describes the caller and, with no service, no access.
 
     With ``TA_AUTH_SERVICE`` unset the authenticator reports
-    ``SERVICE_NOT_PRESENT`` and the user has no target access - the expected
-    shape for an empty, service-less installation.
+    ``AUTH_SERVICE_NOT_DEFINED`` and the user has no target access - the
+    expected shape for an empty, service-less installation.
     """
     response = authenticated_client.get("/api/user/")
 
@@ -91,8 +91,8 @@ def test_user_endpoint_reports_no_access_for_authenticated_user(authenticated_cl
     body = response.json()
     assert body["user"] == "tester"
     assert body["target_access"] == []
-    assert body["ping"] == "SERVICE_NOT_PRESENT"
-    assert body["authenticator"]["kind"] == "SERVICE_NOT_PRESENT"
+    assert body["ping"] == "AUTH_SERVICE_NOT_DEFINED"
+    assert body["authenticator"]["kind"] == "AUTH_SERVICE_NOT_DEFINED"
 
 
 @pytest.mark.django_db

@@ -3876,7 +3876,22 @@ tqdm = ">=4.65.0,<5"
 dev = ["check-manifest"]
 test = ["coverage"]
 
+[[package]]
+name = "xchem-ta-auth-client"
+version = "1.0.0"
+description = "The ISPyB Target Access Authenticator Client"
+optional = false
+python-versions = ">=3.13"
+groups = ["main"]
+files = [
+    {file = "xchem_ta_auth_client-1.0.0-py3-none-any.whl", hash = "sha256:5f589274dc2ba5aa64a3496797c8ce29425ed7b6b69c40f40f3b2ebf5b4a3a9c"},
+    {file = "xchem_ta_auth_client-1.0.0.tar.gz", hash = "sha256:5b5b20a00ef4d4ba2e1ad183ee01eaa989f44b36f1387501b3f1ac531595e26d"},
+]
+
+[package.dependencies]
+requests = ">=2.32.4,<3"
+
 [metadata]
 lock-version = "2.1"
 python-versions = "^3.13.0"
-content-hash = "84dff20feec1f09d2f0f4781cac24891dc1ee09934ea8b7699b27d401812b7be"
+content-hash = "48a6d85b0f47bfb0cfbae328983a156f2ad90e11399ce2e1bab15cc57f587606"
