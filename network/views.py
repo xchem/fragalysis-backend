@@ -1,7 +1,7 @@
 from django.conf import settings
 from django.http import HttpResponse
-from frag.network.decorate import get_add_del_link
-from frag.network.query import get_full_graph
+from fragutils.network.decorate import get_add_del_link
+from fragutils.network.query import get_full_graph
 
 from network.functions import order_structures
 
