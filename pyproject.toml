@@ -10,6 +10,7 @@ packages = [{include = "fragalysis_backend"}]
 [tool.poetry.dependencies]
 python = "^3.13.0"
 django = "^5.2"
+apscheduler = "^3.10"
 celery = "^5.5"
 django-bootstrap3 = "^25.2"
 django-cleanup = "^8.1"
@@ -20,6 +21,7 @@ django-simple-history = "^3.10"
 fragalysis = "^1.1.0"
 xchem-ta-auth-client = "^1.0.0"
 gunicorn = "^23.0"
+humanize = "^4.15"
 mozilla_django_oidc = "^4.0"
 openpyxl = "^3.1"
 pandas = "^2.3"
@@ -40,6 +42,7 @@ bcrypt = "^5.0"
 djangorestframework = "^3.16.1"
 legacy-cgi = "^2.6.3"   # required by djangorestframwork
 django-prometheus = "^2.4"
+python-ipware = "^3.0.0"
 
 
 # Specific (critical dependency) packages...
@@ -69,6 +72,50 @@ httpie = "^3.2"
 black = "^25.9"
 mypy = "^1.18"
 
+# Test framework - the unit tests run with pytest in a host/CI Poetry
+# virtualenv (see run-unit-tests.sh), not inside the backend image. Install
+# with 'poetry install --only main,test'.
+[tool.poetry.group.test.dependencies]
+pytest = "^8.3"
+pytest-django = "^4.9"
+pytest-cov = "^6.0"
+pytest-mock = "^3.14"
+
+# Documentation (Sphinx) - used by the 'build docs' GitHub Action.
+# Note: building the docs also requires the 'main' dependencies, as
+# conf.py runs django.setup() and autodoc imports the viewer app.
+[tool.poetry.group.docs.dependencies]
+sphinx = "^9.1"
+
 [build-system]
 requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
+
+[tool.pytest.ini_options]
+DJANGO_SETTINGS_MODULE = "tests.test_settings"
+python_files = ["test_*.py"]
+testpaths = ["viewer/tests"]
+# --reuse-db: the viewer app has ~176 migrations, so creating the test
+#   database from scratch on every run is slow. Reuse it between runs and
+#   pass --create-db explicitly when migrations change. CI containers are
+#   ephemeral so the first (and only) run always creates it.
+# --strict-markers: typo'd/unknown @pytest.mark markers become errors.
+# -m "not integration": the async integration test needs the live container
+#   stack (redis + celery worker) and is never collected by the default/host
+#   run; the integration compose runs it explicitly with -m integration.
+addopts = "--reuse-db --strict-markers -m \"not integration\" --cov=viewer --cov-report=term-missing --cov-report=html"
+markers = [
+    "integration: needs the live container stack (redis + celery worker)",
+]
+
+[tool.coverage.run]
+# Coverage measures the viewer app's hand-written code. Auto-generated
+# migrations (excluded from all lint hooks too) and the tests themselves
+# would otherwise distort the headline figure.
+omit = [
+    "viewer/migrations/*",
+    "viewer/tests/*",
+]
+
+[tool.coverage.html]
+directory = "htmlcov"

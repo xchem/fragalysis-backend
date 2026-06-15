@@ -1,5 +1,6 @@
 import contextlib
 import logging
+import os
 import uuid
 from dataclasses import dataclass
 from pathlib import Path
@@ -56,7 +57,8 @@ class Vector3d:
 
 
 class Project(models.Model):
-    title = models.CharField(max_length=200, unique=True)
+    title = models.TextField(null=False, unique=True)
+    alias = models.TextField(null=True)
     init_date = models.DateTimeField(auto_now_add=True)
     user_id = models.ManyToManyField(User)
     open_to_public = models.BooleanField(default=False)
@@ -66,6 +68,19 @@ class Project(models.Model):
 
     def __repr__(self) -> str:
         return "<Project %r %r %r>" % (self.id, self.title, self.open_to_public)
+
+
+class UserRole(models.Model):
+    LOADER_ROLE = "Loader"
+
+    name = models.TextField(unique=True)
+    users = models.ManyToManyField(User, related_name="roles", blank=True)
+
+    def __str__(self) -> str:
+        return f"{self.name}"
+
+    def __repr__(self) -> str:
+        return "<UserRole %r %r>" % (self.id, self.name)
 
 
 class Target(models.Model):
@@ -1535,11 +1550,17 @@ class DiscourseTopic(models.Model):
 class DownloadLinks(models.Model):
     """Searches made with the download_structures api."""
 
-    file_url = models.CharField(
-        max_length=200,
-        unique=True,
+    # Stores the basename of the download file (e.g. "TARGET.zip"). The
+    # absolute path is reconstructed via get_file_url() using MEDIA_ROOT,
+    # the "downloads" subdir and task_id. Not unique because two records
+    # for different tasks can produce the same filename.
+    file_url = models.TextField(
         db_index=True,
-        help_text="Contains the complete link to the zip file including the uuid",
+        null=True,
+    )
+    task_id = models.TextField(
+        null=True,
+        help_text="The task ID assigned to this download (if a Task is launched)",
     )
     user = models.ForeignKey(User, null=True, on_delete=models.CASCADE)
     target = models.ForeignKey(
@@ -1572,26 +1593,54 @@ class DownloadLinks(models.Model):
         " For dynamic files, the zip is reconstructed from the search",
     )
     create_date = models.DateTimeField()
+    expired_date = models.DateTimeField(
+        null=True,
+        help_text="Set when the download has passed its keep until date."
+        " Users should not use records when this is set.",
+    )
     keep_zip_until = models.DateTimeField(
         db_index=True,
+        null=True,
         help_text="The datetime when the tag was created"
         " plus the retention time"
         " (1 hour at the time of writing)",
     )
+    deleted = models.BooleanField(
+        null=True,
+        help_text="Set when the download file has been removed from the filesystem.",
+    )
+    expiry_reason = models.TextField(
+        null=True,
+        help_text="Why the download was expired (e.g. the task was lost)."
+        " Shown to users querying a failed download.",
+    )
     # TODO - zip_file is no longer Used (A.Christie 2024-01-19)
     zip_file = models.BooleanField(default=False)
     original_search = models.JSONField(encoder=DjangoJSONEncoder, null=True)
+    request_ip = models.TextField(null=True)
+    request_location = models.TextField(null=True)
 
     def __str__(self):
         return str(self.file_url)
 
     def __repr__(self) -> str:
-        return "<DownloadLinks %r %r %r %r %r>" % (
-            self.id,
-            self.zip_file,
+        return "<DownloadLinks %r %r %r>" % (
             self.file_url,
             self.user,
             self.target,
+        )
+
+    def get_file_url(self):
+        """Reconstruct the absolute filesystem path of the download file.
+
+        Returns None when either file_url (the basename) or task_id (the
+        per-download directory name) is missing — i.e. the download has
+        not been built or has been hard-erased.
+        """
+        if not self.file_url or not self.task_id:
+            return None
+        return os.path.join(
+            settings.MEDIA_ROOT, 'downloads', self.task_id, self.file_url
         )
 
     class Meta:

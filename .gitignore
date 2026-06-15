@@ -132,3 +132,10 @@ ENV/
 *~
 \#*#
 \#*
+
+# --- Claude Code session state / local plans ---
+.claude/*
+# ...but track the team-shared project settings and skills
+!.claude/settings.json
+!.claude/skills/
+!.claude/commands/

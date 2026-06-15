@@ -37,23 +37,8 @@ else:
 "
 printf "$script" | python manage.py shell
 
-echo "Preparing logging..."
-touch /srv/logs/gunicorn.log
-touch /srv/logs/access.log
-touch /code/logs/logfile.log
-
-CONCURRENCY=${STACK_CONCURRENCY:-4}
-
-echo "Starting Gunicorn (CONCURRENCY=${CONCURRENCY})..."
-gunicorn fragalysis.wsgi:application \
-    --daemon \
-    --name fragalysis \
-    --bind unix:django_app.sock \
-    --timeout 3000 \
-    --workers ${CONCURRENCY} \
-    --log-level=debug \
-    --log-file=/srv/logs/gunicorn.log \
-    --access-logfile=/srv/logs/access.log
+echo "Starting Gunicorn..."
+gunicorn --config gunicorn.conf.py fragalysis.wsgi:application
 
 # added as a fix to #1215, mixing http and https requests to enable
 # local development with http. Need to set the env variable in compose
@@ -67,8 +52,14 @@ echo proxy_set_header X-Forwarded-Proto "${PROXY_FORWARDED_PROTO_HEADER:-https};
 echo "Testing nginx config..."
 nginx -tq
 
-echo "Launching service health check queries"
-python manage.py start_service_queries
+if [ "${HOSTNAME}" = "stack-0" ]; then
+    echo "Clearing the page cache"
+    python manage.py clear_cache
+    echo "Launching service health check queries"
+    python manage.py start_service_queries &
+    echo "Launching download cleanup scheduler"
+    python manage.py start_download_cleanup &
+fi
 
 echo "Running nginx..."
 nginx

@@ -238,6 +238,47 @@ TEMPLATES = [
 
 TIME_ZONE = "UTC"
 
+# Cache framework.
+# We use per-view cache, so views that need caching
+# should use the '@cache_page' decorator.
+# See https://docs.djangoproject.com/en/6.0/topics/cache/#the-per-view-cache
+
+# Set CACHE_ENABLED to "Yes" (or "True") in the environment to enable caching,
+# otherwise a DummyCache is used, which implements the cache API but stores nothing,
+# so cache_page becomes a no-op. Default is disabled.
+CACHE_ENABLED = os.environ.get("CACHE_ENABLED", "No").lower() in ["true", "yes"]
+
+# Which CACHES alias cache_page (and signal-driven invalidation) uses. Set
+# CACHE_MIDDLEWARE_ALIAS=redis in the environment to route through the
+# redis entry below; "default" uses the in-process LocMemCache.
+# The redis sever will need to support at least two databases, ID 0 will be used for
+# celery tasks and ID 1 will be used for the cache.
+CACHE_MIDDLEWARE_ALIAS = os.environ.get("CACHE_MIDDLEWARE_ALIAS", "default")
+# User can specify a cached timeout (in minutes).
+# The default is 28 days.
+CACHE_MIDDLEWARE_TIMEOUT_MINUTES: int = int(
+    os.environ.get("CACHE_MIDDLEWARE_TIMEOUT_MINUTES", 28 * 24 * 60)
+)
+CACHE_MIDDLEWARE_SECONDS = CACHE_MIDDLEWARE_TIMEOUT_MINUTES * 60
+CACHE_MIDDLEWARE_KEY_PREFIX = ""
+
+# An optional redis backend, addressable via caches["redis"]. Override the
+# connection URL via REDIS_CACHE_LOCATION; the backend module is loaded lazily
+# so this entry is harmless if no code uses the alias. db=1 keeps the cache
+# isolated from celery (db=0).
+REDIS_CACHE_LOCATION = os.environ.get("REDIS_CACHE_LOCATION", "redis://redis:6379/1")
+
+CACHES = {
+    "default": {
+        "BACKEND": (
+            "django.core.cache.backends.redis.RedisCache"
+            if CACHE_ENABLED
+            else "django.core.cache.backends.dummy.DummyCache"
+        ),
+        "LOCATION": REDIS_CACHE_LOCATION,
+    },
+}
+
 # mozilla_django_oidc.
 # See: https://mozilla-django-oidc.readthedocs.io/en/stable/
 # Before you can configure your application, you need to set up a client with
@@ -343,7 +384,13 @@ DATABASES = {
         "USER": os.environ.get("POSTGRESQL_USER", "fragalysis"),
         "PASSWORD": os.environ.get("POSTGRESQL_PASSWORD", "fragalysis"),
         "HOST": os.environ.get("POSTGRESQL_HOST", "database"),
-        "PORT": os.environ.get("POSTGRESQL_PORT", 5432),
+        "PORT": int(os.environ.get("POSTGRESQL_PORT", 5432)),
+        # If using a DB connection pooler (like pgBouncer),
+        # DISABLE_SERVER_SIDE_CURSORS must be True (yes).
+        "DISABLE_SERVER_SIDE_CURSORS": os.environ.get(
+            "POSTGRESQL_DISABLE_SERVER_SIDE_CURSORS", "yes"
+        ).lower()
+        == "yes",
     }
 }
 
@@ -453,6 +500,8 @@ if not DISABLE_LOGGING_FRAMEWORK:
         },
         'loggers': {
             'api.security': {'level': 'INFO'},
+            'api.ta_auth_connector': {'level': 'WARNING'},
+            'apscheduler': {'level': 'WARNING'},
             'asyncio': {'level': 'WARNING'},
             'celery': {'level': 'INFO'},
             'django': {'level': 'ERROR'},
@@ -461,7 +510,7 @@ if not DISABLE_LOGGING_FRAMEWORK:
             'paramiko': {'level': 'WARNING'},
             'service_status': {
                 'handlers': ['service_status', 'console'],
-                'level': 'DEBUG',
+                'level': 'INFO',
                 'propagate': False,
             },
         },
@@ -516,10 +565,37 @@ DISCOURSE_API_KEY: str = os.environ.get("DISCOURSE_API_KEY", "")
 # dedicated Discourse server.
 DISCOURSE_DEV_POST_SUFFIX: str = os.environ.get("DISCOURSE_DEV_POST_SUFFIX", "")
 
-# The period of time allowed to elapse before recreating a Target download file.
-# This is used by download_structures.py as the length of time to keep records of dynamic links.
+# The period of time allowed to elapse before considering a DownloadLinks record to have "expired".
 DOWNLOAD_KEEP_UNTIL_DURATION_M: int = int(
     os.environ.get("DOWNLOAD_KEEP_UNTIL_DURATION_M", "90")
+)
+# The period of time to keep "expired" records before physically removing the underlying file.
+HARD_EXPIRY_GRACE_PERIOD_M: int = int(
+    os.environ.get("HARD_EXPIRY_GRACE_PERIOD_M", "180")
+)
+# How often (minutes) the background download-cleanup scheduler runs.
+DOWNLOAD_CLEANUP_INTERVAL_M: int = int(
+    os.environ.get("DOWNLOAD_CLEANUP_INTERVAL_M", "4")
+)
+# A download task is given this many minutes to start (set its task_id and begin
+# updating its status) before the "lost task" housekeeping pass will consider it.
+DOWNLOAD_TASK_START_GRACE_M: int = int(
+    os.environ.get("DOWNLOAD_TASK_START_GRACE_M", "4")
+)
+# The longest a download task is allowed to run before it is presumed lost (e.g.
+# the worker was restarted, leaving the Celery result frozen "in progress").
+DOWNLOAD_TASK_MAX_RUNTIME_M: int = int(
+    os.environ.get("DOWNLOAD_TASK_MAX_RUNTIME_M", "60")
+)
+
+# Upper bound (as a percentage of the celery workers' total prefork capacity)
+# on the number of concurrent download-build tasks the stack will accept.
+# When the count of in-progress DownloadLinks records reaches this fraction of
+# the inspected worker concurrency, new POSTs to /api/download_structures/
+# that would launch a new Task are rejected with HTTP 429.
+# Set to 0 to disable the guard.
+MAX_DOWNLOAD_CONCURRENCY_PERCENT: int = int(
+    os.environ.get("MAX_DOWNLOAD_CONCURRENCY_PERCENT", "0")
 )
 
 # Some Squonk2 developer/debug variables.
@@ -534,6 +610,9 @@ DUMMY_TAS: str = os.environ.get("DUMMY_TAS", "")
 # See "viewer/services.py" for the full list of supported services.
 ENABLE_SERVICE_STATUS: str = os.environ.get("ENABLE_SERVICE_STATUS", "")
 SERVICE_STATUS_LOGLEVEL = os.environ.get("SERVICE_STATUS_LOGLEVEL", "WARNING")
+SERVICE_STATUS_SCHEDULER_ENABLED: bool = os.environ.get(
+    "SERVICE_STATUS_SCHEDULER_ENABLED", "yes"
+).lower() in ["true", "yes"]
 
 # What infection have been set?
 # "Infections" are  built-in faults that can be induced by providing their names.

@@ -20,7 +20,11 @@ from django.contrib.auth import get_user_model
 from django.http import FileResponse, HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
+from django.utils.decorators import method_decorator
 from django.views import View
+from django.views.decorators.cache import cache_page
+from django.views.decorators.vary import vary_on_headers
+from python_ipware import IpWare
 from rest_framework import generics, mixins, permissions, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.parsers import BaseParser
@@ -30,7 +34,12 @@ from ta_auth_connector import get_auth_ping, get_auth_target_access, get_auth_ve
 
 from api.infections import INFECTION_STRUCTURE_DOWNLOAD, have_infection
 from api.security import ISPyBSafeQuerySet
-from api.utils import get_highlighted_diffs, get_img_from_smiles, pretty_request
+from api.utils import (
+    deployment_mode_is_production,
+    get_highlighted_diffs,
+    get_img_from_smiles,
+    pretty_request,
+)
 from service_status.models import Service
 from viewer import filters, models, serializers
 from viewer.permissions import IsObjectProposalMember
@@ -43,6 +52,7 @@ from viewer.squonk2_agent import (
     Squonk2AgentRv,
     get_squonk2_agent,
 )
+from viewer.target_delete import delete_target
 from viewer.target_loader import (
     split_version,
     validate_data_version,
@@ -58,15 +68,13 @@ from viewer.utils import (
 )
 
 from .assay_data import AssayData, convert
+from .cache import clear_view_cache
 from .discourse import (
     check_discourse_user,
     create_discourse_post,
     list_discourse_posts_for_topic,
 )
-from .download_structures import (  # create_or_return_download_link,
-    erase_out_of_date_download_records,
-    return_download_link,
-)
+from .download_structures import download_capacity_exceeded, get_download_params
 from .forms import CSetForm
 from .squonk_job_file_transfer import (
     TfrFileNotFoundError,
@@ -83,7 +91,7 @@ from .tags import load_tags_from_file
 from .tasks import (
     process_compound_set,
     process_job_file_transfer,
-    task_create_download_link,
+    task_create_download,
     task_load_target,
     validate_compound_set,
 )
@@ -313,7 +321,7 @@ class ProteinPDBBoundInfoView(ISPyBSafeQuerySet):
     )
 
 
-class ProjectView(ISPyBSafeQuerySet):
+class ProjectView(mixins.UpdateModelMixin, ISPyBSafeQuerySet):
     """Projects (api/project)"""
 
     queryset = models.Project.objects.filter()
@@ -322,7 +330,7 @@ class ProjectView(ISPyBSafeQuerySet):
     filter_permissions = ""
 
 
-class TargetView(mixins.UpdateModelMixin, ISPyBSafeQuerySet):
+class TargetView(mixins.UpdateModelMixin, mixins.DestroyModelMixin, ISPyBSafeQuerySet):
     queryset = models.Target.objects.filter()
     serializer_class = serializers.TargetSerializer
     filter_permissions = "project"
@@ -348,6 +356,32 @@ class TargetView(mixins.UpdateModelMixin, ISPyBSafeQuerySet):
             return Response(
                 {"message": "wrong parameters"}, status=status.HTTP_400_BAD_REQUEST
             )
+
+    def destroy(self, request, pk=None):
+        """Fully delete a target - its database graph and media files.
+
+        Restricted to non-production instances and to members of the target's
+        project (enforced by IsObjectProposalMember, checked explicitly below
+        because the custom destroy bypasses DRF's get_object() hook). The
+        membership check is skipped when AUTHENTICATE_UPLOAD is False, to allow
+        deletion testing in development (this setting is itself only permitted
+        outside production).
+        """
+        # Never allow target deletion in production.
+        if deployment_mode_is_production():
+            return Response(
+                {"message": "Target deletion is disabled in production"},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        target = get_object_or_404(self.queryset, pk=pk)
+        # Reject anonymous users and non-members of the target's project,
+        # unless authentication has been switched off for development testing.
+        if settings.AUTHENTICATE_UPLOAD:
+            self.check_object_permissions(request, target)
+
+        delete_target(target)
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
 
 class CompoundView(mixins.UpdateModelMixin, ISPyBSafeQuerySet):
@@ -1225,6 +1259,32 @@ class ComputedMoleculesView(ISPyBSafeQuerySet):
     filter_permissions = "compound__project_id"
     filterset_fields = ('computed_set',)
 
+    # Vary keys the cache on Authorization/Cookie so per-user
+    # proposal filtering from ISPyBSafeQuerySet is preserved. The key_prefix
+    # is shared with ComputedMolAndScoreView so a single
+    # clear_view_cache("computed-molecules") drops both.
+    @method_decorator(
+        cache_page(
+            settings.CACHE_MIDDLEWARE_SECONDS,
+            cache=settings.CACHE_MIDDLEWARE_ALIAS,
+            key_prefix="computed-molecules",
+        )
+    )
+    @method_decorator(vary_on_headers('Authorization', 'Cookie'))
+    def list(self, request, *args, **kwargs):
+        return super().list(request, *args, **kwargs)
+
+    @method_decorator(
+        cache_page(
+            settings.CACHE_MIDDLEWARE_SECONDS,
+            cache=settings.CACHE_MIDDLEWARE_ALIAS,
+            key_prefix="computed-molecules",
+        )
+    )
+    @method_decorator(vary_on_headers('Authorization', 'Cookie'))
+    def retrieve(self, request, *args, **kwargs):
+        return super().retrieve(request, *args, **kwargs)
+
 
 class NumericalScoreValuesView(ISPyBSafeQuerySet):
     """View to retrieve information about numerical computed molecule scores
@@ -1264,6 +1324,30 @@ class ComputedMolAndScoreView(ISPyBSafeQuerySet):
     serializer_class = serializers.ComputedMolAndScoreSerializer
     filter_permissions = "compound__project_id"
     filterset_fields = ('computed_set',)
+
+    # Shares the "computed-molecules" key_prefix with ComputedMoleculesView
+    # since both depend on the same underlying ComputedMolecule model.
+    @method_decorator(
+        cache_page(
+            settings.CACHE_MIDDLEWARE_SECONDS,
+            cache=settings.CACHE_MIDDLEWARE_ALIAS,
+            key_prefix="computed-molecules",
+        )
+    )
+    @method_decorator(vary_on_headers('Authorization', 'Cookie'))
+    def list(self, request, *args, **kwargs):
+        return super().list(request, *args, **kwargs)
+
+    @method_decorator(
+        cache_page(
+            settings.CACHE_MIDDLEWARE_SECONDS,
+            cache=settings.CACHE_MIDDLEWARE_ALIAS,
+            key_prefix="computed-molecules",
+        )
+    )
+    @method_decorator(vary_on_headers('Authorization', 'Cookie'))
+    def retrieve(self, request, *args, **kwargs):
+        return super().retrieve(request, *args, **kwargs)
 
 
 class DiscoursePostView(viewsets.ViewSet):
@@ -1447,6 +1531,40 @@ class SiteObservationTagView(
         'mol_group',
     )
 
+    @method_decorator(
+        cache_page(
+            settings.CACHE_MIDDLEWARE_SECONDS,
+            cache=settings.CACHE_MIDDLEWARE_ALIAS,
+            key_prefix="tag",
+        )
+    )
+    @method_decorator(vary_on_headers('Authorization', 'Cookie'))
+    def list(self, request, *args, **kwargs):
+        return super().list(request, *args, **kwargs)
+
+    @method_decorator(
+        cache_page(
+            settings.CACHE_MIDDLEWARE_SECONDS,
+            cache=settings.CACHE_MIDDLEWARE_ALIAS,
+            key_prefix="tag",
+        )
+    )
+    @method_decorator(vary_on_headers('Authorization', 'Cookie'))
+    def retrieve(self, request, *args, **kwargs):
+        return super().retrieve(request, *args, **kwargs)
+
+    def perform_create(self, serializer):
+        super().perform_create(serializer)
+        clear_view_cache("tag")
+
+    def perform_update(self, serializer):
+        super().perform_update(serializer)
+        clear_view_cache("tag")
+
+    def perform_destroy(self, instance):
+        super().perform_destroy(instance)
+        clear_view_cache("tag")
+
 
 class PoseView(
     mixins.UpdateModelMixin,
@@ -1460,6 +1578,40 @@ class PoseView(
     filter_permissions = "compound__project_id"
     serializer_class = serializers.PoseSerializer
     filterset_class = filters.PoseFilter
+
+    @method_decorator(
+        cache_page(
+            settings.CACHE_MIDDLEWARE_SECONDS,
+            cache=settings.CACHE_MIDDLEWARE_ALIAS,
+            key_prefix="pose",
+        )
+    )
+    @method_decorator(vary_on_headers('Authorization', 'Cookie'))
+    def list(self, request, *args, **kwargs):
+        return super().list(request, *args, **kwargs)
+
+    @method_decorator(
+        cache_page(
+            settings.CACHE_MIDDLEWARE_SECONDS,
+            cache=settings.CACHE_MIDDLEWARE_ALIAS,
+            key_prefix="pose",
+        )
+    )
+    @method_decorator(vary_on_headers('Authorization', 'Cookie'))
+    def retrieve(self, request, *args, **kwargs):
+        return super().retrieve(request, *args, **kwargs)
+
+    def perform_create(self, serializer):
+        super().perform_create(serializer)
+        clear_view_cache("pose")
+
+    def perform_update(self, serializer):
+        super().perform_update(serializer)
+        clear_view_cache("pose")
+
+    def perform_destroy(self, instance):
+        super().perform_destroy(instance)
+        clear_view_cache("pose")
 
 
 class SessionProjectTagView(
@@ -1497,17 +1649,27 @@ class DownloadStructuresView(
         file_url = request.GET.get('file_url')
 
         if file_url:
-            if models.DownloadLinks.objects.filter(file_url=file_url).first():
-                logger.info('Found %s', file_url)
-                assert os.path.isfile(file_url)
+            # The DB now stores the basename only; the per-download directory
+            # is the task_id. Extract both from the client-supplied path so
+            # the lookup remains exact rather than substring-matching.
+            task_id = os.path.basename(os.path.dirname(file_url))
+            file_name = os.path.basename(file_url)
+            record = models.DownloadLinks.objects.filter(
+                task_id=task_id,
+                file_url=file_name,
+            ).first()
+            if record:
+                logger.info('Got DownloadLinks record for %s', file_url)
+                full_path = record.get_file_url()
+                assert full_path is not None
+                assert os.path.isfile(full_path)
 
-                file_name = os.path.basename(file_url)
-                wrapper = FileWrapper(open(file_url, 'rb'))
+                wrapper = FileWrapper(open(full_path, 'rb'))
                 response = FileResponse(wrapper, content_type='application/zip')
                 response['Content-Disposition'] = (
                     'attachment; filename="%s"' % file_name
                 )
-                response['Content-Length'] = os.path.getsize(file_url)
+                response['Content-Length'] = os.path.getsize(full_path)
                 return response
             else:
                 content = {'message': 'file_url is not found'}
@@ -1522,11 +1684,13 @@ class DownloadStructuresView(
         The user is permitted to download Targets they have access to (whether
         authenticated or not), and this is handled by the queryset logic later in
         this method.
-        """
-        logger.info('+ DownloadStructures.post')
-        logger.debug('DownloadStructures.post.data: %s', request.data)
 
-        erase_out_of_date_download_records()
+        Update: major change with 2142 DownloadLink objects are no
+        longer deleted, they're kept for stats collection. Handling
+        out of date records now means deleting the files and clearing
+        the file_url field in the instance.
+        """
+        logger.debug('request.data=%s', request.data)
 
         serializer = self.serializer_class(data=request.data)
         if not serializer.is_valid():
@@ -1535,23 +1699,57 @@ class DownloadStructuresView(
 
         logger.debug('serializer validated data: %s', serializer.validated_data)
 
+        ipw = IpWare()
+        # request is valid, create download link right away:
+        protein_params, other_params, static_link = get_download_params(
+            serializer.validated_data,
+        )
+        original_search = copy.deepcopy(request.data)
+        original_search.pop('csrfmiddlewaretoken', None)
+        ip, _ = ipw.get_client_ip(request.META)
+
+        location = ''  # TODO: extract from request
+
+        if request.user.is_authenticated:
+            user = request.user
+            username = user.username
+        else:
+            user = get_user_model().objects.get(pk=settings.ANONYMOUS_USER)
+            username = "|anon|"
+
+        logger.debug('user resolved: %s', user)
+
+        # Save new download link to record a download attempt.
+        # It might be used to form a new Task (if one isn't already running)
+        download_link = models.DownloadLinks(
+            user=user,
+            create_date=datetime.now(timezone.utc),
+            original_search=original_search,
+            protein_params=protein_params,
+            other_params=other_params,
+            static_link=static_link,
+            request_ip=ip,
+            request_location=location,
+        )
+        download_link.save()
+
         # Static files (i.e. links not removed)
-        # I don't understand this bit.. what is it doing?
-        # in any case, can I move it to DownloadLinks instance method?
         if serializer.validated_data['file_url']:
             file_url = serializer.validated_data['file_url']
             logger.info('Given file_url "%s"', file_url)
             existing_link = models.DownloadLinks.objects.filter(
-                file_url=file_url
+                task_id=os.path.basename(os.path.dirname(file_url)),
+                file_url=os.path.basename(file_url),
             ).first()
 
             if existing_link and existing_link.static_link:
                 # A record exists, the file _must_ exist.
-                file_url = existing_link.file_url
-                logger.info('Existing static link found for file_url "%s"', file_url)
-                assert os.path.isfile(file_url)
+                full_path = existing_link.get_file_url()
+                logger.info('Existing static link found for file_url "%s"', full_path)
+                assert full_path is not None
+                assert os.path.isfile(full_path)
                 return Response(
-                    {"file_url": file_url},
+                    {"file_url": full_path},
                     status=status.HTTP_200_OK,
                 )
 
@@ -1574,15 +1772,20 @@ class DownloadStructuresView(
             return Response(content, status=status.HTTP_400_BAD_REQUEST)
 
         target_name = serializer.validated_data['target_name']
-        project_name = serializer.validated_data['target_access_string']
+        tas = serializer.validated_data['target_access_string']
         target = None
-        logger.info('Given target_name "%s"', target_name)
+        logger.info(
+            'Starting download (user=%s target=%s, tas=%s)...',
+            username,
+            target_name,
+            tas,
+        )
 
         # Check target_name is valid:
         try:
-            project = models.Project.objects.get(title=project_name)
+            project = models.Project.objects.get(title=tas)
         except models.Project.DoesNotExist:
-            msg = f'Project "{project_name}" does not exist'
+            msg = f'Project "{tas}" does not exist'
             logger.warning(msg)
             content = {'message': msg}
             return Response(content, status=status.HTTP_404_NOT_FOUND)
@@ -1590,7 +1793,7 @@ class DownloadStructuresView(
         if project.title not in _ISPYB_SAFE_QUERY_SET.get_proposals_for_user(
             request.user
         ):
-            msg = f'User "{request.user.username}" is not a member of {project_name}'
+            msg = f'User "{username}" is not a member of {tas}'
             logger.warning(msg)
             content = {'message': msg}
             return Response(content, status=status.HTTP_404_NOT_FOUND)
@@ -1599,18 +1802,28 @@ class DownloadStructuresView(
             target = self.queryset.get(title=target_name, project=project)
         except models.Target.DoesNotExist:
             msg = f'Target "{target_name}" does not exist under project {project.title}'
-            logger.warning(msg)
+            logger.warning("%s (user=%s)", msg, username)
             content = {'message': msg}
             return Response(content, status=status.HTTP_404_NOT_FOUND)
 
-        logger.info('Found Target record %r', target)
+        logger.debug('Found Target record %r (user=%s)', target, username)
+        download_link.target = target
+        download_link.save()
 
         proteins_list = [
             p.strip() for p in request.data.get('proteins', '').split(',') if p
         ]
         if proteins_list:
-            logger.info('Given %s Proteins %s', len(proteins_list), proteins_list)
-            logger.info('Looking for SiteObservation records for given Proteins...')
+            logger.info(
+                'Given %s Proteins %s (user=%s)',
+                len(proteins_list),
+                proteins_list,
+                username,
+            )
+            logger.info(
+                'Looking for SiteObservation records for given Proteins (user=%s)...',
+                username,
+            )
 
             site_obvs = models.SiteObservation.objects.filter(
                 experiment__experiment_upload__target=target,
@@ -1622,13 +1835,16 @@ class DownloadStructuresView(
             )
             if missing_obvs:
                 logger.warning(
-                    'Could not find SiteObservation record for "%s"',
+                    'Could not find SiteObservation record for "%s" (user=%s)',
                     missing_obvs,
+                    username,
                 )
 
         else:
-            logger.info('Request had no Proteins')
-            logger.info('Looking for Protein records for %r...', target)
+            logger.info('Request had no Proteins (user=%s)', username)
+            logger.info(
+                'Looking for Protein records for %r (user=%s)...', target, username
+            )
             site_obvs = models.SiteObservation.objects.filter(
                 experiment__experiment_upload__target=target
             )
@@ -1640,37 +1856,171 @@ class DownloadStructuresView(
             }
             return Response(content, status=status.HTTP_404_NOT_FOUND)
 
+        download_link.proteins = ','.join(
+            [str(k) for k in site_obvs.order_by('pk').values_list('pk', flat=True)],
+        )
+        download_link.save()
+
         # Forced errors?
         if have_infection(INFECTION_STRUCTURE_DOWNLOAD):
             content = {'message': f'Download Error! ({INFECTION_STRUCTURE_DOWNLOAD})'}
             return Response(content, status=status.HTTP_404_NOT_FOUND)
 
-        try:
-            filename_url = return_download_link(
-                serializer.validated_data, target, site_obvs
-            )
-            return Response({"file_url": filename_url})
-        except ValueError:
-            # download with these parameters does not exist, launch a
-            # task to create it
-            original_search = copy.deepcopy(request.data)
-            original_search.pop('csrfmiddlewaretoken', None)
+        # fmt: off
+        # See if we can get an alternative record that represents this download.
+        # It simply has to look like the right download, have a file set,
+        # and not have 'expired' (and not be the record we created earlier in this call)
+        existing_link = models.DownloadLinks.objects.filter(
+            target=download_link.target,
+            proteins=download_link.proteins,
+            protein_params=download_link.protein_params,
+            other_params=download_link.other_params,
+            file_url__isnull=False,
+            expired_date__isnull=True,
+        ).exclude(
+            pk=download_link.pk,
+        ).first()
+        # fmt: on
 
-            task = task_create_download_link.delay(
-                original_search=original_search,
-                validated_data=serializer.validated_data,
-                target_id=target.pk,
-                site_observation_ids=list(site_obvs.values_list('id', flat=True)),
-                user_id=request.user.pk
-                if request.user.is_authenticated
-                else settings.ANONYMOUS_USER,
-                target_access_string=project_name,
+        # Did we find an existing DownloadLink with exact same parameters?
+        if existing_link:
+            return Response({"file_url": existing_link.get_file_url()})
+
+        # Do we have a suitable record for a compression task that's underway
+        # (i.e. has a Task ID) and not expired?
+        #
+        # If we do, then clearly the download is already being built so let's return
+        # its Task ID to the caller - there's no need to start a ew task if one
+        # that will build our download is already running!
+        in_progress_link = (
+            models.DownloadLinks.objects.filter(
+                target=download_link.target,
+                proteins=download_link.proteins,
+                protein_params=download_link.protein_params,
+                other_params=download_link.other_params,
+                task_id__isnull=False,
+                expired_date__isnull=True,
+            )
+            .exclude(
+                pk=download_link.pk,
+            )
+            .first()
+        )
+
+        if in_progress_link:
+            logger.info(
+                "A suitable Task is already in progress (user=%s target=%s task=%s)",
+                username,
+                target.title,
+                in_progress_link.task_id,
+            )
+            url = reverse(
+                'viewer:task_status', kwargs={'task_id': in_progress_link.task_id}
+            )
+        else:
+            # No existing link and nothing in progress - we'd start a new
+            # celery task, but first refuse if the workers are already at
+            # the configured capacity. The newly-created (idle) DownloadLinks
+            # row above carries no task_id, so it's not counted as in-progress
+            # and is left for the cleanup job to reap.
+            if download_capacity_exceeded():
+                return Response(
+                    {
+                        'message': 'Fragalysis is serving too many download'
+                        ' requests. Please try again later.'
+                    },
+                    status=status.HTTP_429_TOO_MANY_REQUESTS,
+                )
+            # No existing link and nothing on progress ... start a new celery task to create it
+            task = task_create_download.delay(
+                download_link_id=download_link.pk,
+                use_zip=serializer.validated_data.get('use_zip', False),
             )
             logger.info(
-                "+ UploadTargetExperiments.create got Celery id %s", task.task_id
+                "Task started to build a download (user=%s target=%s task=%s)",
+                username,
+                target.title,
+                task.task_id,
             )
+            # New task started - return a URL to obtain the task status...
             url = reverse('viewer:task_status', kwargs={'task_id': task.task_id})
-            return Response({'task_status_url': url}, status=status.HTTP_202_ACCEPTED)
+
+        return Response({'task_status_url': url}, status=status.HTTP_202_ACCEPTED)
+
+
+def _check_upload_tas_authorisation(request, target_access_string):
+    """Authorise an upload/validate request against `target_access_string`.
+
+    Returns a Response (error 403 / login redirect) that the caller must
+    return immediately, or None when the user is authorised to proceed.
+
+    A user holding the UserRole.LOADER_ROLE role bypasses the target-access
+    membership check; the bypass is logged as a warning naming the user and
+    the role.
+    """
+    if not settings.AUTHENTICATE_UPLOAD:
+        return None
+
+    if request.user.username == 'asap-service':
+        logger.warning(
+            'Upload attempted with "%s" service account, trying uploader-supplied user',
+            request.user.username,
+        )
+        if 'django-user' in request.headers.keys():
+            try:
+                user = get_user_model().objects.get(
+                    username=request.headers['django-user']
+                )
+            except get_user_model().DoesNotExist:
+                msg = (
+                    f'Upload from "{request.user.username}" '
+                    + 'service account but fragalysis user not found'
+                )
+                logger.error(msg)
+                return Response({'error': msg}, status=status.HTTP_403_FORBIDDEN)
+        else:
+            msg = (
+                f'Upload from "{request.user.username}" service '
+                'account but fragalysis user not supplied'
+            )
+            logger.error(msg)
+            return Response({'error': msg}, status=status.HTTP_403_FORBIDDEN)
+    else:
+        user = request.user
+
+    if not user.is_authenticated:
+        return redirect(settings.LOGIN_URL)
+
+    if user.roles.filter(name=models.UserRole.LOADER_ROLE).exists():
+        logger.warning(
+            'User "%s" bypassing target-access authorisation for "%s" '
+            'via the "%s" role',
+            user.username,
+            target_access_string,
+            models.UserRole.LOADER_ROLE,
+        )
+        return None
+
+    proposals = _ISPYB_SAFE_QUERY_SET.get_proposals_for_user(
+        user, restrict_public_to_membership=True
+    )
+    if target_access_string not in proposals:
+        logger.warning(
+            '(#1712) User %s does not have access to %s (checked %d proposals)',
+            user.username,
+            target_access_string,
+            len(proposals),
+        )
+        return Response(
+            {
+                "target_access_string": [
+                    f"You are not authorized to upload data to '{target_access_string}'"
+                ]
+            },
+            status=status.HTTP_403_FORBIDDEN,
+        )
+
+    return None
 
 
 class UploadExperimentUploadView(viewsets.ViewSet):
@@ -1699,58 +2049,9 @@ class UploadExperimentUploadView(viewsets.ViewSet):
 
         target_access_string = serializer.validated_data['target_access_string']
 
-        if settings.AUTHENTICATE_UPLOAD:
-            if self.request.user.username == 'asap-service':
-                logger.warning(
-                    'Upload attempted with "%s" service account, trying uploader-supplied user',
-                    self.request.user.username,
-                )
-                if 'django-user' in request.headers.keys():
-                    try:
-                        user = get_user_model().objects.get(
-                            username=request.headers['django-user']
-                        )
-                    except get_user_model().DoesNotExist:
-                        msg = (
-                            f'Upload from "{self.request.user.username}" '
-                            + 'service account but fragalysis user not found'
-                        )
-                        logger.error(msg)
-                        return Response(
-                            {'error': msg}, status=status.HTTP_403_FORBIDDEN
-                        )
-                else:
-                    msg = (
-                        f'Upload from "{self.request.user.username}" service '
-                        'account but fragalysis user not supplied'
-                    )
-                    logger.error(msg)
-                    return Response({'error': msg}, status=status.HTTP_403_FORBIDDEN)
-
-            else:
-                user = self.request.user
-
-            if not user.is_authenticated:
-                return redirect(settings.LOGIN_URL)
-            else:
-                proposals = _ISPYB_SAFE_QUERY_SET.get_proposals_for_user(
-                    user, restrict_public_to_membership=True
-                )
-                if target_access_string not in proposals:
-                    logger.warning(
-                        '(#1712) User %s does not have access to %s (checked %d proposals)',
-                        user.username,
-                        target_access_string,
-                        len(proposals),
-                    )
-                    return Response(
-                        {
-                            "target_access_string": [
-                                f"You are not authorized to upload data to '{target_access_string}'"
-                            ]
-                        },
-                        status=status.HTTP_403_FORBIDDEN,
-                    )
+        auth_response = _check_upload_tas_authorisation(request, target_access_string)
+        if auth_response is not None:
+            return auth_response
 
         filename = serializer.validated_data['file']
 
@@ -1821,58 +2122,9 @@ class UploadExperimentValidateView(viewsets.ViewSet):
 
         target_access_string = serializer.validated_data['target_access_string']
 
-        if settings.AUTHENTICATE_UPLOAD:
-            if self.request.user.username == 'asap-service':
-                logger.warning(
-                    'Upload attempted with "%s" service account, trying uploader-supplied user',
-                    self.request.user.username,
-                )
-                if 'django-user' in request.headers.keys():
-                    try:
-                        user = get_user_model().objects.get(
-                            username=request.headers['django-user']
-                        )
-                    except get_user_model().DoesNotExist:
-                        msg = (
-                            f'Upload from "{self.request.user.username}" '
-                            + 'service account but fragalysis user not found'
-                        )
-                        logger.error(msg)
-                        return Response(
-                            {'error': msg}, status=status.HTTP_403_FORBIDDEN
-                        )
-                else:
-                    msg = (
-                        f'Upload from "{self.request.user.username}" service '
-                        'account but fragalysis user not supplied'
-                    )
-                    logger.error(msg)
-                    return Response({'error': msg}, status=status.HTTP_403_FORBIDDEN)
-
-            else:
-                user = self.request.user
-
-            if not user.is_authenticated:
-                return redirect(settings.LOGIN_URL)
-            else:
-                proposals = _ISPYB_SAFE_QUERY_SET.get_proposals_for_user(
-                    user, restrict_public_to_membership=True
-                )
-                if target_access_string not in proposals:
-                    logger.warning(
-                        '(#1712) User %s does not have access to %s (checked %d proposals)',
-                        user.username,
-                        target_access_string,
-                        len(proposals),
-                    )
-                    return Response(
-                        {
-                            "target_access_string": [
-                                f"You are not authorized to upload data to '{target_access_string}'"
-                            ]
-                        },
-                        status=status.HTTP_403_FORBIDDEN,
-                    )
+        auth_response = _check_upload_tas_authorisation(request, target_access_string)
+        if auth_response is not None:
+            return auth_response
 
         validation_response = {
             'success': True,
@@ -1964,6 +2216,26 @@ class TaskStatusView(APIView):
 
         # task_id is a UUID, but Celery expects a string
         task_id_str = str(task_id)
+
+        # If a download with this task was expired because its task was lost
+        # (see viewer.download_structures.expire_lost_download_records) the Celery
+        # result may be long gone, so return the recorded reason directly. This is
+        # the meaningful error the user should see on their next query.
+        lost_link = models.DownloadLinks.objects.filter(
+            task_id=task_id_str,
+            expired_date__isnull=False,
+            expiry_reason__isnull=False,
+        ).first()
+        if lost_link:
+            return JsonResponse(
+                {
+                    'started': True,
+                    'finished': True,
+                    'status': 'FAILED',
+                    'messages': [lost_link.expiry_reason],
+                }
+            )
+
         result = None
         try:
             result = AsyncResult(task_id_str)
@@ -1987,8 +2259,8 @@ class TaskStatusView(APIView):
                 # occasionally mean it's 'None'. Here we assume the task has yet
                 # to be handled internally and info will be populated soon.
                 # For now we log a warning and return an UNKNOWN status.
-                logger.warning(
-                    'AsyncResult info for %s is %s instead of dict',
+                logger.debug(
+                    '/%s/ AsyncResult info is %s instead of dict',
                     task_id_str,
                     type(result.info),
                 )
@@ -2011,7 +2283,7 @@ class TaskStatusView(APIView):
                 status=status.HTTP_404_NOT_FOUND,
             )
 
-        logger.debug("project found: %s", project.title)
+        logger.debug("/%s/ Project found: %s", task_id, project.title)
 
         if not project.open_to_public:
             if not request.user.is_authenticated and settings.AUTHENTICATE_UPLOAD:
@@ -2143,6 +2415,28 @@ class SiteObservationView(ISPyBSafeQuerySet):
     serializer_class = serializers.SiteObservationReadSerializer
     filterset_class = filters.SiteObservationFilter
     filter_permissions = "experiment__experiment_upload__project"
+
+    @method_decorator(
+        cache_page(
+            settings.CACHE_MIDDLEWARE_SECONDS,
+            cache=settings.CACHE_MIDDLEWARE_ALIAS,
+            key_prefix="site-observation",
+        )
+    )
+    @method_decorator(vary_on_headers('Authorization', 'Cookie'))
+    def list(self, request, *args, **kwargs):
+        return super().list(request, *args, **kwargs)
+
+    @method_decorator(
+        cache_page(
+            settings.CACHE_MIDDLEWARE_SECONDS,
+            cache=settings.CACHE_MIDDLEWARE_ALIAS,
+            key_prefix="site-observation",
+        )
+    )
+    @method_decorator(vary_on_headers('Authorization', 'Cookie'))
+    def retrieve(self, request, *args, **kwargs):
+        return super().retrieve(request, *args, **kwargs)
 
 
 class SiteObservationIDView(ISPyBSafeQuerySet):
@@ -2996,8 +3290,10 @@ class UploadMetadataView(ISPyBSafeQuerySet):
         errors = load_tags_from_file(filename=filename, target=target, user=user)
         if errors:
             return Response({"errors": errors}, status=status.HTTP_400_BAD_REQUEST)
-        else:
-            return Response({'success': True}, status=status.HTTP_200_OK)
+        # load_tags_from_file mutates SiteObservationTag, SiteObservation,
+        # and Pose; drop the corresponding cached responses.
+        clear_view_cache("tag", "site-observation", "pose")
+        return Response({'success': True}, status=status.HTTP_200_OK)
 
 
 class DownloadComputedSetView(ISPyBSafeQuerySet):
@@ -3401,6 +3697,40 @@ class PlotDataView(
     filter_permissions = "project"
     permission_classes = [IsObjectProposalMember]
     filterset_fields = ('target',)
+
+
+class UserRoleView(viewsets.ReadOnlyModelViewSet):
+    """List user roles, and (via the 'users' detail action) the users
+    assigned to a specific role.
+
+      GET /api/user_roles/                  list all roles
+      GET /api/user_roles/<role-name>/      one role
+      GET /api/user_roles/<role-name>/users/  users holding that role
+    """
+
+    queryset = models.UserRole.objects.all().order_by('name')
+    serializer_class = serializers.UserRoleSerializer
+    permission_classes = [permissions.IsAuthenticated]
+    # Look up roles by their (unique) name rather than pk, so the URL
+    # reads naturally, e.g. /api/user_roles/Loader/users/.
+    lookup_field = 'name'
+
+    @action(detail=True, methods=['get'])
+    def users(self, request, name=None):
+        # 'name' is supplied via the URL kwarg and consumed by get_object()
+        # through self.kwargs; the method-level argument is unused.
+        del request, name
+        role = self.get_object()
+        # Only expose usernames here -- emails and real names are PII and
+        # not needed to answer "who holds this role".
+        users_qs = role.users.all().order_by('username').only('username')
+        page = self.paginate_queryset(users_qs)
+        serializer = serializers.RoleUsernameSerializer(
+            page if page is not None else users_qs, many=True
+        )
+        if page is not None:
+            return self.get_paginated_response(serializer.data)
+        return Response(serializer.data)
 
 
 class TASStatsView(viewsets.ViewSet):

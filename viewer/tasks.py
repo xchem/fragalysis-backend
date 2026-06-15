@@ -27,8 +27,9 @@ from fragalysis.celery import app as celery_app
 from viewer.models import Compound, DesignSet
 from viewer.target_loader import load_target
 
+from .cache import clear_view_cache
 from .cset_upload import MolOps, PdbOps, blank_mol_vals
-from .download_structures import create_download_link
+from .download_structures import create_download
 from .models import ComputedSet, JobFileTransfer, JobRequest, SiteObservation
 from .sdf_check import (  # check_refmol,
     add_warning,
@@ -133,6 +134,10 @@ def process_compound_set(validate_output):
         computed_set_id=computed_set_id,
     )
     compound_set, process_messages = save_mols.task()
+
+    # ComputedMolecule rows have just been written; drop both
+    # ComputedMoleculesView and ComputedMolAndScoreView caches.
+    clear_view_cache("computed-molecules")
 
     logger.info('process_compound_set() EXIT (CompoundSet.id="%s")', compound_set.id)
     return 'process', compound_set.id, process_messages
@@ -710,28 +715,15 @@ def erase_compound_set_job_material(task_params, job_request_id=0):
 
 
 @celery_app.task(bind=True)
-def task_create_download_link(
+def task_create_download(
     self,
-    *,
-    original_search,
-    validated_data,
-    target_id,
-    site_observation_ids,
-    user_id,
-    target_access_string,
+    download_link_id: int,
+    use_zip: bool = False,
 ):
     logger.info(
-        'TASK %s create_download_link launched, target_zip=%s',
+        'TASK %s create_download_link launched, download_link=%s',
         self.request.id,
-        validated_data,
+        download_link_id,
     )
-    create_download_link(
-        original_search=original_search,
-        validated_data=validated_data,
-        target_id=target_id,
-        site_observation_ids=site_observation_ids,
-        user_id=user_id,
-        task=self,
-        target_access_string=target_access_string,
-    )
+    create_download(download_link_id, task=self, use_zip=use_zip)
     logger.info('TASK %s create_download_link completed', self.request.id)

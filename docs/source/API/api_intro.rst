@@ -45,7 +45,7 @@ Once we've serialized our data, we next need to write :code:`Views`. Views defin
 be performed against a resource, and what we do with that request to return information. DRF comes with a bunch of
 methods, classes and functions that allow us to do this in a simple way. We can define, using standard django methods,
 what filter we want to perform on the relevant :code:`Model`, which :code:`fields` from the model we want to allow the
-user to filter by (:code:`filter_fields`) and what :code:`Response` we want to post back to them.
+user to filter by (:code:`filterset_fields`) and what :code:`Response` we want to post back to them.
 
 Finally, we need to specify an :code:`endpoint` (i.e. URL) that the :code:`View` is served at, so the user can make
 requests against the web service.
@@ -91,14 +91,14 @@ Given a :code:`Project` is is a relatively simple task to check that the user
 has been given access to us using the security module as described above, and
 the code in the :code:`security` module relies on this pattern.
 
-These actions ar simplified through the use of the :code:`ISpyBSafeQuerySet` class
+These actions ar simplified through the use of the :code:`ISPyBSafeQuerySet` class
 to filter objects when reading and the :code:`IsObjectProposalMember` class to
 check the user has access to the object when creating or altering it. These classes
 rely on the definition of :code:`filter_permissions` property to direct the
 search to the object's :code:`Project`.
 
-View classes must generally inherit from :code:`ISpyBSafeQuerySet`,
-which provides automatic filtering of objects. The :code:`ISpyBSafeQuerySet`
+View classes must generally inherit from :code:`ISPyBSafeQuerySet`,
+which provides automatic filtering of objects. The :code:`ISPyBSafeQuerySet`
 inherits from th :code:`ReadOnlyModelViewSet` view set. If a view also needs to provide
 create, update or delete actions they should also inherit an appropriate
 DRF **mixin**, adding support for a method so support the functionality that is
@@ -123,9 +123,9 @@ The Target model contains information about a protein target. In django, we defi
     from django.db import models
 
     class Target(models.Model):
-        title = models.CharField(unique=True, max_length=200)
+        title = models.CharField(max_length=200)
         init_date = models.DateTimeField(auto_now_add=True)
-        project_id = models.ManyToManyField(Project)
+        project = models.ForeignKey(Project, on_delete=models.CASCADE)
         uniprot_id = models.CharField(max_length=100, null=True)
         metadata = models.FileField(upload_to="metadata/", null=True, max_length=255)
         zip_archive = models.FileField(upload_to="archive/", null=True, max_length=255)
@@ -157,7 +157,7 @@ request.
 
         class Meta:
             model = Target
-            fields = ("id", "title", "project_id", "protein_set", "template_protein", "metadata", "zip_archive")
+            fields = ("id", "title", "project", "template_protein", "metadata", "zip_archive")
 
 
 The serializer uses the DRF :code:`serializers.ModelSerializer` class. We define the :code:`model` and :code:`fields` in
@@ -203,7 +203,7 @@ this for different types of view, but we won't go into detail here - this is the
 of our standard views.
 
 Additionally, in the actual code, you will notice that :code:`TargetView(viewsets.ReadOnlyModelViewSet)` is replaced by
-:code:`TargetView(ISpyBSafeQuerySet)`. :code:`ISpyBSafeQuerySet` is a version of :code:`viewsets.ReadOnlyModelViewSet`
+:code:`TargetView(ISPyBSafeQuerySet)`. :code:`ISPyBSafeQuerySet` is a version of :code:`viewsets.ReadOnlyModelViewSet`
 that includes an authentication method that filters records based omn a user's
 membership of the object's :code:`project`.
 
@@ -216,8 +216,8 @@ membership of the object's :code:`project`.
     class TargetView(viewsets.ReadOnlyModelViewSet):
         queryset = Target.objects.filter()
         serializer_class = TargetSerializer
-        filter_permissions = "project_id"
-        filter_fields = ("title",)
+        filter_permissions = "project"
+        filterset_fields = ("id", "title", "project")
 
 **URL**
 
@@ -231,7 +231,7 @@ the :code:`TargetView` to that endpoint:
     from viewer import views as viewer_views
 
     router = DefaultRouter()
-    router.register(r"targets", viewer_views.TargetView, "targets")
+    router.register("targets", viewer_views.TargetView, "targets")
 
 The DRF :code:`DefaultRouter` provides a simple, quick and consistent way of wiring ViewSet logic to a set of URLs.
 Router automatically maps the incoming request to proper viewset action based on the request method type.
@@ -242,10 +242,10 @@ To make sure that we serve the URLS from :code:`api/urls.py`, we include the URL
 .. code-block:: python
 
     ...
-    url(r"^api/", include("api.urls")),
+    path("api/", include("api.urls")),
     ...
 
-and specify this file as the :code:`URL_ROOTCONF` in :code:`fragalysis/settings.py` - the django settings file:
+and specify this file as the :code:`ROOT_URLCONF` in :code:`fragalysis/settings.py` - the django settings file:
 
 .. code-block:: python
 

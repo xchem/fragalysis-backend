@@ -15,7 +15,7 @@ import os
 import sys
 
 import django
-from django.utils.encoding import force_text
+from django.utils.encoding import force_str
 from django.utils.html import strip_tags
 
 sys.path.insert(0, os.path.abspath('../..'))
@@ -79,9 +79,9 @@ def process_docstring(app, what, name, obj, options, lines):
             # Try the column's help text or the verbose name
             text = ""
             if hasattr(field, "help_text"):
-                text = strip_tags(force_text(field.help_text))
+                text = strip_tags(force_str(field.help_text))
             if not text and hasattr(field, "verbose_name"):
-                text = force_text(field.verbose_name).capitalize()
+                text = force_str(field.verbose_name).capitalize()
             if text:
                 lines.append(f':param {field.attname}: {text}')
                 lines.append(f':type {field.attname}: {type(field).__name__}')
