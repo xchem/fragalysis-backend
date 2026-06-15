@@ -734,6 +734,14 @@ TAS_REGEX_ERROR_MSG: str = os.environ.get(
     "Must begin 'lb' or 'sw' followed by a 5 digit proposal a hyphen and a visit number.",
 )
 
+# The Target Access Authenticator service location (e.g.
+# "http://auth.ta-authenticator.svc"). When set, the security layer
+# (api.security.ISPyBSafeQuerySet) resolves a user's proposals from the external
+# authenticator via the xchem-ta-auth-client; when empty it falls back to Django
+# proposal membership. The client reads TA_AUTH_SERVICE/TA_AUTH_QUERY_KEY from
+# the environment itself - this setting is what app code gates on.
+TA_AUTH_SERVICE: str = os.environ.get("TA_AUTH_SERVICE", "")
+
 # Version variables.
 # These are set by the Dockerfile in the fragalysis-stack repository
 # and controlled by the CI process, i.e. they're not normally set by a a user.
