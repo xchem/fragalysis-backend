@@ -28,11 +28,11 @@ CELERY_TASK_ALWAYS_EAGER = True
 CELERY_TASK_EAGER_PROPAGATES = True
 
 # By default the security layer resolves a user's proposals from Django
-# (Project.user_id membership). Tests that want the external TA-authenticator
+# (Project.user_id membership). TA_AUTH_SERVICE is inherited from the real
+# settings (empty unless the env var is set) so these tests also guard against
+# that setting going missing. Tests that want the external TA-authenticator
 # path set settings.TA_AUTH_SERVICE themselves (e.g. via the pytest-django
-# `settings` fixture) and patch api.ta_auth_connector.get_auth_target_access.
-TA_AUTH_SERVICE = ""
-TA_AUTH_QUERY_KEY = ""
+# `settings` fixture) and patch ta_auth_connector.get_auth_target_access.
 
 # Use the plain PostgreSQL backend for tests instead of the django_prometheus
 # wrapper. The wrapper registers process-wide Prometheus collectors at import

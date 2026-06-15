@@ -13,10 +13,10 @@ set will arrive once a real target archive is committed and loaded via the
 from typing import Callable, Iterable
 
 import pytest
+import ta_auth_connector
 from django.contrib.auth.models import User
 from rest_framework.test import APIClient
 
-import api.ta_auth_connector as ta_auth_connector
 from viewer.models import Project, Target
 
 
