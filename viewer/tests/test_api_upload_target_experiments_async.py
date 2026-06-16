@@ -8,7 +8,9 @@ does not model the broker/worker handshake the upload view performs, so this
 test deliberately does *not* have an in-process counterpart. It uploads the
 bundle, polls the ``task_status`` endpoint until the load finishes, asserts the
 task reached ``SUCCESS``, then asserts the GET endpoints return the expected
-data.
+data. Finally - per issue #967 - it builds and fetches a download archive for
+the loaded target, proving the download endpoint produces a real, non-empty zip
+(the archive itself is not kept).
 
 It is marked ``integration`` (deselected by the default ``-m "not integration"``
 addopts) **and** gated on ``INTEGRATION_BASE_URL`` (the base URL of the running
@@ -142,6 +144,52 @@ def _poll_until_finished(http: urllib3.PoolManager, status_url: str) -> dict:
     )
 
 
+def _download_target(
+    http: urllib3.PoolManager, base_url: str, target_name: str, tas: str
+) -> None:
+    """Build and fetch a download archive for an already-loaded target (#967).
+
+    Mirrors the upload flow: POST to start the build, poll to SUCCESS, then
+    re-POST to retrieve the now-ready ``file_url``, then GET the archive itself.
+    The file content is not kept - we only assert that a real, non-empty zip
+    comes back, which is the whole point of issue #967.
+    """
+    fields = {"target_name": target_name, "target_access_string": tas}
+
+    response = http.request(
+        "POST", f"{base_url}/api/download_structures/", fields=fields
+    )
+    # 202: a build task was started (or one is already in progress). 200: a
+    # matching completed download already exists and the file_url is returned
+    # immediately. Both are valid starting points.
+    assert response.status in (202, 200), (response.status, response.data)
+    body = json.loads(response.data.decode("utf-8"))
+
+    if response.status == 202:
+        status_path = body["task_status_url"]
+        result = _poll_until_finished(http, f"{base_url}{status_path}")
+        assert result["status"] == "SUCCESS", result
+        # Re-POST the identical request: the completed DownloadLinks record now
+        # exists, so the view returns the ready file_url (200) rather than
+        # starting another build. This is more robust than scraping the
+        # file_url out of the task status messages.
+        response = http.request(
+            "POST", f"{base_url}/api/download_structures/", fields=fields
+        )
+        assert response.status == 200, (response.status, response.data)
+        body = json.loads(response.data.decode("utf-8"))
+
+    file_url = body["file_url"]
+
+    archive = http.request(
+        "GET", f"{base_url}/api/download_structures/?file_url={file_url}"
+    )
+    assert archive.status == 200, (archive.status, archive.data[:200])
+    assert archive.headers.get("Content-Type") == "application/zip"
+    assert int(archive.headers.get("Content-Length", "0")) > 0
+    assert archive.data[:4] == b"PK\x03\x04", "download body is not a zip"
+
+
 @requires_external_data
 @requires_base_url
 def test_upload_poll_then_get(tmp_path):
@@ -224,3 +272,8 @@ def test_upload_poll_then_get(tmp_path):
         assert (
             not missing
         ), f"{key}: expected objects not found in {object_url}: {missing}"
+
+    # Finally (#967): prove the loaded target can be downloaded. Reuse the
+    # already-loaded state rather than re-uploading - the upload above is the
+    # expensive part. The manifest already carries the title and TAS we need.
+    _download_target(http, base_url, expect["target_title"], entry["uploads"][0]["tas"])
