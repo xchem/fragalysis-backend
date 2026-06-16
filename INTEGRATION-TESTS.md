@@ -129,7 +129,8 @@ running stack owns the one real database. For each manifest upload it:
 5. **Downloads** the loaded target (issue #967). It POSTs the target title and
    TAS to `/api/download_structures/`, polls the returned `task_status_url` to
    `SUCCESS`, re-POSTs to obtain the now-ready `file_url`, then GETs the archive
-   and asserts a non-empty `application/zip` body (the file is not kept). This
+   and asserts a non-empty archive body — a zip or, as the default download is,
+   a gzip tarball (the file is not kept). This
    reuses the just-loaded state — no second upload — so it answers the original
    ticket's "do we need to release the stress tests as a package?" with **no**:
    the download check lives here, alongside the upload it depends on.

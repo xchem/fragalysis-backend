@@ -9,8 +9,8 @@ test deliberately does *not* have an in-process counterpart. It uploads the
 bundle, polls the ``task_status`` endpoint until the load finishes, asserts the
 task reached ``SUCCESS``, then asserts the GET endpoints return the expected
 data. Finally - per issue #967 - it builds and fetches a download archive for
-the loaded target, proving the download endpoint produces a real, non-empty zip
-(the archive itself is not kept).
+the loaded target, proving the download endpoint produces a real, non-empty
+archive (the archive itself is not kept).
 
 It is marked ``integration`` (deselected by the default ``-m "not integration"``
 addopts) **and** gated on ``INTEGRATION_BASE_URL`` (the base URL of the running
@@ -151,8 +151,8 @@ def _download_target(
 
     Mirrors the upload flow: POST to start the build, poll to SUCCESS, then
     re-POST to retrieve the now-ready ``file_url``, then GET the archive itself.
-    The file content is not kept - we only assert that a real, non-empty zip
-    comes back, which is the whole point of issue #967.
+    The file content is not kept - we only assert that a real, non-empty
+    archive comes back, which is the whole point of issue #967.
     """
     fields = {"target_name": target_name, "target_access_string": tas}
 
