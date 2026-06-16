@@ -45,7 +45,10 @@ ENDPOINT = "upload_target_experiments"
 BASE_URL_ENV = "INTEGRATION_BASE_URL"
 
 #: How long to wait for the async load to finish, and how often to poll.
-POLL_TIMEOUT_SECONDS = 30 * 60
+#: Generous because the load runs on a single Celery worker and a slow/contended
+#: CI runner has been seen to take ~30 min for the target load alone - 45 min
+#: leaves headroom so a sluggish runner does not flake the test on a timeout.
+POLL_TIMEOUT_SECONDS = 45 * 60
 POLL_INTERVAL_SECONDS = 5
 
 #: Per-request read timeout (seconds). The whole load completes in a few minutes
