@@ -185,9 +185,16 @@ def _download_target(
         "GET", f"{base_url}/api/download_structures/?file_url={file_url}"
     )
     assert archive.status == 200, (archive.status, archive.data[:200])
-    assert archive.headers.get("Content-Type") == "application/zip"
+    # The endpoint labels every download "application/zip", but the actual body
+    # depends on the requested format: the default (use_zip off) is a gzip
+    # tarball (pigz), and use_zip would yield a real zip. We only need to prove
+    # a real, non-empty archive came back, so accept either signature rather
+    # than couple this test to the compression choice.
     assert int(archive.headers.get("Content-Length", "0")) > 0
-    assert archive.data[:4] == b"PK\x03\x04", "download body is not a zip"
+    zip_magic, gzip_magic = b"PK\x03\x04", b"\x1f\x8b"
+    assert (
+        archive.data[:4] == zip_magic or archive.data[:2] == gzip_magic
+    ), f"download body is not a zip/gzip archive: {archive.data[:4]!r}"
 
 
 @requires_external_data
