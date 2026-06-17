@@ -3664,7 +3664,7 @@ class TargetLoader:
     def _soakdb_datetime(self, row_data, soakdb_field=None):
         if row_data[soakdb_field] and row_data[soakdb_field] != "None":
             try:
-                return parse(row_data[soakdb_field])
+                parsed = parse(row_data[soakdb_field])
             except ParserError:
                 # sometimes dates are given as:
                 # 2020-12-02_09-50-12.03
@@ -3672,7 +3672,7 @@ class TargetLoader:
                 s_clean = row_data[soakdb_field].replace('_', ' ')
                 s_clean = s_clean.replace('-', ':')
                 try:
-                    return parse(s_clean)
+                    parsed = parse(s_clean)
                 except ParserError:
                     # still nothing
                     msg = (
@@ -3681,6 +3681,13 @@ class TargetLoader:
                     )
                     self.report.log(logging.WARNING, msg)
                     return None
+            # SoakDB timestamps carry no timezone, so the parser returns a naive
+            # datetime. Storing that with USE_TZ active emits a RuntimeWarning on
+            # every Experiment datetime field (tens of thousands per load), so
+            # interpret it in the configured default timezone to store it aware.
+            if timezone.is_naive(parsed):
+                parsed = timezone.make_aware(parsed)
+            return parsed
         else:
             return None
 

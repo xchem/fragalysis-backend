@@ -126,6 +126,14 @@ running stack owns the one real database. For each manifest upload it:
    manifest count is non-null) — then any `expect.objects` **content**
    assertions, paging through each named endpoint's full result set and failing
    with the unmatched expectations if an expected object is absent.
+5. **Downloads** the loaded target (issue #967). It POSTs the target title and
+   TAS to `/api/download_structures/`, polls the returned `task_status_url` to
+   `SUCCESS`, re-POSTs to obtain the now-ready `file_url`, then GETs the archive
+   and asserts a non-empty archive body — a zip or, as the default download is,
+   a gzip tarball (the file is not kept). This
+   reuses the just-loaded state — no second upload — so it answers the original
+   ticket's "do we need to release the stress tests as a package?" with **no**:
+   the download check lives here, alongside the upload it depends on.
 
 Visibility for the anonymous GET/poll comes from the stack's `PUBLIC_TAS`, which
 publishes the loaded proposal (the loaded `Project.title` equals the TAS) so the
