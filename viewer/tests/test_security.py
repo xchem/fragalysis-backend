@@ -2,7 +2,7 @@
 
 This is the highest-value area to test: every view that exposes project data
 relies on it, and its only external dependency is a single function -
-``api.ta_auth_connector.get_auth_target_access`` - which the
+``ta_auth_connector.get_auth_target_access`` - which the
 ``mock_target_access`` fixture patches.
 
 We exercise the helper methods directly on a bare ``ISPyBSafeQuerySet``

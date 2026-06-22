@@ -30,15 +30,16 @@ from rest_framework.decorators import action
 from rest_framework.parsers import BaseParser
 from rest_framework.response import Response
 from rest_framework.views import APIView
+from ta_auth_connector import get_auth_ping, get_auth_target_access, get_auth_version
 
 from api.infections import INFECTION_STRUCTURE_DOWNLOAD, have_infection
 from api.security import ISPyBSafeQuerySet
-from api.ta_auth_connector import (
-    get_auth_ping,
-    get_auth_target_access,
-    get_auth_version,
+from api.utils import (
+    deployment_mode_is_production,
+    get_highlighted_diffs,
+    get_img_from_smiles,
+    pretty_request,
 )
-from api.utils import get_highlighted_diffs, get_img_from_smiles, pretty_request
 from service_status.models import Service
 from viewer import filters, models, serializers
 from viewer.permissions import IsObjectProposalMember
@@ -51,6 +52,7 @@ from viewer.squonk2_agent import (
     Squonk2AgentRv,
     get_squonk2_agent,
 )
+from viewer.target_delete import delete_target
 from viewer.target_loader import (
     split_version,
     validate_data_version,
@@ -328,7 +330,7 @@ class ProjectView(mixins.UpdateModelMixin, ISPyBSafeQuerySet):
     filter_permissions = ""
 
 
-class TargetView(mixins.UpdateModelMixin, ISPyBSafeQuerySet):
+class TargetView(mixins.UpdateModelMixin, mixins.DestroyModelMixin, ISPyBSafeQuerySet):
     queryset = models.Target.objects.filter()
     serializer_class = serializers.TargetSerializer
     filter_permissions = "project"
@@ -354,6 +356,32 @@ class TargetView(mixins.UpdateModelMixin, ISPyBSafeQuerySet):
             return Response(
                 {"message": "wrong parameters"}, status=status.HTTP_400_BAD_REQUEST
             )
+
+    def destroy(self, request, pk=None):
+        """Fully delete a target - its database graph and media files.
+
+        Restricted to non-production instances and to members of the target's
+        project (enforced by IsObjectProposalMember, checked explicitly below
+        because the custom destroy bypasses DRF's get_object() hook). The
+        membership check is skipped when AUTHENTICATE_UPLOAD is False, to allow
+        deletion testing in development (this setting is itself only permitted
+        outside production).
+        """
+        # Never allow target deletion in production.
+        if deployment_mode_is_production():
+            return Response(
+                {"message": "Target deletion is disabled in production"},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        target = get_object_or_404(self.queryset, pk=pk)
+        # Reject anonymous users and non-members of the target's project,
+        # unless authentication has been switched off for development testing.
+        if settings.AUTHENTICATE_UPLOAD:
+            self.check_object_permissions(request, target)
+
+        delete_target(target)
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
 
 class CompoundView(mixins.UpdateModelMixin, ISPyBSafeQuerySet):

@@ -1,0 +1,129 @@
+---
+# A self-contained stack for the async API integration test (issue #964).
+#
+# Unlike docker-compose.yml (which runs Celery eagerly), this brings up a real
+# broker (redis) and a celery_worker so an upload is processed asynchronously,
+# exactly as in production. The `test` service drives the running `backend`
+# purely over HTTP and polls task_status to SUCCESS.
+#
+# Run locally (after building the backend image, e.g. via the build-stack flow):
+#
+#   BE_NAMESPACE=xchem BE_IMAGE_TAG=latest \
+#   UNIT_TEST_BUCKET_AND_PATH=s3://im-fragalysis-backend/unit-test \
+#   UNIT_TEST_DATA_IDENTIFIER=ALPHA \
+#   docker compose -f docker-compose.integration.yml up \
+#     --abort-on-container-exit --exit-code-from test
+#
+# The download is anonymous, so no AWS credentials are needed.
+
+# The backend and the worker share these settings - the worker reads the bundle
+# the backend wrote to MEDIA_ROOT, and both must agree on the broker, the
+# (disabled) upload authorisation, and the published TAS.
+x-backend-environment: &backend-environment
+  DEPLOYMENT_MODE: 'development'
+  POSTGRESQL_USER: postgres
+  CACHE_ENABLED: 'No'
+  INFECTIONS: ''
+  # Process uploads asynchronously via the worker, not eagerly.
+  CELERY_TASK_ALWAYS_EAGER: 'False'
+  CELERY_BROKER_URL: 'redis://redis:6379/0'
+  CELERY_RESULT_BACKEND: 'redis://redis:6379/0'
+  # The upload runs without a pre-existing proposal/membership ...
+  AUTHENTICATE_UPLOAD: 'False'
+  # ... and the loaded data is published so the anonymous GET/poll can see it.
+  PUBLIC_TAS: ${PUBLIC_TAS:-lb32627-66}
+  LOGGING_FRAMEWORK_ROOT_LEVEL: ${LOGGING_FRAMEWORK_ROOT_LEVEL:-INFO}
+  PROXY_FORWARDED_PROTO_HEADER: http
+
+services:
+
+  database:
+    extends:
+      file: common-services.yml
+      service: database
+    # Override common-services' host bind mount with an ephemeral named volume,
+    # so the test stack starts from a clean database every run (down -v wipes
+    # it). An empty `volumes: []` does NOT clear an inherited bind mount - the
+    # override must re-declare the same target path.
+    volumes:
+    - integration-db:/var/lib/postgresql/data
+
+  redis:
+    extends:
+      file: common-services.yml
+      service: redis
+    volumes:
+    - integration-redis:/data
+
+  # The stack backend (gunicorn + nginx, listening on :80), with Celery
+  # running for real against redis.
+  backend:
+    image: ${BE_NAMESPACE:-xchem}/fragalysis-backend:${BE_IMAGE_TAG:-latest}
+    container_name: backend
+    command: /bin/bash /code/launch-stack.sh
+    environment: *backend-environment
+    volumes:
+    # The upload view writes the bundle to MEDIA_ROOT/tmp; the worker (a
+    # separate container) must read the same path.
+    - media:/code/media
+    depends_on:
+      database:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      # Ready once nginx is accepting connections on :80.
+      test: python -c "import socket; socket.create_connection(('localhost', 80), 2).close()"
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 20s
+
+  # The asynchronous task processor (per docker-compose.celery.yml).
+  celery_worker:
+    image: ${BE_NAMESPACE:-xchem}/fragalysis-backend:${BE_IMAGE_TAG:-latest}
+    container_name: celery_worker
+    command: sh -c "celery -A fragalysis worker -l info"
+    hostname: celery_worker
+    environment: *backend-environment
+    volumes:
+    - media:/code/media
+    restart: on-failure
+    depends_on:
+      database:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      backend:
+        condition: service_healthy
+
+  # The test runner: drives the backend over HTTP and runs the integration test.
+  # The production image carries only the 'main' dependencies, so install the
+  # test toolchain (matching pyproject's test group) before running pytest.
+  test:
+    image: ${BE_NAMESPACE:-xchem}/fragalysis-backend:${BE_IMAGE_TAG:-latest}
+    container_name: integration_test
+    working_dir: /code
+    command: >-
+      sh -c "pip install --quiet pytest pytest-django pytest-cov &&
+      python -m pytest
+      viewer/tests/test_api_upload_target_experiments_async.py
+      -m integration --no-cov -p no:cacheprovider -v"
+    environment:
+      INTEGRATION_BASE_URL: 'http://backend:80'
+      UNIT_TEST_BUCKET_AND_PATH: ${UNIT_TEST_BUCKET_AND_PATH}
+      UNIT_TEST_DATA_IDENTIFIER: ${UNIT_TEST_DATA_IDENTIFIER}
+      # pyproject points DJANGO_SETTINGS_MODULE at tests.test_settings, but the
+      # top-level tests/ package is .dockerignore'd out of the image. The async
+      # test is pure HTTP, but pytest still imports viewer/tests/conftest.py
+      # (which imports Django models), so Django must be configured - use the
+      # app's real settings module, which is present in the image.
+      DJANGO_SETTINGS_MODULE: fragalysis.settings
+    depends_on:
+      backend:
+        condition: service_healthy
+
+volumes:
+  media:
+  integration-db:
+  integration-redis:

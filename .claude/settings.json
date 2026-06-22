@@ -1,6 +1,7 @@
 {
   "permissions": {
     "allow": [
+      "Bash(awx job_templates launch *)",
       "Bash(docker buildx *)",
       "Bash(docker compose *)",
       "Bash(git add *)",

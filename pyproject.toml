@@ -18,7 +18,8 @@ django-extensions = "^4.1"
 django-filter = "^25.2"
 django-guardian = "^3.2"
 django-simple-history = "^3.10"
-fragalysis = "^1.1.0"
+xchem-fragutils = "^2.0.0"
+xchem-ta-auth-client = "^1.0.0"
 gunicorn = "^23.0"
 humanize = "^4.15"
 mozilla_django_oidc = "^4.0"
@@ -71,9 +72,9 @@ httpie = "^3.2"
 black = "^25.9"
 mypy = "^1.18"
 
-# Test framework - installed into the (test) container image so that
-# 'pytest' is available when docker-compose.test.yml runs test-entry.sh.
-# See the Dockerfile 'poetry install --only main,test' line.
+# Test framework - the unit tests run with pytest in a host/CI Poetry
+# virtualenv (see run-unit-tests.sh), not inside the backend image. Install
+# with 'poetry install --only main,test'.
 [tool.poetry.group.test.dependencies]
 pytest = "^8.3"
 pytest-django = "^4.9"
@@ -99,4 +100,22 @@ testpaths = ["viewer/tests"]
 #   pass --create-db explicitly when migrations change. CI containers are
 #   ephemeral so the first (and only) run always creates it.
 # --strict-markers: typo'd/unknown @pytest.mark markers become errors.
-addopts = "--reuse-db --strict-markers --cov=viewer --cov-report=term-missing"
+# -m "not integration": the async integration test needs the live container
+#   stack (redis + celery worker) and is never collected by the default/host
+#   run; the integration compose runs it explicitly with -m integration.
+addopts = "--reuse-db --strict-markers -m \"not integration\" --cov=viewer --cov-report=term-missing --cov-report=html"
+markers = [
+    "integration: needs the live container stack (redis + celery worker)",
+]
+
+[tool.coverage.run]
+# Coverage measures the viewer app's hand-written code. Auto-generated
+# migrations (excluded from all lint hooks too) and the tests themselves
+# would otherwise distort the headline figure.
+omit = [
+    "viewer/migrations/*",
+    "viewer/tests/*",
+]
+
+[tool.coverage.html]
+directory = "htmlcov"

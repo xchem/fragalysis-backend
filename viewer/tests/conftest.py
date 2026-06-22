@@ -13,10 +13,10 @@ set will arrive once a real target archive is committed and loaded via the
 from typing import Callable, Iterable
 
 import pytest
+import ta_auth_connector
 from django.contrib.auth.models import User
 from rest_framework.test import APIClient
 
-import api.ta_auth_connector as ta_auth_connector
 from viewer.models import Project, Target
 
 
@@ -86,6 +86,25 @@ def authenticated_client(api_client, user) -> APIClient:
     """A DRF client authenticated as ``user`` (bypasses real OIDC/session auth)."""
     api_client.force_authenticate(user=user)
     return api_client
+
+
+@pytest.fixture
+def set_restricted_tas_users(settings) -> Callable[[str], None]:
+    """Simulate proposal membership via the RESTRICTED_TAS_USERS debug seam.
+
+    ``api.security.get_restricted_tas_user_proposal`` reads two settings that
+    the application derives from a single ``RESTRICTED_TAS_USERS`` environment
+    variable (see ``fragalysis.settings``): the raw string and its comma-split
+    list form. This fixture returns a setter that takes the same
+    ``"user:tas,user:tas"`` value the env var uses and applies it to both, so a
+    test can grant a user access to a proposal without any external service.
+    """
+
+    def _set(value: str) -> None:
+        settings.RESTRICTED_TAS_USERS = value
+        settings.RESTRICTED_TAS_USERS_LIST = value.split(",") if value else []
+
+    return _set
 
 
 @pytest.fixture

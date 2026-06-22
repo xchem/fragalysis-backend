@@ -1,4 +1,4 @@
-FROM python:3.13.11-slim-trixie  AS python-base
+FROM python:3.13.12-slim-trixie  AS python-base
 
 ENV PYTHONUNBUFFERED=1
 ENV PYTHONDONTWRITEBYTECODE=1
@@ -34,10 +34,9 @@ COPY poetry.lock pyproject.toml /
 
 # POETRY_VIRTUALENVS_IN_PROJECT tells poetry to create the venv to
 # project's directory (.venv). This way the location is predictable.
-# The 'test' group is included so that 'pytest' is present in the image when
-# docker-compose.test.yml runs test-entry.sh (the same image is used for the
-# app and for tests).
-RUN POETRY_VIRTUALENVS_IN_PROJECT=true poetry install --no-root --only main,test --no-directory
+# Only the 'main' dependencies are installed - the unit tests run with pytest
+# on the host / CI runner (see run-unit-tests.sh), not inside this image.
+RUN POETRY_VIRTUALENVS_IN_PROJECT=true poetry install --no-root --only main --no-directory
 
 # final stage. only copy the venv with installed packages and point
 # paths to it

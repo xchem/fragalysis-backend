@@ -2586,6 +2586,7 @@ class TargetLoader:
         self.mol_coords_to_db(site_observation_objects)
 
     def import_compound_identifiers(self, alias_file_path):
+        logger.debug('importing identifiers from %s', alias_file_path)
         try:
             df = pd.read_csv(alias_file_path)
         except UnicodeDecodeError:
@@ -2626,15 +2627,29 @@ class TargetLoader:
         # validate cols, compound code should be unchanged
         for _, row in df[extended_key_cols].iterrows():
             exp_code, ligand_name, compound_code = row
-            compound = compounds.get(exp_code=exp_code, ligand_name=ligand_name)
-            if compound.compound_code != compound_code:
-                self.report.log(
-                    logging.ERROR,
-                    (
-                        f"{exp_code}, {ligand_name}: 'compound_code' not allowed to change."
-                        + " use 'compound_code_update' column instead."
-                    ),
+            try:
+                compound = compounds.get(exp_code=exp_code, ligand_name=ligand_name)
+            except Compound.DoesNotExist:
+                msg = (
+                    f'Compound mentioned in {CUSTOM_IDENTIFIER_FILE} does not exist:'
+                    + f'code: {exp_code}, ligand: {ligand_name}'
                 )
+                logger.error(msg)
+                self.report.log(logging.ERROR, msg)
+                continue
+
+            if compound.compound_code and compound.compound_code != compound_code:
+                msg = (
+                    f"{exp_code}, {ligand_name}: 'compound_code' not allowed to change."
+                    + " use 'compound_code_update' column instead."
+                )
+                logger.error(msg)
+                self.report.log(logging.ERROR, msg)
+                continue
+
+        # validation failed, don't continue
+        if self.report.failed:
+            return
 
         # but if the correct column is supplied, then update
         if "compound_code_update" in df.columns:
@@ -3649,7 +3664,7 @@ class TargetLoader:
     def _soakdb_datetime(self, row_data, soakdb_field=None):
         if row_data[soakdb_field] and row_data[soakdb_field] != "None":
             try:
-                return parse(row_data[soakdb_field])
+                parsed = parse(row_data[soakdb_field])
             except ParserError:
                 # sometimes dates are given as:
                 # 2020-12-02_09-50-12.03
@@ -3657,7 +3672,7 @@ class TargetLoader:
                 s_clean = row_data[soakdb_field].replace('_', ' ')
                 s_clean = s_clean.replace('-', ':')
                 try:
-                    return parse(s_clean)
+                    parsed = parse(s_clean)
                 except ParserError:
                     # still nothing
                     msg = (
@@ -3666,6 +3681,13 @@ class TargetLoader:
                     )
                     self.report.log(logging.WARNING, msg)
                     return None
+            # SoakDB timestamps carry no timezone, so the parser returns a naive
+            # datetime. Storing that with USE_TZ active emits a RuntimeWarning on
+            # every Experiment datetime field (tens of thousands per load), so
+            # interpret it in the configured default timezone to store it aware.
+            if timezone.is_naive(parsed):
+                parsed = timezone.make_aware(parsed)
+            return parsed
         else:
             return None
 

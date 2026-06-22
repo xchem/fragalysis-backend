@@ -4,7 +4,7 @@ from random import random
 
 import requests
 from django.conf import settings
-from frag.utils.network_utils import get_driver
+from fragutils.utils.network_utils import get_driver
 from pydiscourse import DiscourseClient
 
 from api.security import ping_configured_connector
