@@ -5,6 +5,7 @@ from random import random
 import requests
 from django.conf import settings
 from fragutils.utils.network_utils import get_driver
+from neo4j.exceptions import Neo4jError, ServiceUnavailable
 from pydiscourse import DiscourseClient
 
 from api.security import ping_configured_connector
@@ -90,6 +91,18 @@ def fragmentation_graph() -> str:
             return State.OK
         except ValueError:
             # service isn't running
+            return State.DEGRADED
+        except (ServiceUnavailable, Neo4jError) as graph_exc:
+            # The graph being unreachable is an expected, recoverable state
+            # (e.g. neo4j down during an outage). Without this the neo4j
+            # exception would propagate out of the probe and APScheduler would
+            # log a full traceback on every scheduled run. Log one concise line
+            # naming the failure and report DEGRADED (see issue #980).
+            logger.error(
+                "fragmentation_graph: %s: %s",
+                type(graph_exc).__name__,
+                graph_exc,
+            )
             return State.DEGRADED
 
 
