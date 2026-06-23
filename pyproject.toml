@@ -122,7 +122,7 @@ omit = [
 # slipping below where it stands today. Raise this as new tests land (see
 # issue #984's phased plan). pytest exits non-zero when the total drops below
 # this floor, which fails the CI 'Unit tests (pytest)' step.
-fail_under = 35
+fail_under = 38
 
 [tool.coverage.html]
 directory = "htmlcov"
