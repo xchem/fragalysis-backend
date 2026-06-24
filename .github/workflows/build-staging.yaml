@@ -77,6 +77,10 @@ env:
 jobs:
   build:
     runs-on: ubuntu-latest
+    # 'contents: write' lets the coverage-badge step force-push the orphan
+    # 'coverage-badge' branch; checkout/build only need read.
+    permissions:
+      contents: write
     outputs:
       push: ${{ steps.vars.outputs.push }}
       tag: ${{ steps.vars.outputs.tag }}
@@ -188,6 +192,50 @@ jobs:
       # backend image is not needed. DB connection defaults live in
       # tests/test_settings.py.
       run: poetry run pytest
+    - name: Coverage summary
+      # Render the coverage table on the run's summary page. The real gate is
+      # pytest itself (fail_under in pyproject); '|| true' stops this
+      # display-only step from re-failing on a low total, and '!cancelled()'
+      # shows the table even when pytest failed.
+      if: ${{ !cancelled() }}
+      run: |
+        {
+          echo '## Coverage'
+          echo
+          poetry run coverage report --format=markdown
+        } >> "$GITHUB_STEP_SUMMARY" || true
+    - name: Update coverage badge
+      # Publish a shields.io endpoint JSON to the orphan 'coverage-badge'
+      # branch so the README badge tracks staging's coverage. Force-pushed as a
+      # single commit; '[skip ci]' stops it triggering build-dev.
+      if: success() && github.event_name == 'push' && github.ref == 'refs/heads/staging'
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: |
+        poetry run coverage json -o coverage.json
+        PCT=$(python -c "import json; print(round(json.load(open('coverage.json'))['totals']['percent_covered']))")
+        if [ "${PCT}" -ge 80 ]; then
+          COLOR=brightgreen
+        elif [ "${PCT}" -ge 60 ]; then
+          COLOR=green
+        elif [ "${PCT}" -ge 40 ]; then
+          COLOR=yellow
+        else
+          COLOR=red
+        fi
+        WORK=$(mktemp -d)
+        printf '{"schemaVersion":1,"label":"coverage","message":"%s%%","color":"%s"}\n' \
+          "${PCT}" "${COLOR}" > "${WORK}/coverage.json"
+        git -C "${WORK}" init -q
+        git -C "${WORK}" checkout -q -b coverage-badge
+        git -C "${WORK}" add coverage.json
+        git -C "${WORK}" \
+          -c user.name="github-actions[bot]" \
+          -c user.email="github-actions[bot]@users.noreply.github.com" \
+          commit -q -m "ci: update coverage badge [skip ci]"
+        git -C "${WORK}" push -q -f \
+          "https://x-access-token:${GITHUB_TOKEN}@github.com/${{ github.repository }}.git" \
+          coverage-badge
     - name: Docker build
       uses: docker/build-push-action@v7
       with:
