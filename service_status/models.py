@@ -22,6 +22,12 @@ class ServiceState(models.Model):
     def is_success(self) -> bool:
         return self.state == 'OK'
 
+    def __str__(self) -> str:
+        return f"{self.state}"
+
+    def __repr__(self) -> str:
+        return "<ServiceState %r %r>" % (self.state, self.display_name)
+
 
 class Service(models.Model):
     service = models.TextField(null=False, primary_key=True)
@@ -45,4 +51,8 @@ class Service(models.Model):
         return f"{self.service}"
 
     def __repr__(self) -> str:
-        return "<Service %r %r>" % (self.service, self.last_result)
+        return "<Service %r %r %r>" % (
+            self.service,
+            self.last_query_time,
+            self.last_state,
+        )

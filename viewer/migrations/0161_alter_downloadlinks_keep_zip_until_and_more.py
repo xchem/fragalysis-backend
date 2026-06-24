@@ -15,9 +15,4 @@ class Migration(migrations.Migration):
             name='keep_zip_until',
             field=models.DateTimeField(db_index=True, help_text='The datetime when the tag was created plus the retention time (1 hour at the time of writing)', null=True),
         ),
-        migrations.AlterField(
-            model_name='downloadlinks',
-            name='request_ip',
-            field=models.TextField(null=True),
-        ),
     ]

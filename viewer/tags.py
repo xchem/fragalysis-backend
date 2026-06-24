@@ -4,7 +4,9 @@ from typing import Any, Generator
 
 import numpy as np
 import pandas as pd
+from django.conf import settings
 from django.contrib.auth.models import User
+from django.core.cache import caches
 from django.core.exceptions import MultipleObjectsReturned
 from django.db import IntegrityError, transaction
 from django.db.models import (
@@ -393,6 +395,8 @@ def load_tags_from_file(filename: str, target: Target, user: User | None = None)
 
             logger.debug('alias updates %s', alias_update)
             SiteObservationTag.objects.bulk_update(alias_update, ['tag'])
+            # bulk_update bypasses post_save signals, so clear page cache here.
+            caches[settings.CACHE_MIDDLEWARE_ALIAS].clear()
 
             poses = Pose.objects.filter(
                 main_site_observation__experiment__experiment_upload__target=target,
@@ -491,6 +495,8 @@ def load_tags_from_file(filename: str, target: Target, user: User | None = None)
 
             logger.debug('so bulk update %s', so_update)
             SiteObservation.objects.bulk_update(so_update, ['pose'])
+            # bulk_update bypasses post_save signals, so clear page cache here.
+            caches[settings.CACHE_MIDDLEWARE_ALIAS].clear()
 
             cats = TagCategory.objects.filter(category__in=CURATED_TAG_CATEGORIES)
             curated_tags = SiteObservationTag.objects.filter(

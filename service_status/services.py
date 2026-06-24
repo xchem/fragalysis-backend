@@ -3,9 +3,9 @@ import time
 from random import random
 
 import requests
-from celery import shared_task
 from django.conf import settings
-from frag.utils.network_utils import get_driver
+from fragutils.utils.network_utils import get_driver
+from neo4j.exceptions import Neo4jError, ServiceUnavailable
 from pydiscourse import DiscourseClient
 
 from api.security import ping_configured_connector
@@ -18,9 +18,6 @@ logger = logging.getLogger("service_status")
 # Default timeout for any request calls
 # Used for keycloak atm.
 REQUEST_TIMEOUT_S = 5
-
-# Service query timeout
-SERVICE_QUERY_TIMEOUT_S = 28
 
 
 # service status test functions
@@ -51,7 +48,6 @@ def test_query() -> str:
     return state.name
 
 
-@shared_task(soft_time_limit=SERVICE_QUERY_TIMEOUT_S)
 @service_query
 def ispyb() -> str:
     """Access control (ISPyB)"""
@@ -59,7 +55,6 @@ def ispyb() -> str:
     return State.OK if ping_configured_connector() else State.DEGRADED
 
 
-@shared_task(soft_time_limit=SERVICE_QUERY_TIMEOUT_S)
 @service_query
 def discourse() -> str:
     """Discourse"""
@@ -78,7 +73,6 @@ def discourse() -> str:
     return State.DEGRADED if client is None else State.OK
 
 
-@shared_task(soft_time_limit=SERVICE_QUERY_TIMEOUT_S)
 @service_query
 def squonk() -> str:
     """Squonk"""
@@ -86,7 +80,6 @@ def squonk() -> str:
     return State.OK if get_squonk2_agent().configured().success else State.DEGRADED
 
 
-@shared_task(soft_time_limit=SERVICE_QUERY_TIMEOUT_S)
 @service_query
 def fragmentation_graph() -> str:
     """Fragmentation graph"""
@@ -99,9 +92,20 @@ def fragmentation_graph() -> str:
         except ValueError:
             # service isn't running
             return State.DEGRADED
+        except (ServiceUnavailable, Neo4jError) as graph_exc:
+            # The graph being unreachable is an expected, recoverable state
+            # (e.g. neo4j down during an outage). Without this the neo4j
+            # exception would propagate out of the probe and APScheduler would
+            # log a full traceback on every scheduled run. Log one concise line
+            # naming the failure and report DEGRADED (see issue #980).
+            logger.error(
+                "fragmentation_graph: %s: %s",
+                type(graph_exc).__name__,
+                graph_exc,
+            )
+            return State.DEGRADED
 
 
-@shared_task(soft_time_limit=SERVICE_QUERY_TIMEOUT_S)
 @service_query
 def keycloak() -> str:
     """Keycloak"""
@@ -110,6 +114,10 @@ def keycloak() -> str:
     keycloak_realm = settings.OIDC_KEYCLOAK_REALM
     if not keycloak_realm:
         return State.NOT_CONFIGURED
-    response = requests.get(keycloak_realm, timeout=REQUEST_TIMEOUT_S)
+    try:
+        response = requests.get(keycloak_realm, timeout=REQUEST_TIMEOUT_S)
+    except requests.exceptions.RequestException as r_ex:
+        logger.error('Keycloak GET:%s RequestException (%s)', keycloak_realm, r_ex)
+        return State.DEGRADED
     logger.debug("keycloak response: %s", response)
     return State.OK if response.ok else State.DEGRADED

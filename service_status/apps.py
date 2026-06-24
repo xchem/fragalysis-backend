@@ -6,5 +6,5 @@ class ServiceStatusConfig(AppConfig):
     name = 'service_status'
 
     def ready(self):
-        # dummy import needed because otherwise tasks aren't being registered
+        # Import ensures service functions have their _is_service_query marker set
         import service_status.services  # pylint: disable=unused-import

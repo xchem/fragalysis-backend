@@ -1,4 +1,5 @@
 import logging
+import math
 from pathlib import Path
 from urllib.parse import urljoin
 
@@ -9,8 +10,8 @@ from django.contrib.auth.models import User
 from django.db import IntegrityError, transaction
 from django.db.models import Count
 from django.utils import timezone
-from frag.network.decorate import get_3d_vects_for_mol, get_vect_indices_for_mol
-from frag.network.query import get_full_graph
+from fragutils.network.decorate import get_3d_vects_for_mol, get_vect_indices_for_mol
+from fragutils.network.query import get_full_graph
 from rdkit import Chem
 from rdkit.Chem import Descriptors
 from rest_framework import serializers
@@ -130,6 +131,7 @@ class TargetSerializer(serializers.ModelSerializer):
     template_protein = serializers.SerializerMethodField()
     zip_archive = serializers.SerializerMethodField()
     metadata = serializers.SerializerMethodField()
+    project_title = serializers.CharField(source="project.title", read_only=True)
 
     def get_template_protein_path(self, experiment_upload) -> Path | None:
         yaml_path = experiment_upload.get_upload_path()
@@ -171,7 +173,7 @@ class TargetSerializer(serializers.ModelSerializer):
                 if media_ref_path.is_file():
                     return ref_path
                 else:
-                    logger.error(
+                    logger.debug(
                         "Reference pdb file doesn't exist (%s)", media_ref_path
                     )
                     return None
@@ -217,6 +219,7 @@ class TargetSerializer(serializers.ModelSerializer):
             "title",
             "display_name",
             "project",
+            "project_title",
             "default_squonk_project",
             "template_protein",
             "metadata",
@@ -409,11 +412,18 @@ class ProjectSerializer(serializers.ModelSerializer):
         fields = (
             "id",
             "target_access_string",
+            "alias",
             "init_date",
             "authority",
             "open_to_public",
             "user_can_use_squonk",
         )
+        extra_kwargs = {
+            "id": {"read_only": True},
+            "target_access_string": {"read_only": True},
+            "init_date": {"read_only": True},
+            "open_to_public": {"read_only": True},
+        }
 
 
 class MolImageSerializer(serializers.ModelSerializer):
@@ -560,6 +570,24 @@ class UserSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
         fields = ('id', 'username', 'email', 'first_name', 'last_name')
+
+
+class UserRoleSerializer(serializers.ModelSerializer):
+    user_count = serializers.IntegerField(source='users.count', read_only=True)
+
+    class Meta:
+        model = models.UserRole
+        fields = ('id', 'name', 'user_count')
+
+
+class RoleUsernameSerializer(serializers.ModelSerializer):
+    """Username-only view of a User, used by the user_roles 'users' action
+    so role membership can be queried without exposing email / real names.
+    """
+
+    class Meta:
+        model = User
+        fields = ('username',)
 
 
 # GET
@@ -865,7 +893,23 @@ class DownloadStructuresSerializer(serializers.Serializer):
         max_length=200, default=None, allow_blank=True
     )
     proteins = serializers.CharField(max_length=5000, default='', allow_blank=True)
+    # Umbrella flag: when True it enables all the individual aligned-structure
+    # file types below (apo_file ... smiles_info). Kept for backwards
+    # compatibility with the current frontend; new clients can instead set any
+    # of the individual flags to download a single file type.
     all_aligned_structures = serializers.BooleanField(default=False)
+    # Individual aligned-structure file types (previously bundled under
+    # all_aligned_structures). Each defaults to False; the effective value is
+    # OR-ed with all_aligned_structures in get_download_params().
+    apo_file = serializers.BooleanField(default=False)
+    bound_file = serializers.BooleanField(default=False)
+    apo_solv_file = serializers.BooleanField(default=False)
+    apo_desolv_file = serializers.BooleanField(default=False)
+    ligand_pdb = serializers.BooleanField(default=False)
+    ligand_sdf = serializers.BooleanField(default=False)
+    ligand_smiles = serializers.BooleanField(default=False)
+    sdf_info = serializers.BooleanField(default=False)
+    smiles_info = serializers.BooleanField(default=False)
     pdb_info = serializers.BooleanField(default=False)
     cif_info = serializers.BooleanField(default=False)
     mtz_info = serializers.BooleanField(default=False)
@@ -878,6 +922,13 @@ class DownloadStructuresSerializer(serializers.Serializer):
     trans_matrix_info = serializers.BooleanField(default=False)
     compound_sets = serializers.BooleanField(default=True)
     soakdb_files = serializers.BooleanField(default=True)
+    # Default-included file groups. Each defaults to True so the existing
+    # frontend (which doesn't send them) keeps getting them; set False to
+    # exclude that group from the download.
+    yaml_files = serializers.BooleanField(default=True)
+    extra_files = serializers.BooleanField(default=True)
+    pymol_scripts = serializers.BooleanField(default=True)
+    readme = serializers.BooleanField(default=True)
     static_link = serializers.BooleanField(default=False)
     file_url = serializers.CharField(max_length=200, default='', allow_blank=True)
     use_zip = serializers.BooleanField(default=False, label='Use ZIP format (slower)')
@@ -990,7 +1041,7 @@ class TargetExperimentReadSerializer(ValidateProjectMixin, serializers.ModelSeri
 
 class TargetExperimentWriteSerializer(serializers.ModelSerializer):
     target_access_string = serializers.CharField(label='Target Access String')
-    file = serializers.FileField(required=False)
+    file = serializers.FileField()
     sha256checksum = serializers.CharField(required=False)
 
     def validate(self, data):
@@ -1077,6 +1128,18 @@ class ExperimentReadSerializer(serializers.ModelSerializer):
     class Meta:
         model = models.Experiment
         fields = '__all__'
+
+    def to_representation(self, instance):
+        # SoakDB-sourced float fields (e.g. resolution/refinement metrics) can
+        # hold NaN/inf, which DRF's strict JSON renderer refuses to encode
+        # ("Out of range float values are not JSON compliant"), 500ing the
+        # endpoint. Map any non-finite float to null so we emit valid JSON.
+        # See ticket #939.
+        ret = super().to_representation(instance)
+        for key, value in ret.items():
+            if isinstance(value, float) and not math.isfinite(value):
+                ret[key] = None
+        return ret
 
 
 class CanonSiteConfReadSerializer(serializers.ModelSerializer):

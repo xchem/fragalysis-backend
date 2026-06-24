@@ -35,7 +35,8 @@ from rdkit import Chem
 
 from api.utils import deployment_mode_is_production
 from fragalysis.settings import TARGET_LOADER_MEDIA_DIRECTORY
-from viewer.models import (  # TagCategory,
+from viewer.cache import clear_view_cache
+from viewer.models import (
     AtomCoordinates,
     CanonSite,
     CanonSiteConf,
@@ -1669,8 +1670,14 @@ class TargetLoader:
                 self.raw_data,
                 Path(ligand_mol),
             )
-            if molpath.exists():
-                mol = Chem.MolFromMolFile(str(molpath))
+            if not molpath.exists():
+                # upload 2+ and mol came from previous upload
+                molpath = self._abs_final_path.joinpath(
+                    Path(ligand_mol),
+                )
+
+            # potentially check db as well
+            mol = Chem.MolFromMolFile(str(molpath))
 
         if mol is None:
             msg = f'No ligand in observation {longcode}'
@@ -2416,6 +2423,7 @@ class TargetLoader:
         self.mol_coords_to_db(site_observation_objects)
 
     def import_compound_identifiers(self, alias_file_path):
+        logger.debug('importing identifiers from %s', alias_file_path)
         try:
             df = pd.read_csv(alias_file_path)
         except UnicodeDecodeError:
@@ -2456,15 +2464,29 @@ class TargetLoader:
         # validate cols, compound code should be unchanged
         for _, row in df[extended_key_cols].iterrows():
             exp_code, ligand_name, compound_code = row
-            compound = compounds.get(exp_code=exp_code, ligand_name=ligand_name)
-            if compound.compound_code != compound_code:
-                self.report.log(
-                    logging.ERROR,
-                    (
-                        f"{exp_code}, {ligand_name}: 'compound_code' not allowed to change."
-                        + " use 'compound_code_update' column instead."
-                    ),
+            try:
+                compound = compounds.get(exp_code=exp_code, ligand_name=ligand_name)
+            except Compound.DoesNotExist:
+                msg = (
+                    f'Compound mentioned in {CUSTOM_IDENTIFIER_FILE} does not exist:'
+                    + f'code: {exp_code}, ligand: {ligand_name}'
                 )
+                logger.error(msg)
+                self.report.log(logging.ERROR, msg)
+                continue
+
+            if compound.compound_code and compound.compound_code != compound_code:
+                msg = (
+                    f"{exp_code}, {ligand_name}: 'compound_code' not allowed to change."
+                    + " use 'compound_code_update' column instead."
+                )
+                logger.error(msg)
+                self.report.log(logging.ERROR, msg)
+                continue
+
+        # validation failed, don't continue
+        if self.report.failed:
+            return
 
         # but if the correct column is supplied, then update
         if "compound_code_update" in df.columns:
@@ -2611,7 +2633,15 @@ class TargetLoader:
                     # I don't know if this can happen but this (due to
                     # other bugs) is what allowed me to find this
                     # error. Make a note in the logs.
-                    logger.warning("No observations left to assign to pose")
+                    logger.info(
+                        "No observations left to assign to pose from group %s",
+                        group,
+                    )
+                    # update: apparently can happen when user decides
+                    # to split apart existing group. in this case, all
+                    # observations are assigned to poses and there's
+                    # nothing to do. demoting log entry to info
+                    continue
 
             # finally add observations to the (new or existing) pose
             for obvs in pose_items:
@@ -3413,7 +3443,7 @@ class TargetLoader:
     def _soakdb_datetime(self, row_data, soakdb_field=None):
         if row_data[soakdb_field] and row_data[soakdb_field] != "None":
             try:
-                return parse(row_data[soakdb_field])
+                parsed = parse(row_data[soakdb_field])
             except ParserError:
                 # sometimes dates are given as:
                 # 2020-12-02_09-50-12.03
@@ -3421,7 +3451,7 @@ class TargetLoader:
                 s_clean = row_data[soakdb_field].replace('_', ' ')
                 s_clean = s_clean.replace('-', ':')
                 try:
-                    return parse(s_clean)
+                    parsed = parse(s_clean)
                 except ParserError:
                     # still nothing
                     msg = (
@@ -3430,6 +3460,13 @@ class TargetLoader:
                     )
                     self.report.log(logging.WARNING, msg)
                     return None
+            # SoakDB timestamps carry no timezone, so the parser returns a naive
+            # datetime. Storing that with USE_TZ active emits a RuntimeWarning on
+            # every Experiment datetime field (tens of thousands per load), so
+            # interpret it in the configured default timezone to store it aware.
+            if timezone.is_naive(parsed):
+                parsed = timezone.make_aware(parsed)
+            return parsed
         else:
             return None
 
@@ -3556,7 +3593,12 @@ def load_target(
     user_id=None,
     task=None,
 ):
-    with TemporaryDirectory(dir=settings.MEDIA_ROOT) as tempdir:
+    # A temporary working directory for decompressing the uploaded bundle.
+    # This lives within the Pod (the default location, an emptyDir mounted at
+    # /tmp), not the (potentially slow) shared MEDIA_ROOT volume. The extracted
+    # data is moved to its final MEDIA_ROOT location with shutil.move(), which
+    # copes with a cross-filesystem move. See ticket #935.
+    with TemporaryDirectory() as tempdir:
         target_loader = TargetLoader(
             data_bundle, proposal_ref, tempdir, user_id=user_id, task=task
         )
@@ -3616,6 +3658,11 @@ def load_target(
                     raise IntegrityError(
                         f"Uploading {target_loader.data_bundle} failed"
                     )
+                # process_bundle wrote SiteObservation, Pose and
+                # SiteObservationTag rows — drop the cached views that read
+                # those models. Inside the atomic block so we only invalidate
+                # when the writes are actually going to commit.
+                clear_view_cache("tag", "pose", "site-observation")
         except Exception as exc:
             # Handle _any_ underlying problem.
             # These are errors processing the data, which we handle gracefully.

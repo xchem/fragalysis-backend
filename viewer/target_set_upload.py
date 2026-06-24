@@ -19,8 +19,8 @@ from django.conf import settings
 from django.contrib.auth.models import User
 from django.core.exceptions import ValidationError
 from django.core.files import File
-from frag.alysis.run_clustering import run_lig_cluster
-from frag.network.decorate import get_3d_vects_for_mol
+from fragutils.alysis.run_clustering import run_lig_cluster
+from fragutils.network.decorate import get_3d_vects_for_mol
 from rdkit import Chem
 from rdkit.Chem import AllChem, Descriptors, Lipinski
 

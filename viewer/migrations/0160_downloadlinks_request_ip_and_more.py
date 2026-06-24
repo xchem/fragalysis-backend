@@ -10,16 +10,11 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
-        migrations.AddField(
-            model_name='downloadlinks',
-            name='request_ip',
-            field=models.URLField(null=True),
-        ),
-        migrations.AddField(
-            model_name='downloadlinks',
-            name='request_location',
-            field=models.TextField(null=True),
-        ),
+        # migrations.AddField(
+        #     model_name='downloadlinks',
+        #     name='request_location',
+        #     field=models.TextField(null=True),
+        # ),
         migrations.AlterField(
             model_name='downloadlinks',
             name='file_url',

@@ -43,7 +43,11 @@ class Command(BaseCommand):
                     target.zip_archive.name,
                     exp_upload.file.name,
                 )
-                with TemporaryDirectory(dir='/tmp/') as decompress_dir:
+                # Use the default temporary location (an emptyDir mounted at
+                # /tmp within the Pod) rather than the shared MEDIA_ROOT volume;
+                # restored files are copied into MEDIA_ROOT with shutil.copy().
+                # See ticket #935.
+                with TemporaryDirectory() as decompress_dir:
                     process = subprocess.Popen(
                         [
                             "tar",

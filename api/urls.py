@@ -195,6 +195,7 @@ router.register(
 router.register("plot_data", viewer_views.PlotDataView, basename='plot_data')
 
 router.register("user", viewer_views.TASStatsView, basename='user')
+router.register("user_roles", viewer_views.UserRoleView, basename='user_roles')
 
 # Squonk Jobs
 router.register(

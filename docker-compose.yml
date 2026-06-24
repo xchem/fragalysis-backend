@@ -12,7 +12,7 @@
 services:
 
   database:
-    image: informaticsmatters/rdkit-cartridge-debian:Release_2024_03_6
+    image: xchem/fragalysis-database:2026.04.1
     container_name: database
     volumes:
     - ./data/postgresql/data:/var/lib/postgresql/data
@@ -79,6 +79,8 @@ services:
       POSTGRESQL_USER: postgres
       # Comma-separated forced errors (infections?)
       INFECTIONS: ''
+      # Django cache
+      CACHE_ENABLED: "No"
       # Celery tasks need to run synchronously
       CELERY_TASK_ALWAYS_EAGER: 'True'
       # Default/root log-level

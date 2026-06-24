@@ -1,0 +1,59 @@
+---
+name: integration tests
+
+# Reusable workflow (issue #964): runs the async API integration test against a
+# real, running stack (DB + redis broker + celery worker) built from a specific
+# backend image. It is called by the build workflows after they build/push the
+# image. The test data is downloaded anonymously from a public-read S3 bucket,
+# so no secrets are needed.
+#
+# When the caller does not supply unit_test_bucket_and_path /
+# unit_test_data_identifier the test stack still starts but the test skips
+# (the external-data env gate), keeping this a no-op rather than a failure.
+
+on:
+  workflow_call:
+    inputs:
+      be_namespace:
+        description: The backend image namespace (e.g. xchem)
+        required: true
+        type: string
+      be_image_tag:
+        description: The backend image tag to test
+        required: true
+        type: string
+      unit_test_bucket_and_path:
+        description: The s3://bucket/prefix root of the external test data
+        required: false
+        default: ''
+        type: string
+      unit_test_data_identifier:
+        description: The manifest identifier selecting the test data (e.g. ALPHA)
+        required: false
+        default: ''
+        type: string
+
+jobs:
+  integration-tests:
+    runs-on: ubuntu-latest
+    env:
+      BE_NAMESPACE: ${{ inputs.be_namespace }}
+      BE_IMAGE_TAG: ${{ inputs.be_image_tag }}
+      UNIT_TEST_BUCKET_AND_PATH: ${{ inputs.unit_test_bucket_and_path }}
+      UNIT_TEST_DATA_IDENTIFIER: ${{ inputs.unit_test_data_identifier }}
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v6
+    - name: Run the integration test
+      # Brings up database, redis, backend and celery_worker (the test service
+      # waits for the backend to be healthy via depends_on), runs the test, then
+      # stops everything. The step's exit code is the test container's.
+      run: |
+        docker compose -f docker-compose.integration.yml up \
+          --abort-on-container-exit --exit-code-from test
+    - name: Dump logs
+      if: always()
+      run: docker compose -f docker-compose.integration.yml logs --no-color
+    - name: Tear down
+      if: always()
+      run: docker compose -f docker-compose.integration.yml down -v

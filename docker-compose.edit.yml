@@ -42,6 +42,7 @@ services:
     - ../logs:/code/logs/
     - ../media:/code/media/
     environment:
+      CACHE_ENABLED: "No"
       POSTGRESQL_DATABASE: frag
       POSTGRESQL_USER: postgres
       POSTGRESQL_PASSWORD: fragalysis

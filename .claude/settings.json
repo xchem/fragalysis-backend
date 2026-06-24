@@ -1,0 +1,22 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(awx job_templates launch *)",
+      "Bash(docker buildx *)",
+      "Bash(docker compose *)",
+      "Bash(git add *)",
+      "Bash(git branch *)",
+      "Bash(git commit -m ' *)",
+      "Bash(git config *)",
+      "Bash(git fetch *)",
+      "Bash(git worktree *)",
+      "Bash(gh api *)",
+      "Bash(gh pr *)",
+      "Bash(gh issue comment *)",
+      "Bash(poetry run *)",
+      "Bash(xargs ls -la)",
+      "Bash(xargs -I {} basename {})",
+      "Skill(build-stack)"
+    ]
+  }
+}

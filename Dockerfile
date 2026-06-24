@@ -1,4 +1,4 @@
-FROM python:3.13.11-slim-trixie  AS python-base
+FROM python:3.13.12-slim-trixie  AS python-base
 
 ENV PYTHONUNBUFFERED=1
 ENV PYTHONDONTWRITEBYTECODE=1
@@ -33,7 +33,9 @@ WORKDIR /
 COPY poetry.lock pyproject.toml /
 
 # POETRY_VIRTUALENVS_IN_PROJECT tells poetry to create the venv to
-# project's directory (.venv). This way the location is predictable
+# project's directory (.venv). This way the location is predictable.
+# Only the 'main' dependencies are installed - the unit tests run with pytest
+# on the host / CI runner (see run-unit-tests.sh), not inside this image.
 RUN POETRY_VIRTUALENVS_IN_PROJECT=true poetry install --no-root --only main --no-directory
 
 # final stage. only copy the venv with installed packages and point
@@ -42,10 +44,10 @@ FROM python-base AS final
 
 COPY --from=poetry-base /.venv /.venv
 
-ENV PYTHONPATH="${PYTHONPATH}:/.venv/lib/python3.13/site-packages/"
+ENV PYTHONPATH="/.venv/lib/python3.13/site-packages/"
 ENV PATH=/.venv/bin:$PATH
+ENV TMPDIR=/tmp
 
-WORKDIR /srv/logs
 WORKDIR /code/logs
 WORKDIR /code
 
