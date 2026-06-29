@@ -2618,11 +2618,15 @@ class TargetLoader:
             CompoundIdentifierType(name=identifier).save()
 
         # you'd think I could supply the compounds processed, but I need a queryset..
-        compounds = Compound.objects.annotate(
+        # fmt: off
+        compounds = Compound.objects.filter(
+            project_id=self.project,
+        ).annotate(
             exp_code=F("experiment__code"),
         ).filter(
             experiment__code__in=df["xtal"],
         )
+        # fmt: on
 
         # validate cols, compound code should be unchanged
         for _, row in df[extended_key_cols].iterrows():
@@ -2632,6 +2636,14 @@ class TargetLoader:
             except Compound.DoesNotExist:
                 msg = (
                     f'Compound mentioned in {CUSTOM_IDENTIFIER_FILE} does not exist:'
+                    + f'code: {exp_code}, ligand: {ligand_name}'
+                )
+                logger.error(msg)
+                # self.report.log(logging.ERROR, msg)
+                continue
+            except MultipleObjectsReturned:
+                msg = (
+                    'Multiple compounds returned for compound '
                     + f'code: {exp_code}, ligand: {ligand_name}'
                 )
                 logger.error(msg)
