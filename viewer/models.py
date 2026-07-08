@@ -722,37 +722,14 @@ class SiteObservation(Versionable, models.Model):
     ligand_sdf = models.FileField(
         upload_to="target_loader_data/", null=True, max_length=255
     )
-    # computed_molecules = models.ManyToManyField(
-    #     "ComputedMolecule",
-    #     through="SiteObservationComputedMolecule",
-    #     through_fields=("site_observation", "computed_molecule"),
-    # )
     altloc = models.CharField(default='0', blank=True, max_length=1)
 
-    # from the former ComputedMolecule
-    # commented out fields will not be moved
-    # compound = models.ForeignKey(Compound, on_delete=models.CASCADE)
-    # not doing the 'keep files in the db' again
-    # sdf_info = models.TextField(help_text="The 3D coordinates for the molecule")
-
-    # the next 2 sound slightly different but in practice they're always the same
-    # site_observation_code = models.TextField(
-    #     help_text="The LHS SiteObservation (the corresponding lhs_pdb value if it has one)",
-    #     null=True,
-    #     blank=True,
-    # )
-    # reference_code = models.TextField(
-    #     help_text="The computed reference SiteObservation (the corresponding ref_pdb value if it has one)",
-    #     null=True,
-    #     blank=True,
-    # )
     # name is like 'v1a'
     # name generated for the virtual observation at upload
     virtual_name = models.TextField(null=True)
 
     # Set from the _Name property of the underlying Molecule
     virtual_molecule_name = models.TextField(null=True, blank=True)
-    # smiles = models.CharField(max_length=255)
 
     # A four character string of non-confusing uppercase letters and
     # digits for easy reference. This is combined with the Target to
@@ -769,14 +746,6 @@ class SiteObservation(Versionable, models.Model):
 
     # An optional rationale for this molecule
     virtual_rationale = models.TextField(null=True, blank=True)
-
-    # pdb = models.ForeignKey(
-    #     SiteObservation,
-    #     related_name="pdb",
-    #     on_delete=models.PROTECT,
-    #     null=True,
-    #     help_text="SiteObservation object user referenced in upload (if given)",
-    # )
 
     # Link to user-uploaded pdb file
     # NB! only uploaded pdb, not link to experiment.pdb_info, like before
@@ -1259,39 +1228,14 @@ class ComputedSet(models.Model):
     and uploaded by a user
     """
 
-    # PENDING = "PENDING"
-    # STARTED = "STARTED"
-    # SUCCESS = "SUCCESS"
-    # FAILURE = "FAILURE"
-    # RETRY = "RETRY"
-    # REVOKED = "REVOKED"
-    # STATUS = (
-    #     (PENDING, 'PENDING'),  # Initial state when queued
-    #     (STARTED, 'STARTED'),  # File transfer started
-    #     (SUCCESS, 'SUCCESS'),  # File transfer finished successfully
-    #     (FAILURE, 'FAILURE'),  # File transfer failed
-    #     (RETRY, 'RETRY'),
-    #     (REVOKED, 'REVOKED'),
-    # )
-
-    # LENGTH_SUBMITTER_NAME: int = 50
-    # LENGTH_METHOD: int = 50
-    # LENGTH_METHOD_URL: int = 1000
-    # LENGTH_SUBMITTED_SDF: int = 255
-
-    # LENGTH_METHOD_IN_NAME: int = 20
-
     # if null, then resultupload
     name = models.TextField(null=True)
     target = models.ForeignKey(Target, null=True, on_delete=models.CASCADE)
-    # RU: upload_file
     submitted_sdf = models.FileField(
         upload_to='computed_set_data/',
-        # max_length=LENGTH_SUBMITTED_SDF,
         help_text="The original SDF containing the ComputedSet",
     )
     written_sdf_filename = models.TextField(
-        # max_length=LENGTH_METHOD_URL,
         null=True,
         help_text="The written ComputedSet filename",
     )
@@ -1299,7 +1243,6 @@ class ComputedSet(models.Model):
         null=True, help_text="The version of the SDF file format specification"
     )
     method_url = models.TextField(
-        # max_length=LENGTH_METHOD_URL,
         null=True,
         help_text="A url linking to a write-up of the methodology used to create the"
         " computed set",
@@ -1308,7 +1251,6 @@ class ComputedSet(models.Model):
         ComputedSetSubmitter, null=True, on_delete=models.CASCADE
     )
     method = models.TextField(
-        # max_length=LENGTH_METHOD,
         null=True,
         blank=True,
         help_text="The name of the algorithmic method used to generate the compounds (e.g. Fragmenstein)",
@@ -1328,34 +1270,11 @@ class ComputedSet(models.Model):
     owner_user = models.ForeignKey(
         User, on_delete=models.CASCADE, default=settings.ANONYMOUS_USER
     )
-    # The following fields will be used to track the computed set upload
-    # upload_task_id = models.CharField(
-    #     null=True, max_length=50, help_text="The task ID of the upload Celery task"
-    # )
-    # upload_status = models.CharField(
-    #     choices=STATUS,
-    #     null=True,
-    #     max_length=7,
-    #     help_text="Status of the upload. Only be updated at the end of the process",
-    # )
-    # upload_progress = models.DecimalField(
-    #     null=True,
-    #     max_digits=5,
-    #     decimal_places=2,
-    #     help_text="Intended to be used as an indication of progress (0 to 100%)",
-    # )
-    # RU: upload_date
     upload_datetime = models.DateTimeField(
         null=True,
         blank=True,
         default=timezone.now,
     )
-    # computed_molecules = models.ManyToManyField(
-    #     "ComputedMolecule",
-    #     through="ComputedSetComputedMolecule",
-    #     through_fields=("computed_set", "computed_molecule"),
-    #     related_name="computed_set",
-    # )
     site_observations = models.ManyToManyField(
         SiteObservation,
         through="ComputedSetSiteObservation",
@@ -1415,114 +1334,6 @@ class ComputedInspiration(models.Model):
         ]
 
 
-# TODO: to be obsoleted
-# class ComputedMolecule(models.Model):
-#     """The 3D information for a computed set molecule"""
-
-#     MOLECULE_NAME_LENGTH: int = 50
-#     SHORT_UUID_LENGTH: int = 4
-
-#     compound = models.ForeignKey(Compound, on_delete=models.CASCADE)
-#     sdf_info = models.TextField(help_text="The 3D coordinates for the molecule")
-#     site_observation_code = models.TextField(
-#         help_text="The LHS SiteObservation (the corresponding lhs_pdb value if it has one)",
-#         null=True,
-#         blank=True,
-#     )
-#     reference_code = models.TextField(
-#         help_text="The computed reference SiteObservation (the corresponding ref_pdb value if it has one)",
-#         null=True,
-#         blank=True,
-#     )
-#     name = models.CharField(
-#         max_length=50, help_text="A combination of Target and Identifier"
-#     )
-#     molecule_name = models.CharField(
-#         max_length=MOLECULE_NAME_LENGTH,
-#         help_text="Set from the _Name property of the underlying Molecule",
-#         null=True,
-#         blank=True,
-#     )
-#     smiles = models.CharField(max_length=255)
-#     identifier = ShortUUIDField(
-#         length=SHORT_UUID_LENGTH,
-#         alphabet="ACDEFGHJKLMNPRSTUVWXYZ345679",
-#         null=True,
-#         blank=True,
-#         help_text="A four character string of non-confusing uppercase letters and digits for easy reference."
-#         " This is combined with the Target to form the ComputedMolecule's name",
-#     )
-#     computed_inspirations = models.ManyToManyField(SiteObservation, blank=True)
-#     ref_url = models.TextField(
-#         null=True,
-#         blank=True,
-#         help_text="An optional url linking to the reference for this molecule",
-#     )
-#     rationale = models.TextField(
-#         null=True,
-#         blank=True,
-#         help_text="An optional rationale for this molecule",
-#     )
-#     pdb = models.ForeignKey(
-#         SiteObservation,
-#         related_name="pdb",
-#         on_delete=models.PROTECT,
-#         null=True,
-#         help_text="SiteObservation object user referenced in upload (if given)",
-#     )
-#     pdb_info = models.FileField(
-#         upload_to="computed_set_data/",
-#         null=True,
-#         max_length=255,
-#         help_text="Link to pdb file; user-uploaded pdb or pdb.experiment.pdb_info",
-#     )
-
-#     def __str__(self) -> str:
-#         return f"{self.smiles}"
-
-#     def __repr__(self) -> str:
-#         return "<ComputedMolecule %r %r %r %r %r>" % (
-#             self.id,
-#             self.smiles,
-#             self.name,
-#             self.compound,
-#             self.site_observation_code,
-#         )
-
-#     def get_filename(self):
-#         # strip the original filename from the auto-assigned name
-#         # filename is stored in field like:
-#         # computed_set_data/A0486a#c2b8d13c94bb40bb9bf9d244b05516d3.pdb_2e2245e16cca4961919c7f5fdd1d0ece
-#         if self.pdb:
-#             return Path(self.pdb_info.name).name
-#         else:
-#             fname = Path(self.pdb_info.name).name
-#             if fname.find('#') > 0:
-#                 name = fname.split('#')[0]
-#                 return f'{name}.pdb'
-
-#             return fname
-
-
-# to be obsoleted
-# class ComputedSetComputedMolecule(models.Model):
-#     computed_set = models.ForeignKey(ComputedSet, null=False, on_delete=models.CASCADE)
-#     computed_molecule = models.ForeignKey(
-#         ComputedMolecule, null=False, on_delete=models.CASCADE
-#     )
-
-#     class Meta:
-#         constraints = [
-#             models.UniqueConstraint(
-#                 fields=[
-#                     "computed_set",
-#                     "computed_molecule",
-#                 ],
-#                 name="unique_computedsetcomputedmolecule",
-#             ),
-#         ]
-
-
 class ComputedSetSiteObservation(models.Model):
     computed_set = models.ForeignKey(ComputedSet, null=False, on_delete=models.CASCADE)
     site_observation = models.ForeignKey(
@@ -1539,32 +1350,6 @@ class ComputedSetSiteObservation(models.Model):
                 name="unique_computedsetsiteobservation",
             ),
         ]
-
-
-# to be obsoleted
-# class SiteObservationComputedMolecule(models.Model):
-#     site_observation = models.ForeignKey(
-#         SiteObservation,
-#         null=False,
-#         on_delete=models.CASCADE,
-#     )
-#     computed_molecule = models.ForeignKey(
-#         ComputedMolecule,
-#         null=False,
-#         on_delete=models.CASCADE,
-#     )
-#     rmsd = models.FloatField(null=True)
-
-#     class Meta:
-#         constraints = [
-#             models.UniqueConstraint(
-#                 fields=[
-#                     "site_observation",
-#                     "computed_molecule",
-#                 ],
-#                 name="unique_siteobservation_computedmolecule",
-#             ),
-#         ]
 
 
 class SiteObservationComputedSiteObservation(models.Model):
@@ -1600,61 +1385,6 @@ class SiteObservationComputedSiteObservation(models.Model):
                 name="unique_siteobservation_computedsiteobservation",
             ),
         ]
-
-
-# class ScoreDescription(models.Model):
-#     """The names and descriptions of scores that the user uploads with each computed set molecule."""
-
-#     computed_set = models.ForeignKey(ComputedSet, null=True, on_delete=models.CASCADE)
-#     name = models.CharField(max_length=50, help_text="A name for this score")
-#     description = models.TextField(
-#         help_text="A description of this score,"
-#         " which should describe how to interpret it"
-#     )
-
-#     def __str__(self) -> str:
-#         return f"{self.name}"
-
-#     def __repr__(self) -> str:
-#         return "<ScoreDescription %r %r>" % (self.id, self.name)
-
-
-# class NumericalScoreValues(models.Model):
-#     """The values of numerical scores that the user uploads with each computed set molecule."""
-
-#     score = models.ForeignKey(ScoreDescription, on_delete=models.CASCADE)
-#     value = models.FloatField()
-#     compound = models.ForeignKey(ComputedMolecule, on_delete=models.CASCADE)
-
-#     def __str__(self) -> str:
-#         return f"{self.score}"
-
-#     def __repr__(self) -> str:
-#         return "<NumericalScoreValues %r %r %r %r>" % (
-#             self.id,
-#             self.score,
-#             self.value,
-#             self.compound,
-#         )
-
-
-# class TextScoreValues(models.Model):
-#     """The values of text scores that the user uploads with each computed set molecule."""
-
-#     score = models.ForeignKey(ScoreDescription, on_delete=models.CASCADE)
-#     value = models.TextField(max_length=500)
-#     compound = models.ForeignKey(ComputedMolecule, on_delete=models.CASCADE)
-
-#     def __str__(self) -> str:
-#         return f"{self.score}"
-
-#     def __repr__(self) -> str:
-#         return "<TextScoreValues %r %r %r %r>" % (
-#             self.id,
-#             self.score,
-#             self.value,
-#             self.compound,
-#         )
 
 
 class File(models.Model):

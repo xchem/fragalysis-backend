@@ -385,59 +385,6 @@ class MolOps:
 
         return cpd
 
-        # what i need for the number:
-        # - it shows the number of COMPOUNDS that virtual observations attach themselves to
-        # - 1, if this is the fir
-
-        # # look for *all* compounds under this target, both LHS and RHS
-        # # uploads
-        # lhs_qs = Compound.filter_manager.by_target(target)
-        # rhs_qs = Compound.objects.filter(
-        #     pk__in=ComputedMolecule.objects.filter(
-        #         computed_set__target=target,
-        #     ).values('compound')
-        # )
-
-        # try:
-        #     cpd = rhs_qs.get(inchi_key=inchi_key)
-        #     # memo to self: I'm not setting cpd_number here, because
-        #     # it's read from computedmol name
-        # except Compound.DoesNotExist:
-        #     # RHS didn't work out, try LHS. here, duplicates are possible
-        #     cpd = lhs_qs.filter(inchi_key=inchi_key).first()
-
-        #     if not cpd:
-        #         # still no compound, create new
-        #         cpd = Compound(
-        #             smiles=Chem.MolToSmiles(sanitized_mol),
-        #             inchi=inchi,
-        #             inchi_key=inchi_key,
-        #             description=name,
-        #         )
-        #         # This is a new compound.
-        #         cpd.save()
-        #         # This is a new compound.
-        #         # We must now set relationships to the Proposal that it applies to.
-        #         cpd.project_id.add(target.project)
-        #         qs = Compound.objects.filter(
-        #             computedmolecule__computed_set__target=target,
-        #         )
-        #         cpd_number = str(qs.count())
-        # except MultipleObjectsReturned as exc:
-        #     # NB! when processing new uploads, Compound is always
-        #     # fetched by inchi_key, so this shouldn't ever create
-        #     # duplicates. Ands LHS uploads do not create inchi_keys,
-        #     # so under normal operations duplicates should never
-        #     # occur. However there's nothing in the db to prevent
-        #     # this, so adding a catch clause and writing a meaningful
-        #     # message
-        #     msg = f"Duplicate compounds for target {target.title} with inchi key {inchi_key}."
-        #     logger.error(msg)
-        #     raise IntegrityError(msg) from exc
-
-        # return cpd, cpd_number
-
-    # def set_props(self, cpd, props, score_descriptions) -> List[ResultProperty]:
     def set_props(self, cpd, props, score_descriptions, computed_set) -> None:
         for property_name, val in score_descriptions.items():
             # logger.debug("score_descriptions: %s", score_descriptions)
@@ -873,12 +820,6 @@ class MolOps:
                 # do that in set_props when saving properties. Not the
                 # best solution
 
-                # description, _ = ScoreDescription.objects.get_or_create(
-                #     computed_set=computed_set,
-                #     name=key,
-                #     description=description_dict[key],
-                # )
-
                 value = description_dict[key]
 
                 if key in HEADER_MOL_FIELDS:
@@ -910,15 +851,6 @@ class MolOps:
                 submitter_method: str = self.submitter_method
                 if self.submitter_method:
                     submitter_method = self.submitter_method
-                    # truncated_submitter_method = self.submitter_method[
-                    #     : ComputedSet.LENGTH_METHOD_IN_NAME
-                    # ]
-                    # if len(self.submitter_method) > len(truncated_submitter_method):
-                    #     logger.warning(
-                    #         'ComputedSet submitter method is too long (%s). Truncated to "%s"',
-                    #         self.submitter_method,
-                    #         truncated_submitter_method,
-                    #     )
                 else:
                     submitter_method = "unspecified"
                     logger.warning(

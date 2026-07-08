@@ -2180,115 +2180,12 @@ class TargetLoader:
                 # now I have the code for the group.
                 so_group.filter(code__isnull=True).update(code=code)
 
-        # # new shortcoder ends
-        # # old shortcoder begins
-        # values = ["experiment"]
-        # # fmt: off
-        # qs = SiteObservation.objects.filter(
-        #         experiment__experiment_upload__target=self.target,
-        #         code__isnull=True,
-        #     ).values(
-        #         *values,
-        #     ).order_by(
-        #         *values,
-        #     ).annotate(
-        #         obvs=ArrayAgg("id"),
-        #     ).values_list("obvs", flat=True)
-        # # fmt: on
-
-        # for elem in qs:
-        #     # fmt: off
-        #     subgroups = SiteObservation.objects.filter(
-        #         pk__in=elem,
-        #     ).order_by(
-        #         "canon_site_conf__canon_site",
-        #     ).annotate(
-        #         sites=Count("canon_site_conf__canon_site"),
-        #         obvs=ArrayAgg('id'),
-        #     ).order_by(
-        #         "-sites",
-        #         # adding these 2 seems to be taking care of 2003, wrong shortcodes
-        #         # is this sufficient?
-        #         'chain_id',
-        #         'seq_id'
-        #     ).values_list("obvs", flat=True)
-        #     # fmt: on
-
-        #     suffix = alphanumerator()
-        #     for sub in subgroups:
-        #         # objects in this group should be named with same scheme
-        #         so_group = SiteObservation.objects.filter(pk__in=sub)
-
-        #         # memo to self: there used to be some code to test the
-        #         # position of the iterator in existing entries. This
-        #         # was because it was assumed, that when adding v2
-        #         # uploads, it can bring along new observations under
-        #         # existing experiment. Following discussions with
-        #         # Conor, it seems that this will not be the case. But
-        #         # should it agin be, this code was deleted on
-        #         # 2024-03-04, if you need to check
-
-        #         for so in so_group.filter(code__isnull=True):
-        #             logger.debug("processing so: %s", so.longcode)
-        #             if so.experiment.type == 1:
-        #                 # manual. code is pdb code
-        #                 code = f"{so.experiment.code}-{next(suffix)}"
-        #                 # NB! at the time of writing this piece of
-        #                 # code, I haven't seen an example of the data
-        #                 # so I only have a very vague idea how this is
-        #                 # going to work. The way I understand it now,
-        #                 # they cannot belong to separate groups so
-        #                 # there's no need for different iterators. But
-        #                 # could be I need to split them up
-        #             else:
-        #                 # model building. generate code
-        #                 code_prefix = experiment_objects[so.experiment.code].index_data[
-        #                     "code_prefix"
-        #                 ]
-        #                 # iter_pos = next(suffix)
-        #                 # code = f"{code_prefix}{so.experiment.code.split('-')[1]}{iter_pos}"
-        #                 # code = f"{code_prefix}{so.experiment.code.split('-')[1]}{next(suffix)}"
-        #                 try:
-        #                     exp_code_no = strip_exp_code(so.experiment.code)
-        #                 except ValueError as exc:
-        #                     self.report.log(logging.ERROR, exc.args[1])
-        #                     # error, loading failed, use full code for demo
-        #                     exp_code_no = so.experiment.code
-
-        #                 code = f"{code_prefix}{exp_code_no}{next(suffix)}"
-
-        #                 # test uniqueness for target
-        #                 # TODO: this should ideally be solved by db engine, before
-        #                 # rushing to write the trigger, have think about the
-        #                 # loader concurrency situations
-        #                 code_qs = SiteObservation.objects.filter(
-        #                     experiment__experiment_upload__target=self.target,
-        #                     code=code,
-        #                 )
-        #                 # if code exists and the experiment is new
-        #                 logger.debug(
-        #                     'checking code uniq: %s, %s', code, so.experiment.status
-        #                 )
-        #                 if code_qs.exists() and so.experiment.status.status_code == 0:
-        #                     msg = (
-        #                         f"short code {code} already exists for this target; "
-        #                         + "specify a code_prefix to resolve this conflict"
-        #                     )
-        #                     self.report.log(logging.ERROR, msg)
-
-        #             so.code = code
-        #             so.save()
-
         for val in site_observation_objects.values():  # pylint: disable=no-member
             # instances modified, and will be modified down the line, refresh
             val.instance.refresh_from_db()
 
         # to be used in tagging, a necessity after the data exclusion (1674)
         so_qs = SiteObservation.filter_manager.by_target(self.target)
-
-        # site_observations_versioned = {}
-        # for val in site_observation_objects.values():  # pylint: disable=no-member
-        #     site_observations_versioned[val.versioned_key] = val.instance
 
         # final remaining fk, attach reference site observation to canon_site_conf
         for val in canon_site_conf_objects.values():  # pylint: disable=no-member
