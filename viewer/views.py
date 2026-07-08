@@ -654,8 +654,8 @@ class UploadComputedSetView(generics.ListCreateAPIView):
                 # select ComputedMolecule objects that are in this set
                 # and not in any other sets
                 # fmt: off
-                selected_set.computed_molecules.exclude(
-                    pk__in=models.ComputedMolecule.objects.filter(
+                selected_set.site_observations.exclude(
+                    pk__in=models.SiteObservation.objects.filter(
                         computed_set__in=models.ComputedSet.objects.filter(
                             target=selected_set.target,
                         ).exclude(
@@ -1251,103 +1251,103 @@ class ComputedSetView(
         return response
 
 
-class ComputedMoleculesView(ISPyBSafeQuerySet):
-    """Retrieve information about computed molecules - 3D info (api/compound-molecules)."""
+# class ComputedMoleculesView(ISPyBSafeQuerySet):
+#     """Retrieve information about computed molecules - 3D info (api/compound-molecules)."""
 
-    queryset = models.ComputedMolecule.objects.all()
-    serializer_class = serializers.ComputedMoleculeSerializer
-    filter_permissions = "compound__project_id"
-    filterset_fields = ('computed_set',)
+#     queryset = models.ComputedMolecule.objects.all()
+#     serializer_class = serializers.ComputedMoleculeSerializer
+#     filter_permissions = "compound__project_id"
+#     filterset_fields = ('computed_set',)
 
-    # Vary keys the cache on Authorization/Cookie so per-user
-    # proposal filtering from ISPyBSafeQuerySet is preserved. The key_prefix
-    # is shared with ComputedMolAndScoreView so a single
-    # clear_view_cache("computed-molecules") drops both.
-    @method_decorator(
-        cache_page(
-            settings.CACHE_MIDDLEWARE_SECONDS,
-            cache=settings.CACHE_MIDDLEWARE_ALIAS,
-            key_prefix="computed-molecules",
-        )
-    )
-    @method_decorator(vary_on_headers('Authorization', 'Cookie'))
-    def list(self, request, *args, **kwargs):
-        return super().list(request, *args, **kwargs)
+#     # Vary keys the cache on Authorization/Cookie so per-user
+#     # proposal filtering from ISPyBSafeQuerySet is preserved. The key_prefix
+#     # is shared with ComputedMolAndScoreView so a single
+#     # clear_view_cache("computed-molecules") drops both.
+#     @method_decorator(
+#         cache_page(
+#             settings.CACHE_MIDDLEWARE_SECONDS,
+#             cache=settings.CACHE_MIDDLEWARE_ALIAS,
+#             key_prefix="computed-molecules",
+#         )
+#     )
+#     @method_decorator(vary_on_headers('Authorization', 'Cookie'))
+#     def list(self, request, *args, **kwargs):
+#         return super().list(request, *args, **kwargs)
 
-    @method_decorator(
-        cache_page(
-            settings.CACHE_MIDDLEWARE_SECONDS,
-            cache=settings.CACHE_MIDDLEWARE_ALIAS,
-            key_prefix="computed-molecules",
-        )
-    )
-    @method_decorator(vary_on_headers('Authorization', 'Cookie'))
-    def retrieve(self, request, *args, **kwargs):
-        return super().retrieve(request, *args, **kwargs)
-
-
-class NumericalScoreValuesView(ISPyBSafeQuerySet):
-    """View to retrieve information about numerical computed molecule scores
-    (api/numerical-scores).
-    """
-
-    queryset = models.NumericalScoreValues.objects.all()
-    serializer_class = serializers.NumericalScoreSerializer
-    filter_permissions = "compound__compound__project_id"
-    filterset_fields = ('compound', 'score')
+#     @method_decorator(
+#         cache_page(
+#             settings.CACHE_MIDDLEWARE_SECONDS,
+#             cache=settings.CACHE_MIDDLEWARE_ALIAS,
+#             key_prefix="computed-molecules",
+#         )
+#     )
+#     @method_decorator(vary_on_headers('Authorization', 'Cookie'))
+#     def retrieve(self, request, *args, **kwargs):
+#         return super().retrieve(request, *args, **kwargs)
 
 
-class TextScoresView(ISPyBSafeQuerySet):
-    """View to retrieve information about text computed molecule scores (api/text-scores)."""
+# class NumericalScoreValuesView(ISPyBSafeQuerySet):
+#     """View to retrieve information about numerical computed molecule scores
+#     (api/numerical-scores).
+#     """
 
-    queryset = models.TextScoreValues.objects.all()
-    serializer_class = serializers.TextScoreSerializer
-    filter_permissions = "compound__compound__project_id"
-    filterset_fields = ('compound', 'score')
-
-
-class CompoundScoresView(ISPyBSafeQuerySet):
-    """View to retrieve descriptions of scores for a given name or computed set."""
-
-    queryset = models.ScoreDescription.objects.all()
-    serializer_class = serializers.ScoreDescriptionSerializer
-    filter_permissions = "computed_set__target__project"
-    filterset_fields = ('computed_set', 'name')
+#     queryset = models.NumericalScoreValues.objects.all()
+#     serializer_class = serializers.NumericalScoreSerializer
+#     filter_permissions = "compound__compound__project_id"
+#     filterset_fields = ('compound', 'score')
 
 
-class ComputedMolAndScoreView(ISPyBSafeQuerySet):
-    """View to retrieve all information about molecules from a computed set
-    along with all of their scores.
-    """
+# class TextScoresView(ISPyBSafeQuerySet):
+#     """View to retrieve information about text computed molecule scores (api/text-scores)."""
 
-    queryset = models.ComputedMolecule.objects.all()
-    serializer_class = serializers.ComputedMolAndScoreSerializer
-    filter_permissions = "compound__project_id"
-    filterset_fields = ('computed_set',)
+#     queryset = models.TextScoreValues.objects.all()
+#     serializer_class = serializers.TextScoreSerializer
+#     filter_permissions = "compound__compound__project_id"
+#     filterset_fields = ('compound', 'score')
 
-    # Shares the "computed-molecules" key_prefix with ComputedMoleculesView
-    # since both depend on the same underlying ComputedMolecule model.
-    @method_decorator(
-        cache_page(
-            settings.CACHE_MIDDLEWARE_SECONDS,
-            cache=settings.CACHE_MIDDLEWARE_ALIAS,
-            key_prefix="computed-molecules",
-        )
-    )
-    @method_decorator(vary_on_headers('Authorization', 'Cookie'))
-    def list(self, request, *args, **kwargs):
-        return super().list(request, *args, **kwargs)
 
-    @method_decorator(
-        cache_page(
-            settings.CACHE_MIDDLEWARE_SECONDS,
-            cache=settings.CACHE_MIDDLEWARE_ALIAS,
-            key_prefix="computed-molecules",
-        )
-    )
-    @method_decorator(vary_on_headers('Authorization', 'Cookie'))
-    def retrieve(self, request, *args, **kwargs):
-        return super().retrieve(request, *args, **kwargs)
+# class CompoundScoresView(ISPyBSafeQuerySet):
+#     """View to retrieve descriptions of scores for a given name or computed set."""
+
+#     queryset = models.ScoreDescription.objects.all()
+#     serializer_class = serializers.ScoreDescriptionSerializer
+#     filter_permissions = "computed_set__target__project"
+#     filterset_fields = ('computed_set', 'name')
+
+
+# class ComputedMolAndScoreView(ISPyBSafeQuerySet):
+#     """View to retrieve all information about molecules from a computed set
+#     along with all of their scores.
+#     """
+
+#     queryset = models.ComputedMolecule.objects.all()
+#     serializer_class = serializers.ComputedMolAndScoreSerializer
+#     filter_permissions = "compound__project_id"
+#     filterset_fields = ('computed_set',)
+
+#     # Shares the "computed-molecules" key_prefix with ComputedMoleculesView
+#     # since both depend on the same underlying ComputedMolecule model.
+#     @method_decorator(
+#         cache_page(
+#             settings.CACHE_MIDDLEWARE_SECONDS,
+#             cache=settings.CACHE_MIDDLEWARE_ALIAS,
+#             key_prefix="computed-molecules",
+#         )
+#     )
+#     @method_decorator(vary_on_headers('Authorization', 'Cookie'))
+#     def list(self, request, *args, **kwargs):
+#         return super().list(request, *args, **kwargs)
+
+#     @method_decorator(
+#         cache_page(
+#             settings.CACHE_MIDDLEWARE_SECONDS,
+#             cache=settings.CACHE_MIDDLEWARE_ALIAS,
+#             key_prefix="computed-molecules",
+#         )
+#     )
+#     @method_decorator(vary_on_headers('Authorization', 'Cookie'))
+#     def retrieve(self, request, *args, **kwargs):
+#         return super().retrieve(request, *args, **kwargs)
 
 
 class DiscoursePostView(viewsets.ViewSet):

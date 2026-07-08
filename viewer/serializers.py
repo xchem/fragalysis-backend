@@ -20,7 +20,8 @@ from rest_framework.exceptions import PermissionDenied
 from api.security import ISPyBSafeQuerySet
 from api.utils import draw_mol, validate_tas
 from viewer import models
-from viewer.cset_upload import EMPTY_VALUES
+
+# from viewer.cset_upload import EMPTY_VALUES
 from viewer.target_loader import XTALFORMS_FILE
 from viewer.target_set_upload import sanitize_mol
 from viewer.utils import get_https_host
@@ -732,108 +733,108 @@ class ComputedSetCreateSerializer(serializers.ModelSerializer):
         }
 
 
-class ComputedMoleculeSerializer(serializers.ModelSerializer):
-    # performance issue
-    # inspiration_frags = MoleculeSerializer(read_only=True, many=True)
-    class Meta:
-        model = models.ComputedMolecule
-        fields = '__all__'
+# class ComputedMoleculeSerializer(serializers.ModelSerializer):
+#     # performance issue
+#     # inspiration_frags = MoleculeSerializer(read_only=True, many=True)
+#     class Meta:
+#         model = models.ComputedMolecule
+#         fields = '__all__'
 
 
-class ScoreDescriptionSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = models.ScoreDescription
-        fields = '__all__'
+# class ScoreDescriptionSerializer(serializers.ModelSerializer):
+#     class Meta:
+#         model = models.ScoreDescription
+#         fields = '__all__'
 
 
-class NumericalScoreSerializer(serializers.ModelSerializer):
-    score = ScoreDescriptionSerializer(read_only=True)
+# class NumericalScoreSerializer(serializers.ModelSerializer):
+#     score = ScoreDescriptionSerializer(read_only=True)
 
-    class Meta:
-        model = models.NumericalScoreValues
-        fields = '__all__'
-
-
-class TextScoreSerializer(serializers.ModelSerializer):
-    score = ScoreDescriptionSerializer(read_only=True)
-
-    class Meta:
-        model = models.TextScoreValues
-        fields = '__all__'
+#     class Meta:
+#         model = models.NumericalScoreValues
+#         fields = '__all__'
 
 
-class ComputedMolAndScoreSerializer(serializers.ModelSerializer):
-    numerical_scores = serializers.SerializerMethodField()
-    text_scores = serializers.SerializerMethodField()
-    pdb_info = serializers.SerializerMethodField()
+# class TextScoreSerializer(serializers.ModelSerializer):
+#     score = ScoreDescriptionSerializer(read_only=True)
 
-    # avoid 'nan' values in returned data
-    # TODO: as the input is now validated, at some point it may make
-    # more sense to clean the db and get rid of this method
-    def to_representation(self, instance):
-        data = super().to_representation(instance)
-        result = {}
-        for key, value in data.items():
-            if key == 'text_scores':
-                inner_result = {}
-                for inner_key, inner_value in value.items():
-                    inner_value = None if inner_value in EMPTY_VALUES else inner_value
-                    inner_result[inner_key] = inner_value
-                result[key] = inner_result
-            else:
-                result[key] = value
+#     class Meta:
+#         model = models.TextScoreValues
+#         fields = '__all__'
 
-        return result
 
-    class Meta:
-        model = models.ComputedMolecule
-        fields = (
-            "id",
-            "sdf_info",
-            "name",
-            "smiles",
-            "pdb_info",
-            "compound",
-            "computed_set",
-            "computed_inspirations",
-            "numerical_scores",
-            "text_scores",
-        )
+# class ComputedMolAndScoreSerializer(serializers.ModelSerializer):
+#     numerical_scores = serializers.SerializerMethodField()
+#     text_scores = serializers.SerializerMethodField()
+#     pdb_info = serializers.SerializerMethodField()
 
-    def get_numerical_scores(self, obj):
-        scores = models.NumericalScoreValues.objects.filter(compound=obj)
-        score_dict = {}
-        for score in scores:
-            score_dict[score.score.name] = score.value
-        return score_dict
+#     # avoid 'nan' values in returned data
+#     # TODO: as the input is now validated, at some point it may make
+#     # more sense to clean the db and get rid of this method
+#     def to_representation(self, instance):
+#         data = super().to_representation(instance)
+#         result = {}
+#         for key, value in data.items():
+#             if key == 'text_scores':
+#                 inner_result = {}
+#                 for inner_key, inner_value in value.items():
+#                     inner_value = None if inner_value in EMPTY_VALUES else inner_value
+#                     inner_result[inner_key] = inner_value
+#                 result[key] = inner_result
+#             else:
+#                 result[key] = value
 
-    def get_text_scores(self, obj):
-        scores = models.TextScoreValues.objects.filter(compound=obj)
-        score_dict = {}
-        for score in scores:
-            score_dict[score.score.name] = score.value
-        return score_dict
+#         return result
 
-    def get_pdb_info(self, obj):
-        # For this (new XCA) Fragalysis phase we do not support
-        # PDB material in the ComputedMolecule. So instead of this (original code)
-        # we now return a constant 'None'
-        #        if obj.pdb:
-        #            return obj.pdb.pdb_info.url
-        #        else:
-        #            return None
+#     class Meta:
+#         model = models.ComputedMolecule
+#         fields = (
+#             "id",
+#             "sdf_info",
+#             "name",
+#             "smiles",
+#             "pdb_info",
+#             "compound",
+#             "computed_set",
+#             "computed_inspirations",
+#             "numerical_scores",
+#             "text_scores",
+#         )
 
-        # Unused arguments
-        del obj
+#     def get_numerical_scores(self, obj):
+#         scores = models.NumericalScoreValues.objects.filter(compound=obj)
+#         score_dict = {}
+#         for score in scores:
+#             score_dict[score.score.name] = score.value
+#         return score_dict
 
-        return None
+#     def get_text_scores(self, obj):
+#         scores = models.TextScoreValues.objects.filter(compound=obj)
+#         score_dict = {}
+#         for score in scores:
+#             score_dict[score.score.name] = score.value
+#         return score_dict
 
-    # def get_score_descriptions(self, obj):
-    #     descriptions = ScoreDescription.objects.filter(computed_set=obj.computed_set)
-    #     desc_dict = {}
-    #     for desc in descriptions:
-    #         desc_dict[desc.name] = desc.description
-    #     return desc_dict
+#     def get_pdb_info(self, obj):
+#         # For this (new XCA) Fragalysis phase we do not support
+#         # PDB material in the ComputedMolecule. So instead of this (original code)
+#         # we now return a constant 'None'
+#         #        if obj.pdb:
+#         #            return obj.pdb.pdb_info.url
+#         #        else:
+#         #            return None
+
+#         # Unused arguments
+#         del obj
+
+#         return None
+
+#     # def get_score_descriptions(self, obj):
+#     #     descriptions = ScoreDescription.objects.filter(computed_set=obj.computed_set)
+#     #     desc_dict = {}
+#     #     for desc in descriptions:
+#     #         desc_dict[desc.name] = desc.description
+#     #     return desc_dict
 
 
 # Class for customer Discourse API
