@@ -30,6 +30,8 @@ on:
     branches-ignore:
     - 'staging'
     - 'production'
+    # Orphan branch holding only the coverage-badge JSON (see build-staging).
+    - 'coverage-badge'
     tags-ignore:
     - '**'
 
@@ -122,8 +124,30 @@ jobs:
       # backend image is not needed. DB connection defaults live in
       # tests/test_settings.py.
       run: poetry run pytest
+    - name: Coverage summary
+      # Render the coverage table on the run's summary page. The real gate is
+      # pytest itself (fail_under in pyproject); '|| true' stops this
+      # display-only step from re-failing on a low total, and '!cancelled()'
+      # shows the table even when pytest failed.
+      if: ${{ !cancelled() }}
+      run: |
+        {
+          echo '## Coverage'
+          echo
+          poetry run coverage report --format=markdown
+        } >> "$GITHUB_STEP_SUMMARY" || true
+    - name: Upload HTML coverage report
+      # Browsable, line-by-line report (pytest's --cov-report=html) showing
+      # exactly which lines are untested. Uploaded even when pytest fails the
+      # gate, so a low total can be investigated.
+      if: ${{ !cancelled() }}
+      uses: actions/upload-artifact@v4
+      with:
+        name: coverage-html
+        path: htmlcov/
+        if-no-files-found: ignore
     - name: Docker build
-      uses: docker/build-push-action@v6
+      uses: docker/build-push-action@v7
       with:
         context: .
         tags: ${{ steps.vars.outputs.BE_NAMESPACE }}/fragalysis-backend:${{ env.GITHUB_REF_SLUG }}
@@ -133,7 +157,7 @@ jobs:
         # with "unknown blob".
         provenance: false
     - name: Display
-      uses: docker/build-push-action@v6
+      uses: docker/build-push-action@v7
       with:
         context: .
         tags: ${{ steps.vars.outputs.BE_NAMESPACE }}/fragalysis-backend:${{ env.GITHUB_REF_SLUG }}
@@ -157,7 +181,7 @@ jobs:
         cat scan.md >> $GITHUB_STEP_SUMMARY
     - name: Login to DockerHub
       if: steps.vars.outputs.push == 'true'
-      uses: docker/login-action@v3
+      uses: docker/login-action@v4
       with:
         username: ${{ secrets.DOCKERHUB_USERNAME }}
         password: ${{ secrets.DOCKERHUB_TOKEN }}

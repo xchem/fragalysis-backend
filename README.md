@@ -5,6 +5,7 @@
 [![build dev](https://github.com/xchem/fragalysis-backend/actions/workflows/build-dev.yaml/badge.svg)](https://github.com/xchem/fragalysis-backend/actions/workflows/build-dev.yaml)
 [![build staging](https://github.com/xchem/fragalysis-backend/actions/workflows/build-staging.yaml/badge.svg)](https://github.com/xchem/fragalysis-backend/actions/workflows/build-staging.yaml)
 [![build production](https://github.com/xchem/fragalysis-backend/actions/workflows/build-production.yaml/badge.svg)](https://github.com/xchem/fragalysis-backend/actions/workflows/build-production.yaml)
+[![coverage](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/xchem/fragalysis-backend/coverage-badge/coverage.json)](https://github.com/xchem/fragalysis-backend/actions/workflows/build-staging.yaml)
 
 [![License](http://img.shields.io/badge/license-Apache%202.0-blue.svg?style=flat)](https://github.com/xchem/fragalysis-backend/blob/master/LICENSE.txt)
 

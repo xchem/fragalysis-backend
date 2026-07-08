@@ -126,7 +126,7 @@ class SiteObservationAnnotationQueryset(QuerySet):
 
 class SiteObservationAnnotationDataManager(Manager):
     def get_queryset(self):
-        return SiteObservationChoiceQueryset(self.model, using=self._db)
+        return SiteObservationAnnotationQueryset(self.model, using=self._db)
 
     def filter_qs(self):
         return self.get_queryset().filter_qs()
