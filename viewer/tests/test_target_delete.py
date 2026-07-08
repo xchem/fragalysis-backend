@@ -15,10 +15,9 @@ resolved from ``Project.user_id`` (no external service involved), and
 from pathlib import Path
 
 from viewer.models import (
-    Compound,
-    ComputedMolecule,
     ComputedSet,
-    ComputedSetComputedMolecule,
+    ComputedSetSiteObservation,
+    SiteObservation,
     Target,
 )
 from viewer.target_delete import delete_target
@@ -43,7 +42,8 @@ def _add_computed_set(target, user, media_root, settings, name="cset") -> Comput
 
     Lays down the three kinds of computed-set file the deleter must remove
     individually: the written SDF (absolute path in a TextField), the submitted
-    SDF (FileField under computed_set_data/) and a computed molecule's pdb file.
+    SDF (FileField under computed_set_data/) and a computed observation's uploaded
+    pdb file (SiteObservation.virtual_pdb_info).
     """
     cset_dir = media_root / settings.COMPUTED_SET_MEDIA_DIRECTORY
 
@@ -61,18 +61,14 @@ def _add_computed_set(target, user, media_root, settings, name="cset") -> Comput
         owner_user=user,
     )
 
-    compound = Compound.objects.create(inchi="InChI=1S/test", smiles="CCO")
     pdb_rel = f"{settings.COMPUTED_SET_MEDIA_DIRECTORY}/{name}_mol.pdb"
     (media_root / pdb_rel).write_text("pdb")
-    comp_mol = ComputedMolecule.objects.create(
-        compound=compound,
-        sdf_info="sdf",
-        name=f"{name}-mol",
-        smiles="CCO",
-        pdb_info=pdb_rel,
-    )
-    ComputedSetComputedMolecule.objects.create(
-        computed_set=computed_set, computed_molecule=comp_mol
+    # A computed observation is now a SiteObservation (its FKs are all nullable,
+    # so no experiment graph is needed here), linked to the set via the
+    # ComputedSetSiteObservation join table.
+    obs = SiteObservation.objects.create(virtual_pdb_info=pdb_rel)
+    ComputedSetSiteObservation.objects.create(
+        computed_set=computed_set, site_observation=obs
     )
     return computed_set
 
@@ -115,7 +111,8 @@ def test_delete_target_removes_db_rows_and_media(
     # Target and its computed graph are gone.
     assert not Target.objects.filter(pk=target.pk).exists()
     assert not ComputedSet.objects.filter(pk=cset.pk).exists()
-    assert not ComputedMolecule.objects.filter(computed_set=cset).exists()
+    # The computed-set/observation join rows go with the ComputedSet cascade.
+    assert not ComputedSetSiteObservation.objects.filter(computed_set=cset).exists()
 
     # Its media is gone: loader subdir and all three computed-set files.
     assert not target_subdir.exists()

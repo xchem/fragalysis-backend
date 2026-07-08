@@ -4,12 +4,14 @@ from django.apps import apps
 from django.db import connection, transaction
 from django.db.models import (
     BooleanField,
+    Case,
     F,
     Func,
     Manager,
     OuterRef,
     QuerySet,
     Subquery,
+    When,
 )
 
 logger = logging.getLogger(__name__)
@@ -134,7 +136,14 @@ class SiteObservationQueryset(StructureFilterQueryset):
             "experiment__experiment_upload__target",
             "cmpd",
         ).annotate(
-            target=F("experiment__experiment_upload__target"),
+            # target=F("experiment__experiment_upload__target"),
+            target=Case(
+                When(experiment__isnull=True, then=F("computed_set__target")),
+                When(
+                    experiment__isnull=False,
+                    then=F("experiment__experiment_upload__target"),
+                ),
+            ),
             compound_code=F("cmpd__compound_code"),
             prefix_tooltip=F("experiment__prefix_tooltip"),
         )
@@ -180,12 +189,18 @@ class ExperimentDataManager(Manager):
 class CompoundQueryset(StructureFilterQueryset):
     def filter_qs(self):
         Compound = apps.get_model("viewer", "Compound")
-        # this works, but it won't get all the compounds connected to
-        # target, only the ones from LHS upload. The ones created on
-        # ComputedSet upload won't be linked this way. is that
-        # something i need to fix?
+        SiteObservation = apps.get_model("viewer", "SiteObservation")
+
+        so_qs = SiteObservation.filter_manager.filter_qs()
+
         qs = Compound.objects.annotate(
-            target=F('experimentcompound__experiment__experiment_upload__target'),
+            target=Subquery(
+                so_qs.filter(
+                    cmpd=OuterRef("pk"),
+                ).values(
+                    "target"
+                )[:1],
+            ),
         )
 
         return qs
@@ -607,12 +622,12 @@ class AssayResultQueryset(QuerySet):
     def annotated_qs(self):
         Result = apps.get_model("viewer", "Result")
         qs = Result.objects.annotate(
-            target_name=F("result_upload__target__title"),
-            target_id=F("result_upload__target__id"),
+            target_name=F("computed_set__target__title"),
+            target_id=F("computed_set__target__id"),
             property_name=F("result_property__result_property"),
             data_type=F("result_property__data_type"),
             unit=F("result_property__unit"),
-            uploaded_by=F("result_upload__uploaded_by__username"),
+            uploaded_by=F("computed_set__owner_user__username"),
         )
 
         return qs

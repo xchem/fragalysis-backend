@@ -200,12 +200,26 @@ class ISPyBSafeQuerySet(viewsets.ReadOnlyModelViewSet):
     def _get_q_filter(self, proposal_list):
         """Returns a Q expression representing a (potentially complex) table filter."""
         if self.filter_permissions:
-            # Q-filter is based on the filter_permissions string
+            fp = (
+                (self.filter_permissions,)
+                if isinstance(self.filter_permissions, str)
+                else self.filter_permissions
+            )
+            # Q-filter is based on the filter_permissions strings
             # whether the resultant Project title in the proposal list
             # OR where the Project is 'open_to_public'
-            return Q(**{self.filter_permissions + "__title__in": proposal_list}) | Q(
-                **{self.filter_permissions + "__open_to_public": True}
-            )
+
+            # Chenged during LHS LHS unification to allow multiple
+            # permission strings (given as tuple in the
+            # view). Important bit: Q objects should be joined with OR
+
+            qry = Q()
+            for k in fp:
+                qry |= Q(**{k + "__title__in": proposal_list})
+                qry |= Q(**{k + "__open_to_public": True})
+
+            return qry
+
         else:
             # No filter permission?
             # Assume this QuerySet is used for the Project model.

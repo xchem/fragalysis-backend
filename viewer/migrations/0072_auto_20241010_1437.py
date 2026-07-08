@@ -6,7 +6,6 @@ from django.db import migrations
 
 from fragalysis.settings import MEDIA_ROOT, TARGET_LOADER_MEDIA_DIRECTORY
 
-from viewer.models import ComputedMolecule
 from viewer.utils import sanitize_directory_name
 
 

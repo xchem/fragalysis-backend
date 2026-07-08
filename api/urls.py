@@ -23,13 +23,13 @@ router.register("compound-identifiers", viewer_views.CompoundIdentifierView)
 
 # Compounds sets
 router.register("compound-sets", viewer_views.ComputedSetView)
-router.register("compound-molecules", viewer_views.ComputedMoleculesView)
-router.register("numerical-scores", viewer_views.NumericalScoreValuesView)
-router.register("text-scores", viewer_views.TextScoresView)
-router.register("compound-scores", viewer_views.CompoundScoresView, "compound-scores")
-router.register(
-    "compound-mols-scores", viewer_views.ComputedMolAndScoreView, "compound-mols-scores"
-)
+# router.register("compound-molecules", viewer_views.ComputedMoleculesView)
+# router.register("numerical-scores", viewer_views.NumericalScoreValuesView)
+# router.register("text-scores", viewer_views.TextScoresView)
+# router.register("compound-scores", viewer_views.CompoundScoresView, "compound-scores")
+# router.register(
+#     "compound-mols-scores", viewer_views.ComputedMolAndScoreView, "compound-mols-scores"
+# )
 
 # Get the derived data
 router.register("molimg", viewer_views.MolImageView, "molimg")
@@ -184,6 +184,12 @@ router.register(
     "activity_data_curation",
     viewer_views.ActivityDataCurationView,
     basename='activity_data_curation',
+)
+
+router.register(
+    "computed_inspirations",
+    viewer_views.ComputedInspirationView,
+    basename='computed_inspirations',
 )
 
 router.register("plot_data", viewer_views.PlotDataView, basename='plot_data')

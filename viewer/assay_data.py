@@ -1,15 +1,21 @@
 import logging
 import re
+import uuid
+from urllib.parse import urlparse
 
 import numpy as np
 import pandas as pd
+from django.core.exceptions import ValidationError
+from django.core.validators import URLValidator
 from django.db import IntegrityError, transaction
+from django.db.models import Q
 
-from .models import (
+from .models import (  # ResultUpload,
     Compound,
+    ComputedSet,
+    Experiment,
     Result,
     ResultProperty,
-    ResultUpload,
     ResultValueDataType,
     ResultValueModifier,
     SiteObservation,
@@ -18,10 +24,13 @@ from .models import (
 
 logger = logging.getLogger(__name__)
 
-
+PDB_RE = re.compile(r"^[0-9][A-Za-z0-9]{3}$")
 INT_PATTERN = re.compile(r'(<=|>=|<|>)?\s*([+-]?\d+)')
 FLOAT_PATTERN = re.compile(r'(<=|>=|<|>)?\s*([+-]?(?:\d+\.\d*|\.\d+|\d+))')
 ERROR_COLUMN = 'error'
+
+
+url_validator = URLValidator(schemes=["http", "https"])
 
 
 class NoObjectsFoundError(Exception):
@@ -113,6 +122,51 @@ def process_text(df, column, id_column):
     return result, ResultValueDataType.objects.get(data_type='text')
 
 
+def process_link_value(x):
+    """Process URL value in cell.
+
+    Must be a vaild RCSB link
+    """
+
+    # 1. URL syntax
+    try:
+        url_validator(x)
+    except ValidationError:
+        return x, 'LINK', True, f'Invalid URL: {x}'
+
+    parsed = urlparse(x)
+
+    # 2. Host check
+    if parsed.netloc not in ("www.rcsb.org", "rcsb.org"):
+        return x, 'LINK', True, f'Not an RCSB URL: {x}'
+
+    # 3. Path structure check
+    # Expected: /structure/3PJR
+    parts = parsed.path.strip("/").split("/")
+    if len(parts) != 2 or parts[0] != "structure":
+        return x, 'LINK', True, f'Not PDB structure URL: {x}'
+
+    pdb_id = parts[1].upper()
+
+    # 4. PDB code validation
+    if not PDB_RE.match(pdb_id):
+        return x, 'LINK', True, f'Invalid PDB ID: {pdb_id}'
+
+    return x, pdb_id, False, None
+
+
+def process_link(df, column, id_column):
+    """Process text value in cell."""
+    logger.debug('text column %s processed', column)
+    result = df[column].apply(process_link_value).apply(pd.Series)
+    result.columns = ['raw_value', 'link_value', 'parsing_error', ERROR_COLUMN]
+    logger.debug('link df 1: %s', result)
+    result = result.merge(df[id_column], left_index=True, right_index=True)
+    logger.debug('link df 2: %s', result)
+
+    return result, ResultValueDataType.objects.get(data_type='link')
+
+
 def process_int_value(x):
     """Process float value in cell.
 
@@ -169,8 +223,9 @@ def process_integer(df, column, id_column):
 def append_object_pk(df, id_column, object_type, target):
     # filter out non-compounds and add object's pk
     # TODO: should I create cmpds?
+
     if object_type == 'compound':
-        existing_objects = Compound.objects.filter(
+        existing_objects = Compound.filter_manager.by_target(target).filter(
             compound_code__in=df[id_column],
         )
         if not existing_objects:
@@ -179,30 +234,57 @@ def append_object_pk(df, id_column, object_type, target):
             )
         existing_ids = existing_objects.values_list('compound_code', flat=True)
         df = df[df[id_column].isin(existing_ids)]
+        logger.debug('df comp: %s', df)
 
         code_to_obj = {
             obj.compound_code: obj
             for obj in existing_objects.filter(compound_code__in=df[id_column])
         }
-    elif object_type == 'site_observation':
-        existing_objects = SiteObservation.filter_manager.by_target(target).filter(
+    elif object_type == 'experiment':
+        existing_objects = Experiment.filter_manager.by_target(target).filter(
             code__in=df[id_column],
+        )
+        if not existing_objects:
+            raise NoObjectsFoundError(
+                f'No experiments found for codes {",".join(df[id_column])}'
+            )
+        existing_ids = existing_objects.values_list('code', flat=True)
+        df = df[df[id_column].isin(existing_ids)]
+        logger.debug('df exp: %s', df)
+
+        code_to_obj = {
+            obj.code: obj for obj in existing_objects.filter(code__in=df[id_column])
+        }
+        logger.debug('code to obj exp: %s', code_to_obj)
+    elif object_type == 'site_observation':
+        # NB! this assumes code and virtual_name to be mutually exclusive
+        existing_objects = SiteObservation.filter_manager.by_target(target).filter(
+            Q(code__in=df[id_column]) | Q(virtual_name__in=df[id_column])
         )
         if not existing_objects:
             raise NoObjectsFoundError(
                 f'No site observations found for codes {",".join(df[id_column])}'
             )
-        existing_ids = existing_objects.values_list('code', flat=True)
+
+        existing_ids1 = existing_objects.values_list('code', flat=True)
+        existing_ids2 = existing_objects.values_list('virtual_name', flat=True)
+        existing_ids = [k for k in list(existing_ids1) + list(existing_ids2) if k]
+
         df = df[df[id_column].isin(existing_ids)]
+        logger.debug('df so: %s', df)
 
         code_to_obj = {
             obj.code: obj for obj in existing_objects.filter(code__in=df[id_column])
         }
+        for obj in existing_objects.filter(virtual_name__in=df[id_column]):
+            code_to_obj[obj.virtual_name] = obj
+
     else:
         raise ValueError(f'Wrong identifier submitted: {object_type}')
 
     # pandas warning on this row.. shoul i change it?
     df[object_type] = df[id_column].map(code_to_obj)
+    logger.debug('df final: %s', df)
 
     return df
 
@@ -221,6 +303,8 @@ def resolve_multiindex(df):
     data_types = {
         'float': process_float,
         'text': process_text,
+        'integer': process_integer,
+        'link': process_link,
     }
     result = {}
     # data type is given in second row
@@ -263,7 +347,7 @@ class AssayData:
     ):
         self.filename = filename
         self.id_column = id_column
-        self.id_type = id_type  # compound or site observation
+        self.id_type = id_type  # compound, experiment or site observation
         self.target = target
         self.user = user
         self.header_contains_data_types = header_contains_data_types
@@ -288,6 +372,12 @@ class AssayData:
                 # header values. non-issue with multiindex
                 df = df.loc[:, ~df.columns.str.startswith('Unnamed: ')]
                 df, data_columns = resolve_data(df, self.id_column)
+
+            # very easy to generate conflict
+            if self.id_column == self.id_type:
+                newname = uuid.uuid1().hex
+                df.rename(columns={self.id_column: newname}, inplace=True)
+                self.id_column = newname
             try:
                 df = append_object_pk(df, self.id_column, self.id_type, self.target)
             except NoObjectsFoundError as exc:
@@ -307,13 +397,23 @@ class AssayData:
 
         try:
             with transaction.atomic():
-                result_upload = ResultUpload(
+                # result_upload = ResultUpload(
+                #     target=self.target,
+                #     upload_file=self.filename,
+                #     uploaded_by=self.user,
+                # )
+
+                # result_upload.save()
+
+                computed_set = ComputedSet(
                     target=self.target,
-                    upload_file=self.filename,
-                    uploaded_by=self.user,
+                    submitted_sdf=self.filename,
+                    owner_user=self.user,
                 )
 
-                result_upload.save()
+                computed_set.save()
+
+                logger.debug('computedset saved %s', computed_set)
 
                 order = 0
                 for column, proc_func in data_columns.items():
@@ -323,17 +423,32 @@ class AssayData:
 
                     short_df, data_type = proc_func(df, column, self.id_column)
 
-                    result_property, _ = ResultProperty.objects.get_or_create(
-                        result_property=column,
-                        unit=unit,
-                        target=self.target,
-                        order=order,
-                        data_type=data_type,
-                    )
+                    # ResultProperty defines these 3 fields as a
+                    # uniqueconstraint, but order and data_type must
+                    # not be null. hence there's no
+                    # get_or_create. maybe this should be changed
+                    try:
+                        result_property = ResultProperty.objects.get(
+                            result_property=column,
+                            unit=unit,
+                            target=self.target,
+                        )
+                    except ResultProperty.DoesNotExist:
+                        result_property = ResultProperty(
+                            result_property=column,
+                            unit=unit,
+                            target=self.target,
+                            order=order,
+                            data_type=data_type,
+                        )
+                        result_property.save()
 
                     short_df[self.id_type] = df[self.id_type]
-                    short_df['result_upload'] = result_upload
+                    # short_df['result_upload'] = result_upload
+                    short_df['computed_set'] = computed_set
                     short_df['result_property'] = result_property
+
+                    logger.debug('short_df %s', short_df)
 
                     # extract error column and add it to error list
                     error_df = short_df[short_df[ERROR_COLUMN].notnull()][
@@ -342,7 +457,7 @@ class AssayData:
                     err_dicts = error_df.to_dict(orient='records')
                     self.warnings.extend(
                         [
-                            f'{k[self.id_column]}, column {column}: {k[ERROR_COLUMN]}'
+                            f"{k[self.id_column]}, column '{column}': {k[ERROR_COLUMN]}"
                             for k in err_dicts
                         ]
                     )
@@ -364,7 +479,7 @@ class AssayData:
         return self.errors, self.warnings
 
 
-def convert(upload, property_id, new_type):
+def convert(computed_set, property_id, new_type):
     errors = []
     warnings: list[str] = []
     result_property = ResultProperty.objects.get(pk=property_id)
@@ -372,7 +487,8 @@ def convert(upload, property_id, new_type):
 
     qs = Result.objects.filter(
         result_property=result_property,
-        result_upload=upload,
+        # result_upload=upload,
+        computed_set=computed_set,
     )
 
     try:
