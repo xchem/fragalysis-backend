@@ -798,6 +798,25 @@ class SiteObservation(Versionable, models.Model):
 
         return contents
 
+    def get_filename(self):
+        """Basename for this observation's uploaded pdb in downloads.
+
+        Mirrors the former ComputedMolecule.get_filename: strip the
+        auto-assigned suffix from virtual_pdb_info, e.g.
+        ``computed_set_data/A0486a#<hash>.pdb_<hash>`` -> ``A0486a.pdb``.
+        Returns None if there is no uploaded pdb.
+        """
+        if not self.virtual_pdb_info:
+            return None
+        fname = Path(self.virtual_pdb_info.name).name
+        # With a referenced observation the name is already clean; without
+        # one it still carries the auto-assigned '#<hash>' suffix to strip.
+        if self.virtual_ref_observation:
+            return fname
+        if fname.find('#') > 0:
+            return f"{fname.split('#')[0]}.pdb"
+        return fname
+
 
 class SiteObservationQualityStatus(models.Model):
     site_observation = models.ForeignKey(SiteObservation, on_delete=models.CASCADE)

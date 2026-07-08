@@ -1216,7 +1216,7 @@ class ComputedSetView(
         sdfs = models.ComputedSet.history.filter(
             written_sdf_filename__isnull=False,
         )
-        pdbs = computed_set.computed_molecules.filter(pdb__isnull=True)
+        pdbs = computed_set.site_observations.all()
 
         # so now, get the file, and get the pdbs
         with zipfile.ZipFile(zip_buffer, 'a', zipfile.ZIP_DEFLATED) as ziparchive:
@@ -1229,7 +1229,11 @@ class ComputedSetView(
                     ziparchive.writestr(f'{str(sdf.submitted_sdf)}_MISSING', r'')
 
             for f in pdbs:
-                fpath = Path(settings.MEDIA_ROOT).joinpath(f.pdb_info.name)
+                if not f.virtual_pdb_info:
+                    # Only observations with a user-uploaded pdb are included
+                    # (the former pdb__isnull=True computed molecules).
+                    continue
+                fpath = Path(settings.MEDIA_ROOT).joinpath(f.virtual_pdb_info.name)
                 if fpath.is_file():
                     with open(fpath, 'rb') as contents:
                         ziparchive.writestr(f.get_filename(), contents.read())
@@ -3236,7 +3240,7 @@ class DownloadComputedSetView(ISPyBSafeQuerySet):
         sdfs = models.ComputedSet.history.filter(
             written_sdf_filename__isnull=False,
         )
-        pdbs = computed_set.computed_molecules.filter(pdb__isnull=True)
+        pdbs = computed_set.site_observations.all()
 
         # so now, get the file, and get the pdbs
         with zipfile.ZipFile(zip_buffer, 'a', zipfile.ZIP_DEFLATED) as ziparchive:
@@ -3249,7 +3253,11 @@ class DownloadComputedSetView(ISPyBSafeQuerySet):
                     ziparchive.writestr(f'{str(sdf.submitted_sdf)}_MISSING', r'')
 
             for f in pdbs:
-                fpath = Path(settings.MEDIA_ROOT).joinpath(f.pdb_info.name)
+                if not f.virtual_pdb_info:
+                    # Only observations with a user-uploaded pdb are included
+                    # (the former pdb__isnull=True computed molecules).
+                    continue
+                fpath = Path(settings.MEDIA_ROOT).joinpath(f.virtual_pdb_info.name)
                 if fpath.is_file():
                     with open(fpath, 'rb') as contents:
                         ziparchive.writestr(f.get_filename(), contents.read())

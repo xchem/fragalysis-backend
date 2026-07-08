@@ -2315,7 +2315,7 @@ class TargetLoader:
             self.process_soakdb(db_file=str(soakdb_path))
 
         if self.version_number > 1 and self.target.computedset_set.exists():
-            self.link_compounds_to_computedmolecules(site_observation_objects)
+            self.link_observations_to_computed_observations(site_observation_objects)
 
         self.mol_coords_to_db(site_observation_objects)
 
@@ -2658,25 +2658,25 @@ class TargetLoader:
             # received invalid path
             return None
 
-    def link_compounds_to_computedmolecules(
+    def link_observations_to_computed_observations(
         self, site_observation_objects: dict[str, MetadataObject]
     ) -> None:
-        """Link incoming SiteObservations to existing ComputedMolecules.
+        """Link incoming SiteObservations to existing computed observations.
 
         Spec (scraped from github (
         issue https://github.com/m2ms/fragalysis-frontend/issues/1591)).
 
         - on upload_1, do nothing
-        - subsequent uploads, fFor every new molecule, check for a RHS
+        - subsequent uploads, for every new observation, check for a RHS
           design with the same chemical structure of the soaked
           compound (compare flattened inchikeys)
-        - when match found, enumerate all possible LHS-RHS compound
-          links, but annotate them with an RMSD
-        - look only for ComputedMolecules within the target scope
+        - when match found, enumerate all possible LHS-RHS links, but
+          annotate them with an RMSD
+        - look only for computed observations within the target scope
 
-        In practice, there's now a model
-        SiteObservationComputedMolecule, effectively a m2m table
-        between SiteObservation and ComputedMolecule that also
+        In practice the link is stored in
+        SiteObservationComputedSiteObservation, effectively an m2m table
+        between experimental and computed SiteObservations that also
         captures an alignment RMSD value.
         """
         logger.debug('+linking observations to computed molecules')

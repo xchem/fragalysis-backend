@@ -546,7 +546,9 @@ class MolOps:
             groups = re.search(r"()(\d+)(\D+)", latest.virtual_name)
             if groups is None or len(groups.groups()) != 3:
                 # just a quick sanity check
-                raise IntegrityError(f"Non-standard virtual_name: {latest.name}")
+                raise IntegrityError(
+                    f"Non-standard virtual_name: {latest.virtual_name}"
+                )
             number = groups.groups()[1]  # type: ignore [index]
             suffix = next(alphanumerator(start_from=groups.groups()[2]))  # type: ignore [index]
         else:
