@@ -1948,6 +1948,19 @@ class DownloadStructuresView(
         return Response({'task_status_url': url}, status=status.HTTP_202_ACCEPTED)
 
 
+def _user_has_loader_role(user) -> bool:
+    """True if `user` holds the UserRole.LOADER_ROLE role.
+
+    A Loader bypasses target-access membership checks: they may load data for
+    any proposal (see `_check_upload_tas_authorisation`) and, symmetrically,
+    poll the status of the tasks they start (see `TaskStatusView`).
+    """
+    return (
+        user.is_authenticated
+        and user.roles.filter(name=models.UserRole.LOADER_ROLE).exists()
+    )
+
+
 def _check_upload_tas_authorisation(request, target_access_string):
     """Authorise an upload/validate request against `target_access_string`.
 
@@ -1991,7 +2004,7 @@ def _check_upload_tas_authorisation(request, target_access_string):
     if not user.is_authenticated:
         return redirect(settings.LOGIN_URL)
 
-    if user.roles.filter(name=models.UserRole.LOADER_ROLE).exists():
+    if _user_has_loader_role(user):
         logger.warning(
             'User "%s" bypassing target-access authorisation for "%s" '
             'via the "%s" role',
@@ -2292,7 +2305,19 @@ class TaskStatusView(APIView):
                 }
                 return Response(content, status=status.HTTP_403_FORBIDDEN)
 
-            if proposal not in _ISPYB_SAFE_QUERY_SET.get_proposals_for_user(
+            if _user_has_loader_role(request.user):
+                # Same bypass the upload endpoint grants: a Loader may poll the
+                # status of a task they were authorised to start even when they
+                # are not a member of the proposal (see
+                # _check_upload_tas_authorisation).
+                logger.warning(
+                    'User "%s" bypassing task-status authorisation for "%s" '
+                    'via the "%s" role',
+                    request.user.username,
+                    proposal,
+                    models.UserRole.LOADER_ROLE,
+                )
+            elif proposal not in _ISPYB_SAFE_QUERY_SET.get_proposals_for_user(
                 request.user
             ):
                 return Response(
