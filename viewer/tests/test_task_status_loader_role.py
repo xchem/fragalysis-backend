@@ -2,7 +2,8 @@
 
 The upload endpoint (``UploadExperimentUploadView``) grants ``UserRole.LOADER_ROLE``
 users a bypass, letting them load data for *any* proposal even without membership
-(see ``_check_upload_tas_authorisation``). ``TaskStatusView`` must grant the same
+(see ``api.security.check_upload_tas_authorisation``). ``TaskStatusView`` must
+grant the same
 bypass, otherwise a Loader who uploads to a non-public proposal they are not a
 member of receives a ``task_status_url`` they are then forbidden to poll.
 

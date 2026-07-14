@@ -1,16 +1,19 @@
 # pylint: skip-file
 import logging
 import os
+from dataclasses import dataclass
 from pathlib import Path
+from typing import Any, Dict, Optional
 from wsgiref.util import FileWrapper
 
 import ta_auth_connector
 from django.conf import settings
+from django.contrib.auth import get_user_model
 from django.db.models import Q
 from django.http import Http404, HttpResponse
 from rest_framework import viewsets
 
-from viewer.models import Project
+from viewer.models import Project, UserRole
 
 from .utils import deployment_mode_is_production
 
@@ -214,6 +217,108 @@ class ISPyBSafeQuerySet(viewsets.ReadOnlyModelViewSet):
             # Q-filter is based on the Project title being in the proposal list
             # OR where the Project is 'open_to_public'
             return Q(title__in=proposal_list) | Q(open_to_public=True)
+
+
+def user_has_loader_role(user) -> bool:
+    """True if `user` holds the UserRole.LOADER_ROLE role.
+
+    A Loader bypasses target-access membership checks: they may load data for
+    any proposal (see `check_upload_tas_authorisation`) and, symmetrically,
+    poll the status of the tasks they start (see `viewer.views.TaskStatusView`).
+    """
+    return (
+        user.is_authenticated and user.roles.filter(name=UserRole.LOADER_ROLE).exists()
+    )
+
+
+@dataclass(frozen=True)
+class UploadTASAuthorisationFailure:
+    """Why `check_upload_tas_authorisation` refused an upload.
+
+    Exactly one of the two fields is meaningful: `login_required` when the
+    user must authenticate first, otherwise `error_body` - the body the view
+    should return with a 403 response.
+    """
+
+    login_required: bool = False
+    error_body: Optional[Dict[str, Any]] = None
+
+
+def check_upload_tas_authorisation(
+    request, target_access_string
+) -> Optional[UploadTASAuthorisationFailure]:
+    """Authorise an upload/validate request against `target_access_string`.
+
+    Returns None when the user is authorised to proceed, otherwise an
+    `UploadTASAuthorisationFailure` the caller must translate into an HTTP
+    response (a login redirect or a 403).
+
+    A user holding the UserRole.LOADER_ROLE role bypasses the target-access
+    membership check; the bypass is logged as a warning naming the user and
+    the role.
+    """
+    if not settings.AUTHENTICATE_UPLOAD:
+        return None
+
+    if request.user.username == 'asap-service':
+        logger.warning(
+            'Upload attempted with "%s" service account, trying uploader-supplied user',
+            request.user.username,
+        )
+        if 'django-user' in request.headers.keys():
+            try:
+                user = get_user_model().objects.get(
+                    username=request.headers['django-user']
+                )
+            except get_user_model().DoesNotExist:
+                msg = (
+                    f'Upload from "{request.user.username}" '
+                    + 'service account but fragalysis user not found'
+                )
+                logger.error(msg)
+                return UploadTASAuthorisationFailure(error_body={'error': msg})
+        else:
+            msg = (
+                f'Upload from "{request.user.username}" service '
+                'account but fragalysis user not supplied'
+            )
+            logger.error(msg)
+            return UploadTASAuthorisationFailure(error_body={'error': msg})
+    else:
+        user = request.user
+
+    if not user.is_authenticated:
+        return UploadTASAuthorisationFailure(login_required=True)
+
+    if user_has_loader_role(user):
+        logger.warning(
+            'User "%s" bypassing target-access authorisation for "%s" '
+            'via the "%s" role',
+            user.username,
+            target_access_string,
+            UserRole.LOADER_ROLE,
+        )
+        return None
+
+    proposals = ISPyBSafeQuerySet().get_proposals_for_user(
+        user, restrict_public_to_membership=True
+    )
+    if target_access_string not in proposals:
+        logger.warning(
+            '(#1712) User %s does not have access to %s (checked %d proposals)',
+            user.username,
+            target_access_string,
+            len(proposals),
+        )
+        return UploadTASAuthorisationFailure(
+            error_body={
+                "target_access_string": [
+                    f"You are not authorized to upload data to '{target_access_string}'"
+                ]
+            }
+        )
+
+    return None
 
 
 class ISPyBSafeStaticFiles:

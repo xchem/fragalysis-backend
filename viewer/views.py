@@ -33,7 +33,11 @@ from rest_framework.views import APIView
 from ta_auth_connector import get_auth_ping, get_auth_target_access, get_auth_version
 
 from api.infections import INFECTION_STRUCTURE_DOWNLOAD, have_infection
-from api.security import ISPyBSafeQuerySet
+from api.security import (
+    ISPyBSafeQuerySet,
+    check_upload_tas_authorisation,
+    user_has_loader_role,
+)
 from api.utils import (
     deployment_mode_is_production,
     get_highlighted_diffs,
@@ -1948,92 +1952,19 @@ class DownloadStructuresView(
         return Response({'task_status_url': url}, status=status.HTTP_202_ACCEPTED)
 
 
-def _user_has_loader_role(user) -> bool:
-    """True if `user` holds the UserRole.LOADER_ROLE role.
-
-    A Loader bypasses target-access membership checks: they may load data for
-    any proposal (see `_check_upload_tas_authorisation`) and, symmetrically,
-    poll the status of the tasks they start (see `TaskStatusView`).
-    """
-    return (
-        user.is_authenticated
-        and user.roles.filter(name=models.UserRole.LOADER_ROLE).exists()
-    )
-
-
-def _check_upload_tas_authorisation(request, target_access_string):
+def _upload_tas_authorisation_response(request, target_access_string):
     """Authorise an upload/validate request against `target_access_string`.
 
-    Returns a Response (error 403 / login redirect) that the caller must
+    Thin HTTP wrapper over `api.security.check_upload_tas_authorisation`:
+    returns a Response (error 403 / login redirect) that the caller must
     return immediately, or None when the user is authorised to proceed.
-
-    A user holding the UserRole.LOADER_ROLE role bypasses the target-access
-    membership check; the bypass is logged as a warning naming the user and
-    the role.
     """
-    if not settings.AUTHENTICATE_UPLOAD:
+    failure = check_upload_tas_authorisation(request, target_access_string)
+    if failure is None:
         return None
-
-    if request.user.username == 'asap-service':
-        logger.warning(
-            'Upload attempted with "%s" service account, trying uploader-supplied user',
-            request.user.username,
-        )
-        if 'django-user' in request.headers.keys():
-            try:
-                user = get_user_model().objects.get(
-                    username=request.headers['django-user']
-                )
-            except get_user_model().DoesNotExist:
-                msg = (
-                    f'Upload from "{request.user.username}" '
-                    + 'service account but fragalysis user not found'
-                )
-                logger.error(msg)
-                return Response({'error': msg}, status=status.HTTP_403_FORBIDDEN)
-        else:
-            msg = (
-                f'Upload from "{request.user.username}" service '
-                'account but fragalysis user not supplied'
-            )
-            logger.error(msg)
-            return Response({'error': msg}, status=status.HTTP_403_FORBIDDEN)
-    else:
-        user = request.user
-
-    if not user.is_authenticated:
+    if failure.login_required:
         return redirect(settings.LOGIN_URL)
-
-    if _user_has_loader_role(user):
-        logger.warning(
-            'User "%s" bypassing target-access authorisation for "%s" '
-            'via the "%s" role',
-            user.username,
-            target_access_string,
-            models.UserRole.LOADER_ROLE,
-        )
-        return None
-
-    proposals = _ISPYB_SAFE_QUERY_SET.get_proposals_for_user(
-        user, restrict_public_to_membership=True
-    )
-    if target_access_string not in proposals:
-        logger.warning(
-            '(#1712) User %s does not have access to %s (checked %d proposals)',
-            user.username,
-            target_access_string,
-            len(proposals),
-        )
-        return Response(
-            {
-                "target_access_string": [
-                    f"You are not authorized to upload data to '{target_access_string}'"
-                ]
-            },
-            status=status.HTTP_403_FORBIDDEN,
-        )
-
-    return None
+    return Response(failure.error_body, status=status.HTTP_403_FORBIDDEN)
 
 
 class UploadExperimentUploadView(viewsets.ViewSet):
@@ -2062,7 +1993,9 @@ class UploadExperimentUploadView(viewsets.ViewSet):
 
         target_access_string = serializer.validated_data['target_access_string']
 
-        auth_response = _check_upload_tas_authorisation(request, target_access_string)
+        auth_response = _upload_tas_authorisation_response(
+            request, target_access_string
+        )
         if auth_response is not None:
             return auth_response
 
@@ -2135,7 +2068,9 @@ class UploadExperimentValidateView(viewsets.ViewSet):
 
         target_access_string = serializer.validated_data['target_access_string']
 
-        auth_response = _check_upload_tas_authorisation(request, target_access_string)
+        auth_response = _upload_tas_authorisation_response(
+            request, target_access_string
+        )
         if auth_response is not None:
             return auth_response
 
@@ -2305,11 +2240,11 @@ class TaskStatusView(APIView):
                 }
                 return Response(content, status=status.HTTP_403_FORBIDDEN)
 
-            if _user_has_loader_role(request.user):
+            if user_has_loader_role(request.user):
                 # Same bypass the upload endpoint grants: a Loader may poll the
                 # status of a task they were authorised to start even when they
                 # are not a member of the proposal (see
-                # _check_upload_tas_authorisation).
+                # api.security.check_upload_tas_authorisation).
                 logger.warning(
                     'User "%s" bypassing task-status authorisation for "%s" '
                     'via the "%s" role',
