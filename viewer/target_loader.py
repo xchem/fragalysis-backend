@@ -964,7 +964,11 @@ class TargetLoader:
         map_info_paths = []
         if map_info_files:
             map_info_paths = list(
-                set([str(self._get_final_path(k)) for k in map_info_files])
+                {
+                    p
+                    for k in map_info_files
+                    if (p := self._final_path_or_none(k)) is not None
+                }
             )
 
         defaults = {
@@ -973,9 +977,9 @@ class TargetLoader:
             "experiment_upload": self.experiment_upload,
             "status": status,
             "type": exp_type,
-            "pdb_info": str(self._get_final_path(pdb_info)),
-            "mtz_info": str(self._get_final_path(mtz_info)),
-            "cif_info": str(self._get_final_path(cif_info)),
+            "pdb_info": self._final_path_or_none(pdb_info),
+            "mtz_info": self._final_path_or_none(mtz_info),
+            "cif_info": self._final_path_or_none(cif_info),
             "pdb_info_source_file": pdb_info_source_file,
             "mtz_info_source_file": mtz_info_source_file,
             "cif_info_source_file": cif_info_source_file,
@@ -1648,18 +1652,18 @@ class TargetLoader:
 
         defaults = {
             "longcode": longcode,
-            "bound_file": str(self._get_final_path(bound_file)),
-            "apo_solv_file": str(self._get_final_path(apo_solv_file)),
-            "apo_desolv_file": str(self._get_final_path(apo_desolv_file)),
-            "apo_file": str(self._get_final_path(apo_file)),
-            "sigmaa_file": str(self._get_final_path(sigmaa_file)),
-            "diff_file": str(self._get_final_path(diff_file)),
-            "event_file": str(self._get_final_path(event_file)),
-            "artefacts_file": str(self._get_final_path(artefacts_file)),
-            "ligand_pdb": str(self._get_final_path(ligand_pdb)),
-            "ligand_mol": str(self._get_final_path(ligand_mol)),
-            "ligand_smiles": str(self._get_final_path(ligand_smiles)),
-            "ligand_sdf": str(self._get_final_path(ligand_sdf)),
+            "bound_file": self._final_path_or_none(bound_file),
+            "apo_solv_file": self._final_path_or_none(apo_solv_file),
+            "apo_desolv_file": self._final_path_or_none(apo_desolv_file),
+            "apo_file": self._final_path_or_none(apo_file),
+            "sigmaa_file": self._final_path_or_none(sigmaa_file),
+            "diff_file": self._final_path_or_none(diff_file),
+            "event_file": self._final_path_or_none(event_file),
+            "artefacts_file": self._final_path_or_none(artefacts_file),
+            "ligand_pdb": self._final_path_or_none(ligand_pdb),
+            "ligand_mol": self._final_path_or_none(ligand_mol),
+            "ligand_smiles": self._final_path_or_none(ligand_smiles),
+            "ligand_sdf": self._final_path_or_none(ligand_sdf),
             "pdb_header_file": None,
             "smiles": smiles,
         }
@@ -2657,6 +2661,19 @@ class TargetLoader:
         except TypeError:
             # received invalid path
             return None
+
+    def _final_path_or_none(self, path: str | None) -> str | None:
+        """Stringified final path for a FileField, or None when absent.
+
+        The str() is required: a bare pathlib.Path assigned to a FileField is
+        not wrapped in a FieldFile by Django's descriptor (only str/None/File
+        are), so it reads back as a raw Path whose .name is just the basename
+        and which has no .path/.url. But an *absent* file must stay None so the
+        column is NULL and reads back falsy - str(None) would store the truthy
+        literal "None".
+        """
+        final = self._get_final_path(path)
+        return str(final) if final is not None else None
 
     def link_observations_to_computed_observations(
         self, site_observation_objects: dict[str, MetadataObject]
