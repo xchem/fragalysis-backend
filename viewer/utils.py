@@ -631,9 +631,8 @@ def change_target_project(
                 obj.save()
 
             for compound in comps:
-                compound.project_id.add(project)
-                compound.project_id.remove(project)
-                compound.save()
+                compound.project = project
+                compound.save(update_fields=["project"])
 
             target.project = project
             target.save()
@@ -671,13 +670,6 @@ def profile(output_file='profile.prof'):
         return wrapper
 
     return decorator
-
-
-def flattened_inchi_from_smiles(smiles: str):
-    mol = Chem.MolFromSmiles(smiles)
-    Chem.RemoveStereochemistry(mol)
-    flat_inchi = Chem.inchi.MolToInchi(mol)
-    return flat_inchi
 
 
 def _flatten_dict_gen(d: dict, parent_key: tuple | str | int, depth: int):

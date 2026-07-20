@@ -1,5 +1,4 @@
 import contextlib
-import copy
 import functools
 import logging
 import math
@@ -1066,7 +1065,8 @@ class TargetLoader:
         inchi_key = ""
         mol = Chem.MolFromSmiles(smiles, sanitize=True)
         if mol:
-            Chem.RemoveStereochemistry(mol)
+            # Stereo-preserving InChIKey: enantiomers/diastereomers must remain
+            # distinct compounds, so do NOT RemoveStereochemistry here.
             inchi_key = Chem.inchi.MolToInchiKey(mol)
 
         defaults = {
@@ -1078,6 +1078,10 @@ class TargetLoader:
             "modeled_smiles_canon": modeled_smiles_canon,
             "soaked_smiles_soakdb": soaked_smiles_soakdb,
             "soaked_smiles_canon": soaked_smiles_canon,
+            # Set the (now non-null) project FK at creation. The project is
+            # already known here, so there's no need to defer it to the link
+            # loop below.
+            "project": self.project,
         }
 
         fields = {}
@@ -1982,7 +1986,6 @@ class TargetLoader:
         ) in compound_objects.items():  # pylint: disable=no-member
             experiment = experiment_objects[comp_code[0]].instance
             experiment.compounds.add(comp_meta.instance)
-            comp_meta.instance.project_id.add(self.experiment_upload.project)
 
         xtalform_objects = self.process_xtalform(yaml_data=xtalforms)
         self._enumerate_objects(xtalform_objects, "xtalform_num")
@@ -2354,7 +2357,7 @@ class TargetLoader:
         # you'd think I could supply the compounds processed, but I need a queryset..
         # fmt: off
         compounds = Compound.objects.filter(
-            project_id=self.project,
+            project=self.project,
         ).annotate(
             exp_code=F("experiment__code"),
         ).filter(
@@ -2720,23 +2723,21 @@ class TargetLoader:
 
             logger.debug('molpath still going: %s', molpath)
             mol = Chem.MolFromMolFile(str(molpath))
-            flattened_mol = copy.deepcopy(mol)
-            Chem.RemoveStereochemistry(flattened_mol)
-            flat_inchi = Chem.inchi.MolToInchiKey(flattened_mol)
+            # Stereo-preserving InChIKey, matching how compounds are now keyed
+            # (see Compound creation above). Must not flatten, or this lookup
+            # would never match the stored stereo-inclusive inchi_key.
+            inchi_key = Chem.inchi.MolToInchiKey(mol)
 
-            logger.debug('flat inchi: %s', flat_inchi)
+            logger.debug('inchi key: %s', inchi_key)
 
-            # the way the cset_loader is set up, the linked compound
-            # is guaranteed to have a flattened inchi key. This is
-            # explicitly used to .get() the compound instance and if
-            # not found, new one is created. Which isn't really ideal,
-            # just a missing inchi key may lead to duplicates. TODO
-            # new issue and iron this out?
+            # the linked compound is looked up by its inchi_key here; if not
+            # found, a new one is created. A missing inchi key may lead to
+            # duplicates. TODO: new issue and iron this out?
             logger.debug(
                 'compmol set: %s',
-                computed_so.filter(cmpd__inchi_key=flat_inchi),
+                computed_so.filter(cmpd__inchi_key=inchi_key),
             )
-            for compmol in computed_so.filter(cmpd__inchi_key=flat_inchi):
+            for compmol in computed_so.filter(cmpd__inchi_key=inchi_key):
                 logger.debug('compmol: %s', compmol)
 
                 # this can't be right. I need to compare 3D structures

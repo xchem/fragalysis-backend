@@ -173,15 +173,20 @@ def get_create_target(title):
 
 
 def add_projects_to_cmpd(new_comp, projects):
-    """Add a project links to a compound
+    """Set the compound's project.
 
-    :param new_comp: the Django compound to add them to
-    :param projects:  the list Django projects to add
-    :return: the compound with the added projects
+    Compound.project is now a single FK (was an M2M). This legacy helper used to
+    add several; with an FK only one can be held, so the first is used. NB: this
+    module is the deprecated pre-target-loader upload path.
+
+    :param new_comp: the Django compound to set it on
+    :param projects: the list of Django projects (only the first is applied)
+    :return: the compound
     """
-    for project in projects:
-        new_comp.project_id.add(project)
-    new_comp.save()
+    projects = list(projects)
+    if projects:
+        new_comp.project = projects[0]
+        new_comp.save()
     return new_comp
 
 
