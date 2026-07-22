@@ -1477,11 +1477,9 @@ class DownloadLinks(models.Model):
     # Stores the basename of the download file (e.g. "TARGET.zip"). The
     # absolute path is reconstructed via get_file_url() using MEDIA_ROOT,
     # the "downloads" subdir and task_id. Not unique because two records
-    # for different tasks can produce the same filename.
-    file_url = models.TextField(
-        db_index=True,
-        null=True,
-    )
+    # for different tasks can produce the same filename. Indexed via
+    # Meta.indexes below (looked up by basename in download dedup).
+    file_url = models.TextField(null=True)
     task_id = models.TextField(
         null=True,
         help_text="The task ID assigned to this download (if a Task is launched)",
@@ -1570,6 +1568,12 @@ class DownloadLinks(models.Model):
 
     class Meta:
         db_table = 'viewer_downloadlinks'
+        indexes = [
+            models.Index(
+                fields=['file_url'],
+                name='downloadlinks_file_url_idx',
+            ),
+        ]
 
 
 class TagCategory(models.Model):
