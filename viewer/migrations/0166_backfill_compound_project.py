@@ -1,17 +1,41 @@
 """Step 2/3 of moving Compound.project_id (M2M) to Compound.project (FK).
 
-Backfills the FK from the legacy M2M, choosing a single project per compound:
+Backfills the scalar FK by choosing a single project per compound. A compound is
+tied to a project through several structural paths, all rooted in the upload that
+created the rows; these are authoritative and are unioned together:
 
-* A compound's SiteObservations are authoritative - their target's project is the
-  real one (SiteObservation -> experiment -> experiment_upload -> target ->
-  project). If the observations name exactly one project, that wins.
-* The legacy ``project_id`` M2M is the fallback for compounds that have no
-  observations (e.g. computed-set compounds).
-* Ambiguities - a compound observed across more than one project, or a
-  multi-project M2M with no observations - are resolved deterministically to the
-  lowest project id and reported.
-* Compounds with neither an observation nor an M2M link can't be assigned; they
-  are reported and left null, and will block 0168 (NOT NULL) until resolved.
+* SiteObservation   -> experiment -> experiment_upload -> project
+* ExperimentCompound -> experiment -> experiment_upload -> project
+* Result (computed) -> computed_set -> target -> project
+
+NB on the computed-set path: for data that predates this migration it yields
+nothing, because the old ``ComputedMolecule`` link (compound -> computed set)
+is dropped by 0164 *before* this backfill runs, and that deletion is not
+migrated into ``Result.computed_set``. Those computed-set compounds are
+therefore covered by the M2M fallback below (verified against real data: the
+M2M project matches the computed set's project for every such compound). The
+``Result.computed_set`` derivation is kept because it is correct for any data
+where that link *is* populated (e.g. newer uploads / re-runs).
+
+The legacy ``project_id`` M2M is only a *fallback*, used when a compound has no
+structural link at all (e.g. compounds that exist solely as a project-scoped
+row). Precedence:
+
+  1. exactly one structural project            -> use it
+  2. several structural projects (cross-project) -> lowest id, reported
+  3. no structural link, one M2M project        -> use it
+  4. no structural link, several M2M projects   -> lowest id, reported
+  5. nothing at all                             -> unresolved, reported
+
+Ambiguities (2/4) are resolved deterministically to the lowest project id so the
+migration is repeatable. Unresolved compounds (5) are left null and will block
+0168 (NOT NULL) until dealt with.
+
+Why the structural paths and not just the M2M: the M2M is a derived cache and
+may be incomplete. Deriving from the upload relations directly means a compound
+is never left unresolved (or assigned a stale project) when a hard structural
+link exists. Accuracy is the goal here, not speed - everything is pulled into
+memory and compared explicitly.
 
 Implementation note: while the M2M ``project_id`` and the new FK ``project``
 (whose attname is also ``project_id``) coexist, that name is ambiguous. So we
@@ -32,53 +56,83 @@ def _log(schema_editor, message):
         print(message)
 
 
+def _group(pairs):
+    """(entity_id, project_id) pairs -> {entity_id: {project_id, ...}}, skipping
+    rows where the project came out NULL (e.g. computed site observations with no
+    experiment, or a computed set with no target)."""
+    out: dict = defaultdict(set)
+    for entity_id, project_id in pairs:
+        if project_id is not None:
+            out[entity_id].add(project_id)
+    return out
+
+
 def backfill(apps, schema_editor):
     Compound = apps.get_model("viewer", "Compound")
     SiteObservation = apps.get_model("viewer", "SiteObservation")
+    ExperimentCompound = apps.get_model("viewer", "ExperimentCompound")
+    Result = apps.get_model("viewer", "Result")
     Project = apps.get_model("viewer", "Project")
 
-    # M2M links, read via the through table (unambiguous).
-    through = Compound._meta.get_field("project_id").remote_field.through
-    m2m = defaultdict(set)
-    for compound_id, project_id in through.objects.values_list(
-        "compound_id", "project_id"
-    ):
-        m2m[compound_id].add(project_id)
+    # --- Structural sources (authoritative), all rooted in the upload ---------
 
-    # Authoritative project(s) from each compound's site observations.
-    so = defaultdict(set)
-    for compound_id, project_id in (
+    # 1. SiteObservation -> experiment -> experiment_upload -> project
+    so = _group(
         SiteObservation.objects.filter(cmpd__isnull=False)
-        .values_list("cmpd_id", "experiment__experiment_upload__target__project")
+        .values_list("cmpd_id", "experiment__experiment_upload__project")
         .distinct()
-    ):
-        if project_id is not None:
-            so[compound_id].add(project_id)
+    )
+
+    # 2. ExperimentCompound -> experiment -> experiment_upload -> project
+    ec = _group(
+        ExperimentCompound.objects.values_list(
+            "compound_id", "experiment__experiment_upload__project"
+        ).distinct()
+    )
+
+    # 3. Result (computed) -> computed_set -> target -> project
+    res = _group(
+        Result.objects.filter(
+            compound__isnull=False, computed_set__isnull=False
+        )
+        .values_list("compound_id", "computed_set__target__project")
+        .distinct()
+    )
+
+    # --- Legacy M2M (fallback only), read via the through table (unambiguous) --
+    through = Compound._meta.get_field("project_id").remote_field.through
+    m2m = _group(
+        through.objects.values_list("compound_id", "project_id")
+    )
 
     projects = {p.pk: p for p in Project.objects.all()}
 
     by_project: dict = defaultdict(list)  # project_id -> [compound_id, ...]
     unresolved: list = []
     stats = {
-        "so_single": 0,
-        "so_disagree": 0,
-        "so_multi": 0,
+        "structural_single": 0,
+        "structural_multi": 0,
+        "structural_disagreed_m2m": 0,
         "m2m_single": 0,
         "m2m_multi": 0,
     }
 
     for compound_id in Compound.objects.values_list("pk", flat=True):
-        obs_projects = so.get(compound_id, set())
+        structural = (
+            so.get(compound_id, set())
+            | ec.get(compound_id, set())
+            | res.get(compound_id, set())
+        )
         m2m_projects = m2m.get(compound_id, set())
 
-        if len(obs_projects) == 1:
-            chosen = next(iter(obs_projects))
-            stats["so_single"] += 1
-            if m2m_projects and m2m_projects != obs_projects:
-                stats["so_disagree"] += 1
-        elif len(obs_projects) > 1:
-            chosen = min(obs_projects)
-            stats["so_multi"] += 1
+        if len(structural) >= 1:
+            chosen = min(structural)
+            if len(structural) == 1:
+                stats["structural_single"] += 1
+            else:
+                stats["structural_multi"] += 1
+            if m2m_projects and m2m_projects != structural:
+                stats["structural_disagreed_m2m"] += 1
         elif len(m2m_projects) == 1:
             chosen = next(iter(m2m_projects))
             stats["m2m_single"] += 1
@@ -99,12 +153,12 @@ def backfill(apps, schema_editor):
     lines = [
         "",
         "=== Compound.project backfill ===",
-        f"  from site observations, 1 project:   {stats['so_single']}"
-        f"  (disagreed with M2M: {stats['so_disagree']})",
-        f"  observed across >1 project (min id):  {stats['so_multi']}",
-        f"  no observations, single M2M project:  {stats['m2m_single']}",
-        f"  no observations, multi M2M (min id):  {stats['m2m_multi']}",
-        f"  UNRESOLVED (no observation, no M2M):  {len(unresolved)}",
+        f"  structural, 1 project:                {stats['structural_single']}"
+        f"  (disagreed with M2M: {stats['structural_disagreed_m2m']})",
+        f"  structural, >1 project (min id):      {stats['structural_multi']}",
+        f"  no structural link, single M2M:       {stats['m2m_single']}",
+        f"  no structural link, multi M2M (min):  {stats['m2m_multi']}",
+        f"  UNRESOLVED (no structural, no M2M):   {len(unresolved)}",
     ]
     if unresolved:
         lines.append(f"    unresolved ids (first 50): {sorted(unresolved)[:50]}")
