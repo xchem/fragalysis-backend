@@ -428,7 +428,7 @@ class Compound(models.Model):
         related_name='+',
         help_text='The preferred alias for this compound.',
     )
-    project_id = models.ManyToManyField(Project)
+    project = models.ForeignKey(Project, on_delete=models.CASCADE)
     inspirations = models.ManyToManyField(
         "SiteObservation",
         blank=True,

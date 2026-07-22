@@ -236,7 +236,7 @@ class CompoundIdentifierView(
 ):
     queryset = models.CompoundIdentifier.objects.all()
     serializer_class = serializers.CompoundIdentifierSerializer
-    filter_permissions = "compound__project_id"
+    filter_permissions = "compound__project"
     permission_classes = [IsObjectProposalMember]
     filterset_fields = ["type", "compound"]
 
@@ -282,7 +282,7 @@ class CompoundImageView(ISPyBSafeQuerySet):
 
     queryset = models.Compound.filter_manager.filter_qs()
     serializer_class = serializers.CmpdImageSerializer
-    filter_permissions = "project_id"
+    filter_permissions = "project"
     filterset_class = filters.CmpdImgFilter
 
 
@@ -393,7 +393,7 @@ class CompoundView(mixins.UpdateModelMixin, ISPyBSafeQuerySet):
 
     queryset = models.Compound.filter_manager.filter_qs()
     serializer_class = serializers.CompoundSerializer
-    filter_permissions = "project_id"
+    filter_permissions = "project"
     filterset_class = filters.CompoundFilter
 
 
@@ -1477,7 +1477,7 @@ class PoseView(
     """Set up/retrieve information about Poses (api/poses)"""
 
     queryset = models.Pose.filter_manager.filter_qs()
-    filter_permissions = "compound__project_id"
+    filter_permissions = "compound__project"
     serializer_class = serializers.PoseSerializer
     filterset_class = filters.PoseFilter
 

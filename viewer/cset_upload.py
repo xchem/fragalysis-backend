@@ -1,5 +1,4 @@
 import ast
-import copy
 import datetime
 import logging
 import os
@@ -358,7 +357,9 @@ class MolOps:
         # check for an existing compound, returning a Compound
 
         sanitized_mol = Chem.MolFromInchi(inchi, sanitize=True)
-        Chem.RemoveStereochemistry(sanitized_mol)
+        # Stereo-preserving: enantiomers/diastereomers are distinct compounds,
+        # so do NOT RemoveStereochemistry. The stored smiles/inchi/inchi_key
+        # all retain stereochemistry.
         inchi = Chem.inchi.MolToInchi(sanitized_mol)
         inchi_key = Chem.InchiToInchiKey(inchi)
 
@@ -371,17 +372,16 @@ class MolOps:
         logger.debug('cpd found: %s', cpd.pk if cpd else None)
         if not cpd:
             # no compound, create new
+            # Set the Proposal (project) it applies to at creation.
             cpd = Compound(
                 smiles=Chem.MolToSmiles(sanitized_mol),
                 inchi=inchi,
                 inchi_key=inchi_key,
                 description=name,
+                project=target.project,
             )
             cpd.save()
             logger.debug('cpd not found, created new: %s', cpd.pk)
-            # This is a new compound.
-            # We must now set relationships to the Proposal that it applies to.
-            cpd.project_id.add(target.project)
 
         return cpd
 
@@ -439,19 +439,10 @@ class MolOps:
         assert target
         assert compound_set
 
-        # the flattening part seems duplicated between create_mol
         smiles = Chem.MolToSmiles(mol)
         inchi = Chem.inchi.MolToInchi(mol)
         molecule_name = mol.GetProp("_Name")
 
-        flattened_copy = copy.deepcopy(mol)
-        Chem.RemoveStereochemistry(mol)
-        flat_inchi = Chem.inchi.MolToInchiKey(flattened_copy)
-        logger.debug('flattened inchi key: %s', flat_inchi)
-
-        # compound, number = self.create_mol(
-        #     inchi, compound_set.target, name=molecule_name
-        # )
         compound = self.create_mol(inchi, compound_set.target, name=molecule_name)
 
         insp = mol.GetProp("ref_mols")

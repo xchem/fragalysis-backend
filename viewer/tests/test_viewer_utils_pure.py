@@ -15,7 +15,6 @@ from viewer.utils import (
     calculate_sha256,
     clean_object_id,
     flatten_dict,
-    flattened_inchi_from_smiles,
     longcode_from_tag,
     sanitize_directory_name,
     strip_exp_code,
@@ -144,11 +143,3 @@ def test_sanitize_directory_name_unique_within_path(tmp_path):
     """A name colliding with an existing dir gets a numeric suffix."""
     (tmp_path / "target").mkdir()
     assert sanitize_directory_name("target", path=tmp_path) == "target_2"
-
-
-def test_flattened_inchi_from_smiles_drops_stereochemistry():
-    """Two enantiomers flatten to the same stereo-free InChI."""
-    left = flattened_inchi_from_smiles("C[C@H](N)C(=O)O")
-    right = flattened_inchi_from_smiles("C[C@@H](N)C(=O)O")
-    assert left == right
-    assert left.startswith("InChI=")
