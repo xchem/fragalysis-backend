@@ -268,7 +268,8 @@ class DownloadStructures:
 
         # Read through zip_params to compile the parameters
         zip_contents: Dict[str, Any] = copy.deepcopy(zip_template)
-        site_obvs = site_obvs.annotate(
+        # cannot add files for virtual observations, they don't exist
+        site_obvs = site_obvs.exclude(experiment__isnull=True).annotate(
             # would there be any point in
             # a) adding a method to SiteObservation model_attr
             # b) adding the value to database directly?
@@ -290,6 +291,7 @@ class DownloadStructures:
             ),
         )
         for so in site_obvs:
+            logger.debug('Processing so: %s: %s', so.pk, so.code)
             for param in protein_params:
                 if protein_params[param] is True:
                     if param in ['pdb_info', 'mtz_info', 'cif_info', 'map_info']:
@@ -959,19 +961,35 @@ class DownloadStructures:
         """Add compound sets to download"""
 
         self._logger.info('Processing computed sets...')
+        sdf_root = Path(settings.MEDIA_ROOT).joinpath(
+            settings.COMPUTED_SET_MEDIA_DIRECTORY
+        )
         for cset in target.computedset_set.all():
             archive_path = Path('virtual_hits').joinpath(cset.submitted_sdf.name)
             buff = StringIO()
             writer = Chem.SDWriter(buff)
-            for cmol in cset.computed_molecules.all():
-                self._logger.debug('Processing computed molecule (%s)...', cmol.name)
-                mol = Chem.MolFromMolBlock(cmol.sdf_info)
+            # Unification: computed ("virtual") hits are now SiteObservations
+            # linked via ComputedSet.site_observations (the former
+            # ComputedMolecule model). Each carries its mol as the
+            # virtual_ligand_mol file, and its scores are stored as Result rows
+            # (site_observation + computed_set), replacing the old
+            # numerical/text score-value sets.
+            # TODO(unification): verify once the model merge settles -
+            #   virtual_name is the molecule name, and Result.raw_value carries
+            #   the score value for each result_property.
+            for so in cset.site_observations.all():
+                self._logger.debug(
+                    'Processing computed observation (%s)...', so.virtual_name
+                )
+                mol = Chem.MolFromMolFile(sdf_root.joinpath(str(so.virtual_ligand_mol)))
                 self._logger.debug('mol: %s', mol)
-                mol.SetProp('_Name', cmol.name)
-                for prop in cmol.numericalscorevalues_set.all():
-                    mol.SetProp(prop.score.name, str(prop.value))
-                for prop in cmol.textscorevalues_set.all():
-                    mol.SetProp(prop.score.name, prop.value)
+                mol.SetProp('_Name', so.virtual_name or '')
+                for result in so.result_set.filter(computed_set=cset):
+                    if result.raw_value is not None:
+                        mol.SetProp(
+                            result.result_property.result_property,
+                            str(result.raw_value),
+                        )
 
                 writer.write(mol)
 

@@ -103,19 +103,26 @@ testpaths = ["viewer/tests"]
 # -m "not integration": the async integration test needs the live container
 #   stack (redis + celery worker) and is never collected by the default/host
 #   run; the integration compose runs it explicitly with -m integration.
-addopts = "--reuse-db --strict-markers -m \"not integration\" --cov=viewer --cov-report=term-missing --cov-report=html"
+addopts = "--reuse-db --strict-markers -m \"not integration\" --cov=viewer --cov=api --cov=service_status --cov=network --cov=media_serve --cov=scoring --cov=hotspots --cov=hypothesis --cov=fragalysis --cov-report=term-missing --cov-report=html"
 markers = [
     "integration: needs the live container stack (redis + celery worker)",
 ]
 
 [tool.coverage.run]
-# Coverage measures the viewer app's hand-written code. Auto-generated
+# Coverage measures the first-party apps' hand-written code. Auto-generated
 # migrations (excluded from all lint hooks too) and the tests themselves
 # would otherwise distort the headline figure.
 omit = [
-    "viewer/migrations/*",
-    "viewer/tests/*",
+    "*/migrations/*",
+    "*/tests/*",
 ]
+
+[tool.coverage.report]
+# A non-regression ratchet, not an aspirational target: keep coverage from
+# slipping below where it stands today. Raise this as new tests land (see
+# issue #984's phased plan). pytest exits non-zero when the total drops below
+# this floor, which fails the CI 'Unit tests (pytest)' step.
+fail_under = 40
 
 [tool.coverage.html]
 directory = "htmlcov"

@@ -1,5 +1,4 @@
 import ast
-import copy
 import datetime
 import logging
 import os
@@ -11,37 +10,40 @@ from typing import Any, Dict, List, Optional, Tuple
 
 import numpy as np
 from dateutil.parser import parse
-from openpyxl.utils import get_column_letter
-
-os.environ.setdefault("DJANGO_SETTINGS_MODULE", "fragalysis.settings")
-import django
-from django.db import IntegrityError, transaction
-
-django.setup()
-
 from django.conf import settings
-from django.core.exceptions import MultipleObjectsReturned, ValidationError
+from django.core.exceptions import ValidationError
 from django.core.files.base import ContentFile
 from django.core.files.storage import default_storage
 from django.core.validators import validate_email
+from django.db import IntegrityError, transaction
 from django.db.models import F
+from django.utils import timezone
+from openpyxl.utils import get_column_letter
 from rdkit import Chem
 
 from viewer.models import (
     Compound,
-    ComputedMolecule,
+    ComputedInspiration,
     ComputedSet,
     ComputedSetSubmitter,
-    NumericalScoreValues,
-    ScoreDescription,
+    Result,
+    ResultProperty,
+    ResultValueDataType,
     SiteObservation,
     Target,
-    TextScoreValues,
     User,
 )
-from viewer.utils import add_props_to_sdf_molecule, alphanumerator, is_url, word_count
+from viewer.utils import (
+    add_props_to_sdf_molecule,
+    alphanumerator,
+    is_url,
+    set_directory_permissions,
+    word_count,
+)
 
 from .sdf_check import add_warning
+from .tags import TagManager
+from .target_loader import assign_observation_quality_status
 
 logger = logging.getLogger(__name__)
 
@@ -81,6 +83,7 @@ _re_ref_mol_long_code = re.compile(
 
 
 def dataType(a_str: str) -> str:
+    """Analyse string and return postgres-compatible data type"""
     lean_str = a_str.strip()
     if not lean_str:
         return "BLANK"
@@ -88,9 +91,10 @@ def dataType(a_str: str) -> str:
     try:
         t = ast.literal_eval(lean_str)
     except (ValueError, SyntaxError):
-        return "TEXT"
+        return "text"
     else:
         if type(t) in [int, int, float, bool]:
+            # this doesn't work, does it? or am I missing something? seems ureachable
             if t in [
                 True,
                 False,
@@ -109,16 +113,16 @@ def dataType(a_str: str) -> str:
                 "y",
                 "n",
             ]:
-                return "BIT"
+                return "boolean"
             if type(t) is int or type(t) is int:
                 return "INT"
             if type(t) is float:
-                return "FLOAT"
+                return "float"
 
             # Can't get here?
             assert False
         else:
-            return "TEXT"
+            return "text"
 
 
 class PdbOps:
@@ -193,6 +197,43 @@ class MolOps:
             "field": [],
             "warning_string": [],
         }
+
+        self.data_type_dict = {
+            k.data_type: k for k in ResultValueDataType.objects.all()
+        }
+
+        self.result_properties = {}
+
+        # This is now the third time the target is resolved. a bit
+        # stupid. fix
+        try:
+            target = Target.objects.get(pk=self.target_id)
+        except Target.DoesNotExist as exc:
+            # target's existance should be validated in the view,
+            # this could hardly happen
+            msg = f"Target {self.target_id} does not exist"
+            logger.error(msg)
+            raise IntegrityError(msg) from exc
+
+        last_upload = target.experimentupload_set.order_by('commit_datetime').last()
+
+        # create directory for virtual files
+        self.virtual_root = (
+            Path(settings.TARGET_LOADER_MEDIA_DIRECTORY)
+            .joinpath(
+                str(target.zip_archive),
+            )
+            .joinpath(
+                last_upload.upload_data_dir,
+            )
+            .joinpath(
+                'virtual_files',
+            )
+        )
+
+        Path(settings.MEDIA_ROOT).joinpath(self.virtual_root).mkdir(
+            parents=True, exist_ok=True
+        )
 
     def process_pdb(self, pdb_code, zfile, zfile_hashvals) -> str | None:
         for key in zfile_hashvals.keys():
@@ -312,91 +353,88 @@ class MolOps:
 
         return site_obvs
 
-    def create_mol(self, inchi, target, name=None) -> tuple[Compound, str]:
+    def create_mol(self, inchi, target, name=None) -> Compound:
         # check for an existing compound, returning a Compound
 
         sanitized_mol = Chem.MolFromInchi(inchi, sanitize=True)
-        Chem.RemoveStereochemistry(sanitized_mol)
+        # Stereo-preserving: enantiomers/diastereomers are distinct compounds,
+        # so do NOT RemoveStereochemistry. The stored smiles/inchi/inchi_key
+        # all retain stereochemistry.
         inchi = Chem.inchi.MolToInchi(sanitized_mol)
         inchi_key = Chem.InchiToInchiKey(inchi)
 
-        # look for *all* compounds under this target, both LHS and RHS
-        # uploads
-        lhs_qs = Compound.filter_manager.by_target(target)
-        rhs_qs = Compound.objects.filter(
-            pk__in=ComputedMolecule.objects.filter(
-                computed_set__target=target,
-            ).values('compound')
-        )
+        # cpd_number = "1"
+        qs = Compound.filter_manager.by_target(target)
+        logger.debug('compounds by target: %s', qs.count())
 
-        cpd_number = "1"
-        try:
-            cpd = rhs_qs.get(inchi_key=inchi_key)
-            # memo to self: I'm not setting cpd_number here, because
-            # it's read from computedmol name
-        except Compound.DoesNotExist:
-            # RHS didn't work out, try LHS. here, duplicates are possible
-            cpd = lhs_qs.filter(inchi_key=inchi_key).first()
+        # duplicates possible
+        cpd = qs.filter(inchi_key=inchi_key).first()
+        logger.debug('cpd found: %s', cpd.pk if cpd else None)
+        if not cpd:
+            # no compound, create new
+            # Set the Proposal (project) it applies to at creation.
+            cpd = Compound(
+                smiles=Chem.MolToSmiles(sanitized_mol),
+                inchi=inchi,
+                inchi_key=inchi_key,
+                description=name,
+                project=target.project,
+            )
+            cpd.save()
+            logger.debug('cpd not found, created new: %s', cpd.pk)
 
-            if not cpd:
-                # still no compound, create new
-                cpd = Compound(
-                    smiles=Chem.MolToSmiles(sanitized_mol),
-                    inchi=inchi,
-                    inchi_key=inchi_key,
-                    description=name,
-                )
-                # This is a new compound.
-                cpd.save()
-                # This is a new compound.
-                # We must now set relationships to the Proposal that it applies to.
-                cpd.project_id.add(target.project)
-                qs = Compound.objects.filter(
-                    computedmolecule__computed_set__target=target,
-                )
-                cpd_number = str(qs.count())
-        except MultipleObjectsReturned as exc:
-            # NB! when processing new uploads, Compound is always
-            # fetched by inchi_key, so this shouldn't ever create
-            # duplicates. Ands LHS uploads do not create inchi_keys,
-            # so under normal operations duplicates should never
-            # occur. However there's nothing in the db to prevent
-            # this, so adding a catch clause and writing a meaningful
-            # message
-            msg = f"Duplicate compounds for target {target.title} with inchi key {inchi_key}."
-            logger.error(msg)
-            raise IntegrityError(msg) from exc
+        return cpd
 
-        return cpd, cpd_number
+    def set_props(self, cpd, props, score_descriptions, computed_set) -> None:
+        for property_name, val in score_descriptions.items():
+            # logger.debug("score_descriptions: %s", score_descriptions)
+            # logger.debug("property_name: %s", property_name)
+            # logger.debug("props: %s", props)
+            # logger.debug("sd.name, val: %s: %s", sd.name, val)
 
-    def set_props(self, cpd, props, score_descriptions):
-        for sd, val in score_descriptions.items():
-            logger.debug("sd: %s", sd)
-            logger.debug("sd.name, val: %s: %s", sd.name, val)
-            if dataType(str(props[sd.name])) == "TEXT":
-                score_value = TextScoreValues()
-            else:
-                score_value = NumericalScoreValues()
+            data_type = self.data_type_dict.get(
+                dataType(str(props[property_name])),
+                self.data_type_dict['text'],
+            )
 
             try:
-                float(val)
-            except ValueError:
-                return None
+                result_property = self.result_properties[property_name]
+            except KeyError:
+                result_property, _ = ResultProperty.objects.get_or_create(
+                    result_property=property_name,
+                    unit=None,
+                    target=computed_set.target,
+                    data_type=data_type,
+                )
 
-            if sd.name in HEADER_MOL_FIELDS:
-                score_value.value = val
+            if property_name in HEADER_MOL_FIELDS:
+                value = val
             else:
-                score_value.value = props[sd.name]
+                value = props[property_name]
 
-            score_value.compound = cpd
-            score_value.score = sd
-            score_value.save()
+            result = Result(
+                raw_value=value,
+                site_observation=cpd,
+                result_property=result_property,
+                computed_set=computed_set,
+            )
+
+            if data_type.data_type == 'float':
+                result.float_value = value
+            elif data_type.data_type == 'integer':
+                result.int_value = value
+
+            else:
+                result.text_value = value
+
+            result.save()
 
         return None
 
     def set_mol(
         self, mol, target, compound_set, filename, zfile=None, zfile_hashvals=None
-    ) -> ComputedMolecule:
+    ) -> SiteObservation:
+        # ) -> computedmolecule:
         # Don't need...
         assert target
         assert compound_set
@@ -405,18 +443,12 @@ class MolOps:
         inchi = Chem.inchi.MolToInchi(mol)
         molecule_name = mol.GetProp("_Name")
 
-        flattened_copy = copy.deepcopy(mol)
-        Chem.RemoveStereochemistry(mol)
-        flat_inchi = Chem.inchi.MolToInchiKey(flattened_copy)
-        logger.debug('flattened inchi key: %s', flat_inchi)
-
-        compound, number = self.create_mol(
-            inchi, compound_set.target, name=molecule_name
-        )
+        compound = self.create_mol(inchi, compound_set.target, name=molecule_name)
 
         insp = mol.GetProp("ref_mols")
         insp = insp.split(",")
         insp = [i.strip() for i in insp]
+        logger.debug('got inspirations: %s', insp)
         insp_frags = []
         for i in insp:
             # try exact match first
@@ -489,138 +521,171 @@ class MolOps:
         # Need a ComputedMolecule before saving.
         # Check if anything exists already...
 
-        # I think, realistically, I only need to check compound
-        # update: I used to annotate name components, with the new
-        # format, this is not necessary. or possible
-        qs = ComputedMolecule.objects.filter(
-            compound=compound,
-        ).order_by("name")
+        qs = SiteObservation.objects.filter(
+            cmpd=compound,
+            experiment__isnull=True,  # get only virtual observations
+        ).order_by("virtual_name")
+        # memo to self: ordering is fine because they all should have
+        # the same number component
 
         if qs.exists():
+            # logger.debug('found existing connected compound: %s', qs)
             # not actually latest, just last according to sorting above
             latest = qs.last()
             # regex pattern - split name like 'v1a'
             # ('(letters)(digits)(letters)' to components
-            groups = re.search(r"()(\d+)(\D+)", qs.last().name)
+            groups = re.search(r"()(\d+)(\D+)", latest.virtual_name)
             if groups is None or len(groups.groups()) != 3:
                 # just a quick sanity check
                 raise IntegrityError(
-                    f"Non-standard ComputedMolecule.name: {latest.name}"
+                    f"Non-standard virtual_name: {latest.virtual_name}"
                 )
             number = groups.groups()[1]  # type: ignore [index]
             suffix = next(alphanumerator(start_from=groups.groups()[2]))  # type: ignore [index]
         else:
+            # this is getting a wrong count somehow
+            # count_qs = SiteObservation.objects.filter(
+            #     computed_set__isnull=False,
+            # ).values(
+            #     'cmpd',
+            # )
+            # logger.debug('did not find existing connected compound: %s', count_qs.count())
             suffix = "a"
-            # number = 1
+            number = (
+                SiteObservation.objects.filter(
+                    computed_set__isnull=False,
+                )
+                .values(
+                    'cmpd',
+                )
+                .distinct()
+                .count()
+                + 1
+            )
+            # logger.debug('but number is: %s', number)
 
-        name = f"v{number}{suffix}"
+        name = f"v{str(number)}{suffix}"
 
-        existing_computed_molecules = []
-        for k in qs:
-            if k.compound.inchi_key == flat_inchi:
-                # existing compound is a flattened copy of the new one, match found
-                existing_computed_molecules.append(k)
-                continue
+        if isinstance(ref_so, SiteObservation):
+            # code = ref_so.code
+            pdb_info = ref_so.experiment.pdb_info
+            # lhs_so = ref_so
+            xtalform_site = ref_so.xtalform_site
+            canon_site_conf = ref_so.canon_site_conf
+        else:
+            # code = None
+            pdb_info = ref_so
+            # lhs_so = None
+            xtalform_site = None
+            canon_site_conf = None
 
-            kmol = Chem.MolFromMolBlock(k.sdf_info)
-            if kmol:
+        # computed_molecule.site_observation_code = code
+        # computed_molecule.reference_code = code
+        # Extract possible reference URL and Rationale
+        # URLs have to be valid URLs and rationals must contain more than one word
+        ref_url: Optional[str] = (
+            mol.GetProp("ref_url") if mol.HasProp("ref_url") else None
+        )
+        ref_url = ref_url if is_url(ref_url) else None
+
+        rationale: Optional[str] = (
+            mol.GetProp("rationale") if mol.HasProp("rationale") else None
+        )
+        rationale = rationale if word_count(rationale) > 1 else None
+
+        new_so = SiteObservation(
+            cmpd=compound,
+            xtalform_site=xtalform_site,
+            canon_site_conf=canon_site_conf,
+            smiles=smiles,
+            virtual_name=name,
+            virtual_molecule_name=molecule_name,
+            virtual_ref_url=ref_url,
+            virtual_rationale=rationale,
+            virtual_pdb_info=pdb_info,
+        )
+        new_so.save()
+
+        # identifier is auto-generated, doesn't exist until saved
+        filename = self.virtual_root.joinpath(
+            f"{compound_set.name}_upload_{compound_set.md_ordinal}_"
+            + f"{name}_{molecule_name}_{new_so.virtual_identifier}.mol"
+        )
+
+        new_so_mol = Chem.MolToMolBlock(mol)
+        sdf_filename = Path(settings.MEDIA_ROOT).joinpath(filename)
+        with open(sdf_filename, "w", encoding='utf-8') as f:
+            f.write(new_so_mol)
+
+        new_so.virtual_ligand_mol = str(filename)
+        new_so.save()
+        assign_observation_quality_status(new_so)
+        # computed_molecule.sdf_info = Chem.MolToMolBlock(mol)
+
+        # find similar observations (former computedmolecules) and
+        # add new so to the (if similar enough)
+
+        # NB! this bit was added in 1394. the code looks like it
+        # doesn't do what it was intednded to do. It did pass
+        # validation though, so I'm not sure
+
+        # existing_computed_molecules = []
+        for so in qs:
+            filepath = Path(settings.MEDIA_ROOT).joinpath(str(so.virtual_ligand_mol))
+            so_mol = Chem.MolFromMolFile(str(filepath))
+            if so_mol:
                 # find distances between corresponding atoms of the
                 # two conformers. if any one exceeds the _DIST_LIMIT,
-                # consider it to be a new ComputedMolecule
+                # consider it to be a new SiteObservation
                 try:
                     _, _, atom_map = Chem.rdMolAlign.GetBestAlignmentTransform(
-                        mol, kmol
+                        mol, so_mol
                     )
                 except RuntimeError as exc:
                     msg = (
-                        f"Failed to find alignment between {k.molecule_name} "
+                        f"Failed to find alignment between {so.virtual_molecule_name} "
                         + f'and {mol.GetProp("original ID")}'
                     )
                     logger.error(msg)
                     raise IntegrityError(msg) from exc
 
                 molconf = mol.GetConformer()
-                kmolconf = kmol.GetConformer()
+                kmolconf = so_mol.GetConformer()
                 small_enough = True
-                for mol_atom, kmol_atom in atom_map:
+                for mol_atom, so_mol_atom in atom_map:
                     molpos = np.array(molconf.GetAtomPosition(mol_atom))
-                    kmolpos = np.array(kmolconf.GetAtomPosition(kmol_atom))
-                    distance = np.linalg.norm(molpos - kmolpos)
+                    so_molpos = np.array(kmolconf.GetAtomPosition(so_mol_atom))
+                    distance = np.linalg.norm(molpos - so_molpos)
                     if distance >= _DIST_LIMIT:
                         small_enough = False
                         break
                 if small_enough:
-                    existing_computed_molecules.append(k)
+                    new_so.pose = so.pose
+                    new_so.save()
 
-        if len(existing_computed_molecules) == 1:
-            logger.warning(
-                "Using existing ComputedMolecule %s and overwriting its metadata",
-                existing_computed_molecules[0],
-            )
-            computed_molecule = existing_computed_molecules[0]
-        elif len(existing_computed_molecules) > 1:
-            logger.warning("Deleting existing ComputedMolecules (more than 1 found")
-            for exist in existing_computed_molecules:
-                logger.info("Deleting ComputedMolecule %s", exist)
-                exist.delete()
-            computed_molecule = ComputedMolecule(name=name)
-        else:
-            logger.info("Creating new ComputedMolecule (name=%s)", name)
-            computed_molecule = ComputedMolecule(name=name)
+        compound_set.site_observations.add(new_so)
 
-        if isinstance(ref_so, SiteObservation):
-            code = ref_so.code
-            pdb_info = ref_so.experiment.pdb_info
-            lhs_so = ref_so
-        else:
-            code = None
-            pdb_info = ref_so
-            lhs_so = None
-
-        # I don't quite understand why the overwrite of existing
-        # compmol ... but this is how it was, not touching it now
-        # update: I think it's about updating metadata. moving
-        # name attribute out so it won't get overwritten
-        computed_molecule.compound = compound
-        computed_molecule.sdf_info = Chem.MolToMolBlock(mol)
-        computed_molecule.site_observation_code = code
-        computed_molecule.reference_code = code
-        computed_molecule.molecule_name = molecule_name
-        computed_molecule.smiles = smiles
-        computed_molecule.pdb = lhs_so
-        # TODO: this is wrong
-        computed_molecule.pdb_info = pdb_info
-        # Extract possible reference URL and Rationale
-        # URLs have to be valid URLs and rationals must contain more than one word
-        ref_url: Optional[str] = (
-            mol.GetProp("ref_url") if mol.HasProp("ref_url") else None
+        logger.debug('got insp_frags: %s', insp_frags)
+        ComputedInspiration.objects.bulk_create(
+            [
+                ComputedInspiration(
+                    site_observation=new_so,
+                    computed_inspiration=inspiration,
+                    computed_set=compound_set,
+                )
+                for inspiration in insp_frags
+            ],
+            ignore_conflicts=True,
         )
-        computed_molecule.ref_url = ref_url if is_url(ref_url) else None
-        rationale: Optional[str] = (
-            mol.GetProp("rationale") if mol.HasProp("rationale") else None
-        )
-        computed_molecule.rationale = rationale if word_count(rationale) > 1 else None
-        # To avoid the error...
-        #   needs to have a value for field "id"
-        #   before this many-to-many relationship can be used.
-        # We must save this ComputedMolecule to generate an "id"
-        # before adding inspirations
-        computed_molecule.save()
-        for insp_frag in insp_frags:
-            computed_molecule.computed_inspirations.add(insp_frag)
-        # Done
-        computed_molecule.save()
-
-        compound_set.computed_molecules.add(computed_molecule)
 
         # No update the molecule in the original file...
         add_props_to_sdf_molecule(
-            sdf_file=filename,
+            sdf_file=str(sdf_filename),
             molecule=molecule_name,
-            properties={"target_identifier": computed_molecule.name},
+            properties={"target_identifier": new_so.virtual_name},
         )
 
-        return computed_molecule
+        return new_so
 
     def get_submission_info(self, description_mol) -> ComputedSetSubmitter:
         datestring = description_mol.GetProp("generation_date")
@@ -652,12 +717,14 @@ class MolOps:
         score_descriptions,
         zfile=None,
         zfile_hashvals=None,
-    ) -> None:
+    ) -> int | None:
         molecule_name = mol.GetProp("_Name")
         logger.debug("+ process_mol %s", molecule_name)
 
         other_props = mol.GetPropsAsDict()
         skip_mol = False
+
+        # logger.debug('other_props: %s', other_props)
 
         # if ref_mols or ref_pdb is missing skip the molecule
         for prop in ["ref_mols", "ref_pdb"]:
@@ -678,7 +745,8 @@ class MolOps:
                 )
                 skip_mol = True
 
-        # if any header mol fields are defined on non-header molecules those values are ignored and a warning shown
+        # if any header mol fields are defined on non-header molecules
+        # those values are ignored and a warning shown
         for prop in HEADER_MOL_FIELDS:
             if prop not in other_props.keys():
                 # non-header molecules don't need header fields
@@ -698,15 +766,18 @@ class MolOps:
 
         if skip_mol:
             logger.warning("Skipping molecule '%s'", molecule_name)
+            return None
         else:
             cpd = self.set_mol(
                 mol, target, compound_set, filename, zfile, zfile_hashvals
             )
-            self.set_props(cpd, other_props, score_descriptions)
+            self.set_props(cpd, other_props, score_descriptions, compound_set)
+
+            return cpd.pk
 
     def set_descriptions(
         self, filename, computed_set: ComputedSet
-    ) -> tuple[List[Chem.rdchem.Mol], dict[str, ScoreDescription]]:
+    ) -> tuple[List[Chem.rdchem.Mol], dict[str, str]]:
         suppl = Chem.SDMolSupplier(str(filename))
         description_mol = suppl[0]
 
@@ -728,7 +799,7 @@ class MolOps:
         logger.debug("index mol original values: %s", description_dict)
         # score descriptions for this upload, doesn't matter if
         # created or existing
-        score_descriptions = {}
+        result_descriptions = {}
         errors = []
         for key in description_dict.keys():
             if key in descriptions_needed and key not in [
@@ -737,11 +808,10 @@ class MolOps:
                 "index",
                 "Name",
             ]:
-                description, _ = ScoreDescription.objects.get_or_create(
-                    computed_set=computed_set,
-                    name=key,
-                    description=description_dict[key],
-                )
+                # NB! change made during LHS RHS unification - don't
+                # create description (result property) objects here,
+                # do that in set_props when saving properties. Not the
+                # best solution
 
                 value = description_dict[key]
 
@@ -758,33 +828,27 @@ class MolOps:
                             logger.error(msg)
                             errors.append(msg)
 
-                score_descriptions[description] = value
+                result_descriptions[key] = value
 
-        logger.debug("index mol values: %s", score_descriptions.values())
+        logger.debug("index mol values: %s", result_descriptions.values())
         if errors:
             raise IntegrityError(errors)
 
-        return mols, score_descriptions
+        return mols, result_descriptions
 
     def task(self) -> tuple[ComputedSet, dict]:
         # Truncate submitted method (lower-case)?
-        truncated_submitter_method: str = "unspecified"
+        # truncated_submitter_method: str = "unspecified"
         try:
             with transaction.atomic():
+                submitter_method: str = self.submitter_method
                 if self.submitter_method:
-                    truncated_submitter_method = self.submitter_method[
-                        : ComputedSet.LENGTH_METHOD_IN_NAME
-                    ]
-                    if len(self.submitter_method) > len(truncated_submitter_method):
-                        logger.warning(
-                            'ComputedSet submitter method is too long (%s). Truncated to "%s"',
-                            self.submitter_method,
-                            truncated_submitter_method,
-                        )
+                    submitter_method = self.submitter_method
                 else:
+                    submitter_method = "unspecified"
                     logger.warning(
                         'ComputedSet submitter method is not set. Using "%s"',
-                        truncated_submitter_method,
+                        submitter_method,
                     )
 
                 # Do we have any existing ComputedSets?
@@ -811,9 +875,15 @@ class MolOps:
                         raise IntegrityError(msg) from exc
 
                     cs_name: str = (
-                        f"{truncated_submitter_method}-{str(today)}-"
+                        f"{submitter_method}-{str(today)}-"
                         + f"{get_column_letter(new_ordinal)}"
                     )
+
+                    # cache properties for later
+                    self.result_properties = {
+                        k.result_property: k
+                        for k in ResultProperty.objects.filter(target=target)
+                    }
 
                     # now that I have a name, I can check whether this
                     # target already has this set
@@ -833,7 +903,8 @@ class MolOps:
                             name=cs_name,
                             md_ordinal=new_ordinal,
                             upload_date=today,
-                            method=self.submitter_method[: ComputedSet.LENGTH_METHOD],
+                            # method=self.submitter_method[: ComputedSet.LENGTH_METHOD],
+                            method=self.submitter_method,
                             target=target,
                             spec_version=float(self.version.strip('ver_')),
                         )
@@ -863,11 +934,12 @@ class MolOps:
 
                 # Process the molecules
                 logger.info("%s mols_to_process=%s", computed_set, len(mols_to_process))
+                so_ids = []
                 for i in range(len(mols_to_process)):
                     logger.debug(
                         "processing mol %s: %s", i, mols_to_process[i].GetProp("_Name")
                     )
-                    self.process_mol(
+                    so_pk = self.process_mol(
                         mols_to_process[i],
                         self.target_id,
                         computed_set,
@@ -876,6 +948,22 @@ class MolOps:
                         self.zfile,
                         self.zfile_hashvals,
                     )
+                    so_ids.append(so_pk)
+
+                tagger = TagManager(computed_set.target, meta_category='rhs')
+                so_qs = SiteObservation.objects.filter(pk__in=so_ids)
+                datestr = timezone.now().date().strftime('%Y-%m-%d')
+                tagger.tag_new_site_observations(
+                    site_observations=so_qs,
+                    new_observation_tag=f"{computed_set.name} {datestr}",
+                )
+
+                # adjust permissions for any files created
+                set_directory_permissions(
+                    Path(settings.MEDIA_ROOT).joinpath(self.virtual_root),
+                    0o755,
+                )
+
         except IntegrityError as exc:
             # clean up previously written files. this is not ideal,
             # they should be written to a tempdir or something, like

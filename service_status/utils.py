@@ -117,10 +117,25 @@ def init_services():
         if service.service not in defined:
             service.delete()
 
-    # mark those not requested as NOT_CONFIGURED
+    # Reconcile every service's state against ENABLE_SERVICE_STATUS, in BOTH
+    # directions, so the setting is the single source of truth for which
+    # probes run:
+    #   - a service NOT requested is disabled (set NOT_CONFIGURED);
+    #   - a service that IS requested but is currently NOT_CONFIGURED (a fresh
+    #     row defaults to NOT_CONFIGURED, or it was disabled on a prior run) is
+    #     activated, mirroring services(enable=...). Without this it would stay
+    #     NOT_CONFIGURED forever and the probe would self-skip (see #982).
+    # An already-active requested service is left as-is, so a healthy OK/ERROR
+    # state is not clobbered back to DEGRADED on every restart.
+    not_configured = ServiceState.objects.get(state=State.NOT_CONFIGURED)
+    degraded = ServiceState.objects.get(state=State.DEGRADED)
     for service in Service.objects.all():
         if service.service not in requested_services:
-            service.last_state = ServiceState.objects.get(state=State.NOT_CONFIGURED)
+            if service.last_state_id != State.NOT_CONFIGURED:
+                service.last_state = not_configured
+                service.save()
+        elif service.last_state_id == State.NOT_CONFIGURED:
+            service.last_state = degraded
             service.save()
 
     # Now start the scheduler and add jobs for requested services

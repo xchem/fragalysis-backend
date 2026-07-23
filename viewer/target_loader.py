@@ -1,5 +1,4 @@
 import contextlib
-import copy
 import functools
 import logging
 import math
@@ -27,7 +26,7 @@ from django.contrib.auth import get_user_model
 from django.contrib.postgres.aggregates import ArrayAgg
 from django.core.exceptions import MultipleObjectsReturned
 from django.db import IntegrityError, transaction
-from django.db.models import Count, Exists, F, Model, OuterRef, Q, Value
+from django.db.models import Count, Exists, F, Model, OuterRef, Value
 from django.db.models.base import ModelBase
 from django.db.models.functions import Left, Length, Reverse, StrIndex
 from django.utils import timezone
@@ -35,7 +34,6 @@ from rdkit import Chem
 
 from api.utils import deployment_mode_is_production
 from fragalysis.settings import TARGET_LOADER_MEDIA_DIRECTORY
-from scoring.models import SiteObservationGroup
 from viewer.cache import clear_view_cache
 from viewer.models import (
     AtomCoordinates,
@@ -44,7 +42,6 @@ from viewer.models import (
     Compound,
     CompoundIdentifier,
     CompoundIdentifierType,
-    ComputedMolecule,
     Experiment,
     ExperimentStatusType,
     ExperimentUpload,
@@ -53,10 +50,8 @@ from viewer.models import (
     QualityStatusType,
     QuatAssembly,
     SiteObservation,
-    SiteObservationComputedMolecule,
+    SiteObservationComputedSiteObservation,
     SiteObservationQualityStatus,
-    SiteObservationTag,
-    TagCategory,
     Target,
     Xtalform,
     XtalformQuatAssembly,
@@ -65,7 +60,6 @@ from viewer.models import (
 from viewer.utils import (
     alphanumerator,
     calculate_sha256,
-    clean_object_id,
     flatten_dict,
     longcode_from_tag,
     sanitize_directory_name,
@@ -73,6 +67,8 @@ from viewer.utils import (
     strip_exp_code,
     strip_version,
 )
+
+from .tags import TagManager
 
 logger = logging.getLogger(__name__)
 
@@ -567,6 +563,19 @@ def validate_upload_version(
     return True, ""
 
 
+def assign_observation_quality_status(site_observation) -> None:
+    status = QualityStatusType.objects.get(status="NONE")
+
+    SiteObservationQualityStatus(
+        site_observation=site_observation,
+        status=status,
+        user=None,
+        auto_assigned=True,
+        main_status=False,
+        comment="Created on load",
+    ).save()
+
+
 class TargetLoader:
     def __init__(
         self,
@@ -954,7 +963,11 @@ class TargetLoader:
         map_info_paths = []
         if map_info_files:
             map_info_paths = list(
-                set([str(self._get_final_path(k)) for k in map_info_files])
+                {
+                    p
+                    for k in map_info_files
+                    if (p := self._final_path_or_none(k)) is not None
+                }
             )
 
         defaults = {
@@ -963,9 +976,9 @@ class TargetLoader:
             "experiment_upload": self.experiment_upload,
             "status": status,
             "type": exp_type,
-            "pdb_info": str(self._get_final_path(pdb_info)),
-            "mtz_info": str(self._get_final_path(mtz_info)),
-            "cif_info": str(self._get_final_path(cif_info)),
+            "pdb_info": self._final_path_or_none(pdb_info),
+            "mtz_info": self._final_path_or_none(mtz_info),
+            "cif_info": self._final_path_or_none(cif_info),
             "pdb_info_source_file": pdb_info_source_file,
             "mtz_info_source_file": mtz_info_source_file,
             "cif_info_source_file": cif_info_source_file,
@@ -1056,7 +1069,8 @@ class TargetLoader:
         inchi_key = ""
         mol = Chem.MolFromSmiles(smiles, sanitize=True)
         if mol:
-            Chem.RemoveStereochemistry(mol)
+            # Stereo-preserving InChIKey: enantiomers/diastereomers must remain
+            # distinct compounds, so do NOT RemoveStereochemistry here.
             inchi_key = Chem.inchi.MolToInchiKey(mol)
 
         defaults = {
@@ -1068,6 +1082,10 @@ class TargetLoader:
             "modeled_smiles_canon": modeled_smiles_canon,
             "soaked_smiles_soakdb": soaked_smiles_soakdb,
             "soaked_smiles_canon": soaked_smiles_canon,
+            # Set the (now non-null) project FK at creation. The project is
+            # already known here, so there's no need to defer it to the link
+            # loop below.
+            "project": self.project,
         }
 
         fields = {}
@@ -1638,18 +1656,18 @@ class TargetLoader:
 
         defaults = {
             "longcode": longcode,
-            "bound_file": str(self._get_final_path(bound_file)),
-            "apo_solv_file": str(self._get_final_path(apo_solv_file)),
-            "apo_desolv_file": str(self._get_final_path(apo_desolv_file)),
-            "apo_file": str(self._get_final_path(apo_file)),
-            "sigmaa_file": str(self._get_final_path(sigmaa_file)),
-            "diff_file": str(self._get_final_path(diff_file)),
-            "event_file": str(self._get_final_path(event_file)),
-            "artefacts_file": str(self._get_final_path(artefacts_file)),
-            "ligand_pdb": str(self._get_final_path(ligand_pdb)),
-            "ligand_mol": str(self._get_final_path(ligand_mol)),
-            "ligand_smiles": str(self._get_final_path(ligand_smiles)),
-            "ligand_sdf": str(self._get_final_path(ligand_sdf)),
+            "bound_file": self._final_path_or_none(bound_file),
+            "apo_solv_file": self._final_path_or_none(apo_solv_file),
+            "apo_desolv_file": self._final_path_or_none(apo_desolv_file),
+            "apo_file": self._final_path_or_none(apo_file),
+            "sigmaa_file": self._final_path_or_none(sigmaa_file),
+            "diff_file": self._final_path_or_none(diff_file),
+            "event_file": self._final_path_or_none(event_file),
+            "artefacts_file": self._final_path_or_none(artefacts_file),
+            "ligand_pdb": self._final_path_or_none(ligand_pdb),
+            "ligand_mol": self._final_path_or_none(ligand_mol),
+            "ligand_smiles": self._final_path_or_none(ligand_smiles),
+            "ligand_sdf": self._final_path_or_none(ligand_sdf),
             "pdb_header_file": None,
             "smiles": smiles,
         }
@@ -1972,7 +1990,6 @@ class TargetLoader:
         ) in compound_objects.items():  # pylint: disable=no-member
             experiment = experiment_objects[comp_code[0]].instance
             experiment.compounds.add(comp_meta.instance)
-            comp_meta.instance.project_id.add(self.experiment_upload.project)
 
         xtalform_objects = self.process_xtalform(yaml_data=xtalforms)
         self._enumerate_objects(xtalform_objects, "xtalform_num")
@@ -1998,7 +2015,34 @@ class TargetLoader:
             quat_assemblies=quat_assembly_objects,
         )
 
+        # generate canon site objects and enumerate them starting from
+        # where it was left off in the db. This is only needed for
+        # tagging, but doing this here because don't want to pollute
+        # tag module code with processed object dicts, trying to get
+        # rid of them entirely
         canon_site_objects = self.process_canon_site(yaml_data=canon_sites)
+        canon_sort_qs = (
+            CanonSite.objects.filter(
+                pk__in=[
+                    k.instance.pk for k in canon_site_objects.values()
+                ]  # pylint: disable=no-member
+            )
+            .annotate(
+                # obvs=Count("canonsiteconf_set__siteobservation_set", default=0),
+                obvs=Count("canonsiteconf__siteobservation", empty_result_set_value=0),
+            )
+            .order_by("-obvs", "name")
+        )
+        _canon_site_objects = {}
+        for site in canon_sort_qs:
+            key = f"{site.name}+{site.version}"
+            _canon_site_objects[key] = canon_site_objects[
+                key
+            ]  # pylint: disable=no-member
+        self._enumerate_objects(_canon_site_objects, "canon_site_num")
+        for val in canon_site_objects.values():  # pylint: disable=no-member
+            # instances modified, and will be modified down the line, refresh
+            val.instance.refresh_from_db()
 
         # NB! missing fk's:
         # - ref_conf_site
@@ -2143,115 +2187,12 @@ class TargetLoader:
                 # now I have the code for the group.
                 so_group.filter(code__isnull=True).update(code=code)
 
-        # # new shortcoder ends
-        # # old shortcoder begins
-        # values = ["experiment"]
-        # # fmt: off
-        # qs = SiteObservation.objects.filter(
-        #         experiment__experiment_upload__target=self.target,
-        #         code__isnull=True,
-        #     ).values(
-        #         *values,
-        #     ).order_by(
-        #         *values,
-        #     ).annotate(
-        #         obvs=ArrayAgg("id"),
-        #     ).values_list("obvs", flat=True)
-        # # fmt: on
-
-        # for elem in qs:
-        #     # fmt: off
-        #     subgroups = SiteObservation.objects.filter(
-        #         pk__in=elem,
-        #     ).order_by(
-        #         "canon_site_conf__canon_site",
-        #     ).annotate(
-        #         sites=Count("canon_site_conf__canon_site"),
-        #         obvs=ArrayAgg('id'),
-        #     ).order_by(
-        #         "-sites",
-        #         # adding these 2 seems to be taking care of 2003, wrong shortcodes
-        #         # is this sufficient?
-        #         'chain_id',
-        #         'seq_id'
-        #     ).values_list("obvs", flat=True)
-        #     # fmt: on
-
-        #     suffix = alphanumerator()
-        #     for sub in subgroups:
-        #         # objects in this group should be named with same scheme
-        #         so_group = SiteObservation.objects.filter(pk__in=sub)
-
-        #         # memo to self: there used to be some code to test the
-        #         # position of the iterator in existing entries. This
-        #         # was because it was assumed, that when adding v2
-        #         # uploads, it can bring along new observations under
-        #         # existing experiment. Following discussions with
-        #         # Conor, it seems that this will not be the case. But
-        #         # should it agin be, this code was deleted on
-        #         # 2024-03-04, if you need to check
-
-        #         for so in so_group.filter(code__isnull=True):
-        #             logger.debug("processing so: %s", so.longcode)
-        #             if so.experiment.type == 1:
-        #                 # manual. code is pdb code
-        #                 code = f"{so.experiment.code}-{next(suffix)}"
-        #                 # NB! at the time of writing this piece of
-        #                 # code, I haven't seen an example of the data
-        #                 # so I only have a very vague idea how this is
-        #                 # going to work. The way I understand it now,
-        #                 # they cannot belong to separate groups so
-        #                 # there's no need for different iterators. But
-        #                 # could be I need to split them up
-        #             else:
-        #                 # model building. generate code
-        #                 code_prefix = experiment_objects[so.experiment.code].index_data[
-        #                     "code_prefix"
-        #                 ]
-        #                 # iter_pos = next(suffix)
-        #                 # code = f"{code_prefix}{so.experiment.code.split('-')[1]}{iter_pos}"
-        #                 # code = f"{code_prefix}{so.experiment.code.split('-')[1]}{next(suffix)}"
-        #                 try:
-        #                     exp_code_no = strip_exp_code(so.experiment.code)
-        #                 except ValueError as exc:
-        #                     self.report.log(logging.ERROR, exc.args[1])
-        #                     # error, loading failed, use full code for demo
-        #                     exp_code_no = so.experiment.code
-
-        #                 code = f"{code_prefix}{exp_code_no}{next(suffix)}"
-
-        #                 # test uniqueness for target
-        #                 # TODO: this should ideally be solved by db engine, before
-        #                 # rushing to write the trigger, have think about the
-        #                 # loader concurrency situations
-        #                 code_qs = SiteObservation.objects.filter(
-        #                     experiment__experiment_upload__target=self.target,
-        #                     code=code,
-        #                 )
-        #                 # if code exists and the experiment is new
-        #                 logger.debug(
-        #                     'checking code uniq: %s, %s', code, so.experiment.status
-        #                 )
-        #                 if code_qs.exists() and so.experiment.status.status_code == 0:
-        #                     msg = (
-        #                         f"short code {code} already exists for this target; "
-        #                         + "specify a code_prefix to resolve this conflict"
-        #                     )
-        #                     self.report.log(logging.ERROR, msg)
-
-        #             so.code = code
-        #             so.save()
-
         for val in site_observation_objects.values():  # pylint: disable=no-member
             # instances modified, and will be modified down the line, refresh
             val.instance.refresh_from_db()
 
         # to be used in tagging, a necessity after the data exclusion (1674)
         so_qs = SiteObservation.filter_manager.by_target(self.target)
-
-        # site_observations_versioned = {}
-        # for val in site_observation_objects.values():  # pylint: disable=no-member
-        #     site_observations_versioned[val.versioned_key] = val.instance
 
         # final remaining fk, attach reference site observation to canon_site_conf
         for val in canon_site_conf_objects.values():  # pylint: disable=no-member
@@ -2286,160 +2227,7 @@ class TargetLoader:
                         f"SiteObservation {val.index_data['reference_ligands']}"
                         + " missing from database",
                     )
-
-        logger.debug("data read and processed, adding tags")
-
-        # tag site observations
-        cat_canon = TagCategory.objects.get(category="CanonSites")
-        # sort canon sites by number of observations
-        # fmt: off
-        canon_sort_qs = CanonSite.objects.filter(
-            pk__in=[k.instance.pk for k in canon_site_objects.values() ], # pylint: disable=no-member
-        ).annotate(
-            # obvs=Count("canonsiteconf_set__siteobservation_set", default=0),
-            obvs=Count("canonsiteconf__siteobservation", empty_result_set_value=0),
-        ).order_by("-obvs", "name")
-        # ordering by name is not strictly necessary, but
-        # makes the sorting consistent
-
-        # fmt: on
-
-        logger.debug('canon_site_order')
-        for site in canon_sort_qs:
-            logger.debug('%s: %s', site.name, site.obvs)
-
-        _canon_site_objects = {}
-        for site in canon_sort_qs:
-            key = f"{site.name}+{site.version}"
-            _canon_site_objects[key] = canon_site_objects[
-                key
-            ]  # pylint: disable=no-member
-
-        self._enumerate_objects(_canon_site_objects, "canon_site_num")
-        for val in _canon_site_objects.values():  # pylint: disable=no-member
-            prefix = val.instance.canon_site_num
-            # tag = canon_name_tag_map.get(val.versioned_key, "UNDEFINED")
-            so_list = SiteObservation.objects.filter(
-                canon_site_conf__canon_site=val.instance
-            )
-            tag = val.versioned_key
-            try:
-                short_tag = val.versioned_key.split('-')[1][1:]
-                main_obvs = val.instance.ref_conf_site.ref_site_observation
-                try:
-                    code_prefix = experiment_objects[
-                        main_obvs.experiment.code
-                    ].index_data["code_prefix"]
-                    short_tag = f"{code_prefix}{short_tag}"
-                except KeyError as exc:
-                    msg = (
-                        f"Experiment {main_obvs.experiment.code}"
-                        + f" missing from {METADATA_FILE}"
-                    )
-                    self.report.log(logging.ERROR, msg)
-
-            except IndexError:
-                short_tag = tag
-
-            self._tag_observations(
-                tag,
-                prefix,
-                category=cat_canon,
-                site_observations=so_list,
-                short_tag=short_tag,
-            )
-
-        logger.debug("canon_site objects tagged")
-
-        numerators = {}
-        cat_conf = TagCategory.objects.get(category="ConformerSites")
-        for val in canon_site_conf_objects.values():  # pylint:
-            # disable=no-member problem introduced with the sorting of
-            # canon sites (issue 1498). objects somehow go out of sync
             val.instance.refresh_from_db()
-            if val.instance.canon_site.canon_site_num not in numerators.keys():
-                numerators[val.instance.canon_site.canon_site_num] = alphanumerator()
-            prefix = (
-                f"{val.instance.canon_site.canon_site_num}"
-                + f"{next(numerators[val.instance.canon_site.canon_site_num])}"
-            )
-
-            so_list = []
-            for k in val.index_data["members"]:
-                try:
-                    so_list.append(site_observation_objects[k].instance)
-                except KeyError as exc:
-                    # data may be missing. check the database
-                    try:
-                        longcode = longcode_from_tag(k)
-                        so = so_qs.get(longcode=longcode)
-                        so_list.append(so)
-                        msg = (
-                            f"SiteObservation {k} missing from {METADATA_FILE}"
-                            f", fetching from db",
-                        )
-                        logger.info(msg)
-                    except SiteObservation.DoesNotExist:
-                        self.report.log(
-                            logging.ERROR,
-                            f"SiteObservation {k} missing from database",
-                        )
-
-            # tag = val.instance.name.split('+')[0]
-            tag = val.instance.name
-            try:
-                short_tag = val.instance.name.split('-')[1][1:]
-                main_obvs = val.instance.ref_site_observation
-                code_prefix = experiment_objects[main_obvs.experiment.code].index_data[
-                    "code_prefix"
-                ]
-                short_tag = f"{code_prefix}{short_tag}"
-            except IndexError:
-                short_tag = tag
-
-            self._tag_observations(
-                tag,
-                prefix,
-                category=cat_conf,
-                site_observations=so_list,
-                hidden=True,
-                short_tag=short_tag,
-            )
-
-        logger.debug("conf_site objects tagged")
-
-        cat_quat = TagCategory.objects.get(category="Quatassemblies")
-        for val in quat_assembly_objects.values():  # pylint: disable=no-member
-            prefix = f"A{val.instance.assembly_num}"
-            tag = val.instance.name
-            so_list = SiteObservation.objects.filter(
-                xtalform_site__xtalform__in=XtalformQuatAssembly.objects.filter(
-                    quat_assembly=val.instance
-                ).values("xtalform")
-            )
-            self._tag_observations(
-                tag, prefix, category=cat_quat, site_observations=so_list
-            )
-
-        logger.debug("quat_assembly objects tagged")
-
-        cat_xtal = TagCategory.objects.get(category="Crystalforms")
-        for val in xtalform_objects.values():  # pylint: disable=no-member
-            prefix = f"F{val.instance.xtalform_num}"
-            so_list = SiteObservation.objects.filter(
-                xtalform_site__xtalform=val.instance
-            )
-            tag = val.instance.name
-
-            self._tag_observations(
-                tag,
-                prefix,
-                category=cat_xtal,
-                site_observations=so_list,
-                clean_ids=False,
-            )
-
-        logger.debug("xtalform objects tagged")
 
         # enumerate xtalform_sites. a bit trickier than others because
         # requires alphabetic enumeration starting from the letter of
@@ -2493,68 +2281,21 @@ class TargetLoader:
                 val.instance.xtalform_site_num = next(xtnum)
                 val.instance.save()
 
-        cat_xtalsite = TagCategory.objects.get(category="CrystalformSites")
-        for val in _xtalform_sites_objects.values():  # pylint: disable=no-member
-            prefix = (
-                f"F{val.instance.xtalform.xtalform_num}"
-                + f"{val.instance.xtalform_site_num}"
-            )
+        logger.debug("data read and processed, adding tags")
 
-            so_list = []
-            for k in val.index_data["residues"]:
-                try:
-                    so_list.append(site_observation_objects[k].instance)
-                except KeyError as exc:
-                    try:
-                        longcode = longcode_from_tag(k)
-                        so = so_qs.get(longcode=longcode)
-                        so_list.append(so)
-                        msg = (
-                            f"SiteObservation {k} missing from {METADATA_FILE}"
-                            f", fetching from db",
-                        )
-                        logger.info(msg)
-                    except SiteObservation.DoesNotExist:
-                        self.report.log(
-                            logging.ERROR,
-                            f"SiteObservation {k} missing from database",
-                        )
-            tag = val.versioned_key
-            try:
-                # remove protein name and 'x'
-                short_tag = val.instance.xtalform_site_id.split('-')[1][1:]
-                main_obvs = val.instance.canon_site.ref_conf_site.ref_site_observation
-                code_prefix = experiment_objects[main_obvs.experiment.code].index_data[
-                    "code_prefix"
-                ]
-                short_tag = f"{code_prefix}{short_tag}"
-            except IndexError:
-                short_tag = tag
-
-            self._tag_observations(
-                tag,
-                prefix,
-                category=cat_xtalsite,
-                site_observations=so_list,
-                hidden=True,
-                short_tag=short_tag,
-            )
-
-        logger.debug("xtalform_sites objects tagged")
-
-        # tag all new observations, so that the curator can find and
-        # re-pose them
-        datestr = timezone.now().date().strftime('%Y-%m-%d')
-        self._tag_observations(
-            f"{self.version_dir} {datestr}_v{major}.{minor}",
-            "",
-            TagCategory.objects.get(category="Other"),
-            [
-                k.instance
+        site_observations = SiteObservation.objects.filter(
+            pk__in=[
+                k.instance.pk
                 for k in site_observation_objects.values()  # pylint: disable=no-member
                 if k.new
             ],
-            clean_ids=False,
+        )
+
+        datestr = timezone.now().date().strftime('%Y-%m-%d')
+        tagger = TagManager(self.target, meta_category='lhs')
+        tagger.tag_new_site_observations(
+            site_observations=site_observations,
+            new_observation_tag=f"{self.version_dir} {datestr}",
         )
 
         # see comment in method body if anything needs to be further
@@ -2572,7 +2313,7 @@ class TargetLoader:
         # TODO: remove
         for val in site_observation_objects.values():  # pylint: disable=no-member
             if val.new:
-                self._assign_observation_quality_status(
+                assign_observation_quality_status(
                     val.instance,
                     # val.index_data["auto_build_score"],
                 )
@@ -2581,7 +2322,7 @@ class TargetLoader:
             self.process_soakdb(db_file=str(soakdb_path))
 
         if self.version_number > 1 and self.target.computedset_set.exists():
-            self.link_compounds_to_computedmolecules(site_observation_objects)
+            self.link_observations_to_computed_observations(site_observation_objects)
 
         self.mol_coords_to_db(site_observation_objects)
 
@@ -2618,11 +2359,15 @@ class TargetLoader:
             CompoundIdentifierType(name=identifier).save()
 
         # you'd think I could supply the compounds processed, but I need a queryset..
-        compounds = Compound.objects.annotate(
+        # fmt: off
+        compounds = Compound.objects.filter(
+            project=self.project,
+        ).annotate(
             exp_code=F("experiment__code"),
         ).filter(
             experiment__code__in=df["xtal"],
         )
+        # fmt: on
 
         # validate cols, compound code should be unchanged
         for _, row in df[extended_key_cols].iterrows():
@@ -2632,6 +2377,14 @@ class TargetLoader:
             except Compound.DoesNotExist:
                 msg = (
                     f'Compound mentioned in {CUSTOM_IDENTIFIER_FILE} does not exist:'
+                    + f'code: {exp_code}, ligand: {ligand_name}'
+                )
+                logger.error(msg)
+                # self.report.log(logging.ERROR, msg)
+                continue
+            except MultipleObjectsReturned:
+                msg = (
+                    'Multiple compounds returned for compound '
                     + f'code: {exp_code}, ligand: {ligand_name}'
                 )
                 logger.error(msg)
@@ -2888,75 +2641,6 @@ class TargetLoader:
         # but if something else needs to edit the observations,
         # refresh_from_db needs to be called
 
-    def _tag_observations(
-        self,
-        tag: str,
-        prefix: str,
-        category: TagCategory,
-        site_observations: list,
-        hidden: bool = False,
-        short_tag: str | None = None,
-        clean_ids: bool = True,
-    ) -> None:
-        try:
-            # memo to self: description is set to tag, but there's
-            # no fk to tag, instead, tag has a fk to
-            # group. There's no uniqueness requirement on
-            # description so there's no certainty that this will
-            # be unique (or remain searchable at all because user
-            # is allowed to change the tag name). this feels like
-            # poor design but I don't understand the principles of
-            # this system to know if that's indeed the case or if
-            # it is in fact a truly elegant solution
-            so_group = SiteObservationGroup.objects.get(
-                target=self.target, description=tag
-            )
-        except SiteObservationGroup.DoesNotExist:
-            assert self.target
-            so_group = SiteObservationGroup(target=self.target)
-            so_group.save()
-        except MultipleObjectsReturned:
-            SiteObservationGroup.objects.filter(
-                target=self.target, description=tag
-            ).delete()
-            assert self.target
-            so_group = SiteObservationGroup(target=self.target)
-            so_group.save()
-
-        name = f"{prefix} - {tag}" if prefix else tag
-        tag = tag if short_tag is None else short_tag
-        short_name = name if short_tag is None else f"{prefix} - {short_tag}"
-
-        if clean_ids:
-            tag = clean_object_id(tag)
-            name = clean_object_id(name)
-            short_name = clean_object_id(short_name)
-
-        try:
-            so_tag = SiteObservationTag.objects.get(
-                upload_name=name, target=self.target
-            )
-            # Tag already exists
-            # Apart from the new mol_group and molecules, we shouldn't be
-            # changing anything.
-            so_tag.mol_group = so_group
-        except SiteObservationTag.DoesNotExist:
-            so_tag = SiteObservationTag(
-                tag=tag,
-                tag_prefix=prefix,
-                upload_name=name,
-                category=category,
-                target=self.target,
-                mol_group=so_group,
-                hidden=hidden,
-                short_tag=short_name,
-            )
-
-        so_tag.save()
-
-        so_group.site_observation.add(*site_observations)
-        so_tag.site_observations.add(*site_observations)
-
     def _is_already_uploaded(self, target_created, project_created):
         if target_created or project_created:
             return False
@@ -2981,54 +2665,65 @@ class TargetLoader:
             # received invalid path
             return None
 
-    def _assign_observation_quality_status(self, site_observation) -> None:
-        status = QualityStatusType.objects.get(status="NONE")
+    def _final_path_or_none(self, path: str | None) -> str | None:
+        """Stringified final path for a FileField, or None when absent.
 
-        SiteObservationQualityStatus(
-            site_observation=site_observation,
-            status=status,
-            user=None,
-            auto_assigned=True,
-            main_status=False,
-            comment="Created on load",
-        ).save()
+        The str() is required: a bare pathlib.Path assigned to a FileField is
+        not wrapped in a FieldFile by Django's descriptor (only str/None/File
+        are), so it reads back as a raw Path whose .name is just the basename
+        and which has no .path/.url. But an *absent* file must stay None so the
+        column is NULL and reads back falsy - str(None) would store the truthy
+        literal "None".
+        """
+        final = self._get_final_path(path)
+        return str(final) if final is not None else None
 
-    def link_compounds_to_computedmolecules(
+    def link_observations_to_computed_observations(
         self, site_observation_objects: dict[str, MetadataObject]
     ) -> None:
-        """Link incoming SiteObservations to existing ComputedMolecules.
+        """Link incoming SiteObservations to existing computed observations.
 
         Spec (scraped from github (
         issue https://github.com/m2ms/fragalysis-frontend/issues/1591)).
 
         - on upload_1, do nothing
-        - subsequent uploads, fFor every new molecule, check for a RHS
+        - subsequent uploads, for every new observation, check for a RHS
           design with the same chemical structure of the soaked
           compound (compare flattened inchikeys)
-        - when match found, enumerate all possible LHS-RHS compound
-          links, but annotate them with an RMSD
-        - look only for ComputedMolecules within the target scope
+        - when match found, enumerate all possible LHS-RHS links, but
+          annotate them with an RMSD
+        - look only for computed observations within the target scope
 
-        In practice, there's now a model
-        SiteObservationComputedMolecule, effectively a m2m table
-        between SiteObservation and ComputedMolecule that also
+        In practice the link is stored in
+        SiteObservationComputedSiteObservation, effectively an m2m table
+        between experimental and computed SiteObservations that also
         captures an alignment RMSD value.
         """
         logger.debug('+linking observations to computed molecules')
 
+        sdf_root = Path(settings.MEDIA_ROOT).joinpath(
+            settings.COMPUTED_SET_MEDIA_DIRECTORY
+        )
+
         # NB! see comment about filter_manager in managers.py for
         # compound only fetching LHS upload compounds. I believe here
         # this is the desired behaviour
-        compounds = Compound.filter_manager.by_target(self.target)
+        # compounds = Compound.filter_manager.by_target(self.target)
 
         # ComputedMolecules can come from two places:
         # - linked to a previously uploaded Compound
         # - linked to a previously uploaded ComputedSet
-        computed_molecules = ComputedMolecule.objects.filter(
-            Q(computed_set__target=self.target) | Q(compound__in=compounds),
+        # computed_molecules = ComputedMolecule.objects.filter(
+        #     Q(computed_set__target=self.target) | Q(compound__in=compounds),
+        # )
+        computed_so = SiteObservation.objects.filter(
+            xtalform_site__xtalform__in=Experiment.objects.filter(
+                experiment_upload__target=self.target,
+            ).values('xtalform'),
+            experiment__isnull=True,
         )
 
-        logger.debug('computed_molecules: %s', computed_molecules)
+        logger.debug('computed_siteobservations: %s', computed_so)
         for val in site_observation_objects.values():  # pylint: disable=no-member
             if not val.new:
                 continue
@@ -3045,27 +2740,38 @@ class TargetLoader:
 
             logger.debug('molpath still going: %s', molpath)
             mol = Chem.MolFromMolFile(str(molpath))
-            flattened_mol = copy.deepcopy(mol)
-            Chem.RemoveStereochemistry(flattened_mol)
-            flat_inchi = Chem.inchi.MolToInchiKey(flattened_mol)
+            # Stereo-preserving InChIKey, matching how compounds are now keyed
+            # (see Compound creation above). Must not flatten, or this lookup
+            # would never match the stored stereo-inclusive inchi_key.
+            inchi_key = Chem.inchi.MolToInchiKey(mol)
 
-            logger.debug('flat inchi: %s', flat_inchi)
+            logger.debug('inchi key: %s', inchi_key)
 
-            # the way the cset_loader is set up, the linked compound
-            # is guaranteed to have a flattened inchi key. This is
-            # explicitly used to .get() the compound instance and if
-            # not found, new one is created. Which isn't really ideal,
-            # just a missing inchi key may lead to duplicates. TODO
-            # new issue and iron this out?
+            # the linked compound is looked up by its inchi_key here; if not
+            # found, a new one is created. A missing inchi key may lead to
+            # duplicates. TODO: new issue and iron this out?
             logger.debug(
                 'compmol set: %s',
-                computed_molecules.filter(compound__inchi_key=flat_inchi),
+                computed_so.filter(cmpd__inchi_key=inchi_key),
             )
-            for compmol in computed_molecules.filter(compound__inchi_key=flat_inchi):
+            for compmol in computed_so.filter(cmpd__inchi_key=inchi_key):
                 logger.debug('compmol: %s', compmol)
 
-                cmol = Chem.MolFromMolBlock(compmol.sdf_info)
-                Chem.RemoveStereochemistry(cmol)
+                # this can't be right. I need to compare 3D structures
+                # but whatevs, going to be obsoleted
+                # https://github.com/m2ms/fragalysis-frontend/issues/1748#issuecomment-3517491215
+
+                # pr is it? did he mean the atom distance calc in cset_uplo?
+                # cmol = Chem.MolFromMolBlock(compmol.sdf_info)
+                # Chem.RemoveStereochemistry(cmol)
+
+                logger.debug(
+                    'cmol_path: %s', sdf_root.joinpath(str(compmol.virtual_ligand_mol))
+                )
+                cmol = Chem.MolFromMolFile(
+                    sdf_root.joinpath(str(compmol.virtual_ligand_mol))
+                )
+                logger.debug('compmol_obj: %s', cmol)
 
                 rmsd = None
                 try:
@@ -3074,7 +2780,7 @@ class TargetLoader:
                 except RuntimeError as exc:
                     # protection against rdkit internal errors
                     msg = (
-                        f"Failed to find alignment between {compmol.molecule_name} "
+                        f"Failed to find alignment between {compmol.virtual_molecule_name} "
                         + f'and {val.instance.code}'
                     )
                     # log an error, but don't stop processing
@@ -3084,9 +2790,9 @@ class TargetLoader:
                 # there is a unique constraint on this model, but only
                 # new observations are being linked, so cannot clash
                 # with any existing ones here
-                SiteObservationComputedMolecule(
+                SiteObservationComputedSiteObservation(
                     site_observation=val.instance,
-                    computed_molecule=compmol,
+                    computed_site_observation=compmol,
                     rmsd=rmsd,
                 ).save()
                 logger.debug('saved connection')

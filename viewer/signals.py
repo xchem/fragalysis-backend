@@ -2,11 +2,10 @@ from django.conf import settings
 from django.core.cache import caches
 from django.db.models.signals import post_delete, post_save
 
-from viewer.models import ComputedMolecule, Pose, SiteObservation, SiteObservationTag
+from viewer.models import Pose, SiteObservation, SiteObservationTag
 
 _CACHED_MODELS = (
     SiteObservation,
-    ComputedMolecule,
     Pose,
     SiteObservationTag,
 )

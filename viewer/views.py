@@ -33,7 +33,11 @@ from rest_framework.views import APIView
 from ta_auth_connector import get_auth_ping, get_auth_target_access, get_auth_version
 
 from api.infections import INFECTION_STRUCTURE_DOWNLOAD, have_infection
-from api.security import ISPyBSafeQuerySet
+from api.security import (
+    ISPyBSafeQuerySet,
+    check_upload_tas_authorisation,
+    user_has_loader_role,
+)
 from api.utils import (
     deployment_mode_is_production,
     get_highlighted_diffs,
@@ -232,7 +236,7 @@ class CompoundIdentifierView(
 ):
     queryset = models.CompoundIdentifier.objects.all()
     serializer_class = serializers.CompoundIdentifierSerializer
-    filter_permissions = "compound__project_id"
+    filter_permissions = "compound__project"
     permission_classes = [IsObjectProposalMember]
     filterset_fields = ["type", "compound"]
 
@@ -278,7 +282,7 @@ class CompoundImageView(ISPyBSafeQuerySet):
 
     queryset = models.Compound.filter_manager.filter_qs()
     serializer_class = serializers.CmpdImageSerializer
-    filter_permissions = "project_id"
+    filter_permissions = "project"
     filterset_class = filters.CmpdImgFilter
 
 
@@ -389,7 +393,7 @@ class CompoundView(mixins.UpdateModelMixin, ISPyBSafeQuerySet):
 
     queryset = models.Compound.filter_manager.filter_qs()
     serializer_class = serializers.CompoundSerializer
-    filter_permissions = "project_id"
+    filter_permissions = "project"
     filterset_class = filters.CompoundFilter
 
 
@@ -641,21 +645,14 @@ class UploadComputedSetView(generics.ListCreateAPIView):
 
                 # related objects:
                 # - ComputedSetComputedMolecule
-                # - ComputedMolecule
-                # - NumericalScoreValues
-                # - TextScoreValues
                 # - ComputedMolecule_computed_inspirations
                 # - Compound
 
-                # all but ComputedMolecule are handled automatically
-                # but (because of the m2m), have to delete those
-                # separately
-
-                # select ComputedMolecule objects that are in this set
+                # select SiteObservation objects that are in this set
                 # and not in any other sets
                 # fmt: off
-                selected_set.computed_molecules.exclude(
-                    pk__in=models.ComputedMolecule.objects.filter(
+                selected_set.site_observations.exclude(
+                    pk__in=models.SiteObservation.objects.filter(
                         computed_set__in=models.ComputedSet.objects.filter(
                             target=selected_set.target,
                         ).exclude(
@@ -1223,7 +1220,7 @@ class ComputedSetView(
         sdfs = models.ComputedSet.history.filter(
             written_sdf_filename__isnull=False,
         )
-        pdbs = computed_set.computed_molecules.filter(pdb__isnull=True)
+        pdbs = computed_set.site_observations.all()
 
         # so now, get the file, and get the pdbs
         with zipfile.ZipFile(zip_buffer, 'a', zipfile.ZIP_DEFLATED) as ziparchive:
@@ -1236,7 +1233,11 @@ class ComputedSetView(
                     ziparchive.writestr(f'{str(sdf.submitted_sdf)}_MISSING', r'')
 
             for f in pdbs:
-                fpath = Path(settings.MEDIA_ROOT).joinpath(f.pdb_info.name)
+                if not f.virtual_pdb_info:
+                    # Only observations with a user-uploaded pdb are included
+                    # (the former pdb__isnull=True computed molecules).
+                    continue
+                fpath = Path(settings.MEDIA_ROOT).joinpath(f.virtual_pdb_info.name)
                 if fpath.is_file():
                     with open(fpath, 'rb') as contents:
                         ziparchive.writestr(f.get_filename(), contents.read())
@@ -1249,105 +1250,6 @@ class ComputedSetView(
         )
         response['Content-Length'] = zip_buffer.getbuffer().nbytes
         return response
-
-
-class ComputedMoleculesView(ISPyBSafeQuerySet):
-    """Retrieve information about computed molecules - 3D info (api/compound-molecules)."""
-
-    queryset = models.ComputedMolecule.objects.all()
-    serializer_class = serializers.ComputedMoleculeSerializer
-    filter_permissions = "compound__project_id"
-    filterset_fields = ('computed_set',)
-
-    # Vary keys the cache on Authorization/Cookie so per-user
-    # proposal filtering from ISPyBSafeQuerySet is preserved. The key_prefix
-    # is shared with ComputedMolAndScoreView so a single
-    # clear_view_cache("computed-molecules") drops both.
-    @method_decorator(
-        cache_page(
-            settings.CACHE_MIDDLEWARE_SECONDS,
-            cache=settings.CACHE_MIDDLEWARE_ALIAS,
-            key_prefix="computed-molecules",
-        )
-    )
-    @method_decorator(vary_on_headers('Authorization', 'Cookie'))
-    def list(self, request, *args, **kwargs):
-        return super().list(request, *args, **kwargs)
-
-    @method_decorator(
-        cache_page(
-            settings.CACHE_MIDDLEWARE_SECONDS,
-            cache=settings.CACHE_MIDDLEWARE_ALIAS,
-            key_prefix="computed-molecules",
-        )
-    )
-    @method_decorator(vary_on_headers('Authorization', 'Cookie'))
-    def retrieve(self, request, *args, **kwargs):
-        return super().retrieve(request, *args, **kwargs)
-
-
-class NumericalScoreValuesView(ISPyBSafeQuerySet):
-    """View to retrieve information about numerical computed molecule scores
-    (api/numerical-scores).
-    """
-
-    queryset = models.NumericalScoreValues.objects.all()
-    serializer_class = serializers.NumericalScoreSerializer
-    filter_permissions = "compound__compound__project_id"
-    filterset_fields = ('compound', 'score')
-
-
-class TextScoresView(ISPyBSafeQuerySet):
-    """View to retrieve information about text computed molecule scores (api/text-scores)."""
-
-    queryset = models.TextScoreValues.objects.all()
-    serializer_class = serializers.TextScoreSerializer
-    filter_permissions = "compound__compound__project_id"
-    filterset_fields = ('compound', 'score')
-
-
-class CompoundScoresView(ISPyBSafeQuerySet):
-    """View to retrieve descriptions of scores for a given name or computed set."""
-
-    queryset = models.ScoreDescription.objects.all()
-    serializer_class = serializers.ScoreDescriptionSerializer
-    filter_permissions = "computed_set__target__project"
-    filterset_fields = ('computed_set', 'name')
-
-
-class ComputedMolAndScoreView(ISPyBSafeQuerySet):
-    """View to retrieve all information about molecules from a computed set
-    along with all of their scores.
-    """
-
-    queryset = models.ComputedMolecule.objects.all()
-    serializer_class = serializers.ComputedMolAndScoreSerializer
-    filter_permissions = "compound__project_id"
-    filterset_fields = ('computed_set',)
-
-    # Shares the "computed-molecules" key_prefix with ComputedMoleculesView
-    # since both depend on the same underlying ComputedMolecule model.
-    @method_decorator(
-        cache_page(
-            settings.CACHE_MIDDLEWARE_SECONDS,
-            cache=settings.CACHE_MIDDLEWARE_ALIAS,
-            key_prefix="computed-molecules",
-        )
-    )
-    @method_decorator(vary_on_headers('Authorization', 'Cookie'))
-    def list(self, request, *args, **kwargs):
-        return super().list(request, *args, **kwargs)
-
-    @method_decorator(
-        cache_page(
-            settings.CACHE_MIDDLEWARE_SECONDS,
-            cache=settings.CACHE_MIDDLEWARE_ALIAS,
-            key_prefix="computed-molecules",
-        )
-    )
-    @method_decorator(vary_on_headers('Authorization', 'Cookie'))
-    def retrieve(self, request, *args, **kwargs):
-        return super().retrieve(request, *args, **kwargs)
 
 
 class DiscoursePostView(viewsets.ViewSet):
@@ -1575,7 +1477,7 @@ class PoseView(
     """Set up/retrieve information about Poses (api/poses)"""
 
     queryset = models.Pose.filter_manager.filter_qs()
-    filter_permissions = "compound__project_id"
+    filter_permissions = "compound__project"
     serializer_class = serializers.PoseSerializer
     filterset_class = filters.PoseFilter
 
@@ -1845,9 +1747,11 @@ class DownloadStructuresView(
             logger.info(
                 'Looking for Protein records for %r (user=%s)...', target, username
             )
-            site_obvs = models.SiteObservation.objects.filter(
-                experiment__experiment_upload__target=target
-            )
+            site_obvs = models.SiteObservation.filter_manager.by_target(target)
+            include_virtual = serializer.validated_data['include_virtual_observations']
+            logger.debug('removing virtuals: %s', include_virtual)
+            if not include_virtual:
+                site_obvs = site_obvs.exclude(experiment__isnull=True)
 
         if not site_obvs.exists():
             content = {
@@ -1948,79 +1852,19 @@ class DownloadStructuresView(
         return Response({'task_status_url': url}, status=status.HTTP_202_ACCEPTED)
 
 
-def _check_upload_tas_authorisation(request, target_access_string):
+def _upload_tas_authorisation_response(request, target_access_string):
     """Authorise an upload/validate request against `target_access_string`.
 
-    Returns a Response (error 403 / login redirect) that the caller must
+    Thin HTTP wrapper over `api.security.check_upload_tas_authorisation`:
+    returns a Response (error 403 / login redirect) that the caller must
     return immediately, or None when the user is authorised to proceed.
-
-    A user holding the UserRole.LOADER_ROLE role bypasses the target-access
-    membership check; the bypass is logged as a warning naming the user and
-    the role.
     """
-    if not settings.AUTHENTICATE_UPLOAD:
+    failure = check_upload_tas_authorisation(request, target_access_string)
+    if failure is None:
         return None
-
-    if request.user.username == 'asap-service':
-        logger.warning(
-            'Upload attempted with "%s" service account, trying uploader-supplied user',
-            request.user.username,
-        )
-        if 'django-user' in request.headers.keys():
-            try:
-                user = get_user_model().objects.get(
-                    username=request.headers['django-user']
-                )
-            except get_user_model().DoesNotExist:
-                msg = (
-                    f'Upload from "{request.user.username}" '
-                    + 'service account but fragalysis user not found'
-                )
-                logger.error(msg)
-                return Response({'error': msg}, status=status.HTTP_403_FORBIDDEN)
-        else:
-            msg = (
-                f'Upload from "{request.user.username}" service '
-                'account but fragalysis user not supplied'
-            )
-            logger.error(msg)
-            return Response({'error': msg}, status=status.HTTP_403_FORBIDDEN)
-    else:
-        user = request.user
-
-    if not user.is_authenticated:
+    if failure.login_required:
         return redirect(settings.LOGIN_URL)
-
-    if user.roles.filter(name=models.UserRole.LOADER_ROLE).exists():
-        logger.warning(
-            'User "%s" bypassing target-access authorisation for "%s" '
-            'via the "%s" role',
-            user.username,
-            target_access_string,
-            models.UserRole.LOADER_ROLE,
-        )
-        return None
-
-    proposals = _ISPYB_SAFE_QUERY_SET.get_proposals_for_user(
-        user, restrict_public_to_membership=True
-    )
-    if target_access_string not in proposals:
-        logger.warning(
-            '(#1712) User %s does not have access to %s (checked %d proposals)',
-            user.username,
-            target_access_string,
-            len(proposals),
-        )
-        return Response(
-            {
-                "target_access_string": [
-                    f"You are not authorized to upload data to '{target_access_string}'"
-                ]
-            },
-            status=status.HTTP_403_FORBIDDEN,
-        )
-
-    return None
+    return Response(failure.error_body, status=status.HTTP_403_FORBIDDEN)
 
 
 class UploadExperimentUploadView(viewsets.ViewSet):
@@ -2049,7 +1893,9 @@ class UploadExperimentUploadView(viewsets.ViewSet):
 
         target_access_string = serializer.validated_data['target_access_string']
 
-        auth_response = _check_upload_tas_authorisation(request, target_access_string)
+        auth_response = _upload_tas_authorisation_response(
+            request, target_access_string
+        )
         if auth_response is not None:
             return auth_response
 
@@ -2122,7 +1968,9 @@ class UploadExperimentValidateView(viewsets.ViewSet):
 
         target_access_string = serializer.validated_data['target_access_string']
 
-        auth_response = _check_upload_tas_authorisation(request, target_access_string)
+        auth_response = _upload_tas_authorisation_response(
+            request, target_access_string
+        )
         if auth_response is not None:
             return auth_response
 
@@ -2292,7 +2140,19 @@ class TaskStatusView(APIView):
                 }
                 return Response(content, status=status.HTTP_403_FORBIDDEN)
 
-            if proposal not in _ISPYB_SAFE_QUERY_SET.get_proposals_for_user(
+            if user_has_loader_role(request.user):
+                # Same bypass the upload endpoint grants: a Loader may poll the
+                # status of a task they were authorised to start even when they
+                # are not a member of the proposal (see
+                # api.security.check_upload_tas_authorisation).
+                logger.warning(
+                    'User "%s" bypassing task-status authorisation for "%s" '
+                    'via the "%s" role',
+                    request.user.username,
+                    proposal,
+                    models.UserRole.LOADER_ROLE,
+                )
+            elif proposal not in _ISPYB_SAFE_QUERY_SET.get_proposals_for_user(
                 request.user
             ):
                 return Response(
@@ -2414,7 +2274,10 @@ class SiteObservationView(ISPyBSafeQuerySet):
     )
     serializer_class = serializers.SiteObservationReadSerializer
     filterset_class = filters.SiteObservationFilter
-    filter_permissions = "experiment__experiment_upload__project"
+    filter_permissions = (
+        "experiment__experiment_upload__project",
+        "computed_set__target__project",
+    )
 
     @method_decorator(
         cache_page(
@@ -3337,7 +3200,7 @@ class DownloadComputedSetView(ISPyBSafeQuerySet):
         sdfs = models.ComputedSet.history.filter(
             written_sdf_filename__isnull=False,
         )
-        pdbs = computed_set.computed_molecules.filter(pdb__isnull=True)
+        pdbs = computed_set.site_observations.all()
 
         # so now, get the file, and get the pdbs
         with zipfile.ZipFile(zip_buffer, 'a', zipfile.ZIP_DEFLATED) as ziparchive:
@@ -3350,7 +3213,11 @@ class DownloadComputedSetView(ISPyBSafeQuerySet):
                     ziparchive.writestr(f'{str(sdf.submitted_sdf)}_MISSING', r'')
 
             for f in pdbs:
-                fpath = Path(settings.MEDIA_ROOT).joinpath(f.pdb_info.name)
+                if not f.virtual_pdb_info:
+                    # Only observations with a user-uploaded pdb are included
+                    # (the former pdb__isnull=True computed molecules).
+                    continue
+                fpath = Path(settings.MEDIA_ROOT).joinpath(f.virtual_pdb_info.name)
                 if fpath.is_file():
                     with open(fpath, 'rb') as contents:
                         ziparchive.writestr(f.get_filename(), contents.read())
@@ -3401,7 +3268,10 @@ class SiteObservationQualityStatusView(
     queryset = models.SiteObservationQualityStatus.filter_manager.annotated_qs()
     serializer_class = serializers.SiteObservationQualityStatusSerializer
     filterset_class = filters.SiteObservationQualityStatusFilter
-    filter_permissions = "site_observation__experiment__experiment_upload__project"
+    filter_permissions = (
+        "site_observation__computed_set__target__project",
+        "site_observation__experiment__experiment_upload__target__project",
+    )
 
 
 class UploadAssayDataView(ISPyBSafeQuerySet):
@@ -3590,7 +3460,8 @@ class ActivityDataView(
 
     queryset = models.Result.filter_manager.filter_qs()
     serializer_class = serializers.ActivityResultSerializer
-    filter_permissions = "result_upload__target__project"
+    # filter_permissions = "result_upload__target__project"
+    filter_permissions = "computed_set__target__project"
     permission_classes = [IsObjectProposalMember]
     # permission_classes = [permissions.IsAuthenticated, IsObjectProposalMember]
     filterset_class = filters.ActivityResultFilter
@@ -3646,13 +3517,15 @@ class ActivityDataCurationView(ISPyBSafeQuerySet):
         if settings.AUTHENTICATE_UPLOAD and not self.request.user.is_authenticated:
             return redirect(settings.LOGIN_URL)
 
-        upload_pk = serializer.validated_data['upload_file_name']
+        # upload_pk = serializer.validated_data['upload_file_name']
+        computedset_pk = serializer.validated_data['upload_file_name']
         property_id = serializer.validated_data['column']
         new_type = serializer.validated_data['new_data_type']
 
-        upload = models.ResultUpload.objects.get(pk=upload_pk)
+        # upload = models.ResultUpload.objects.get(pk=upload_pk)
+        computed_set = models.ComputedSet.objects.get(pk=computedset_pk)
 
-        errors, warnings = convert(upload, property_id, new_type)
+        errors, warnings = convert(computed_set, property_id, new_type)
 
         logger.debug("view errors: %s", errors)
 
@@ -3765,3 +3638,17 @@ class TASStatsView(viewsets.ViewSet):
         }
 
         return JsonResponse(result)
+
+
+class ComputedInspirationView(ISPyBSafeQuerySet):
+    """Set up/retrieve information about tags relating to Session Projects."""
+
+    queryset = models.ComputedInspiration.objects.all()
+    filter_permissions = "computed_set__target__project"
+    serializer_class = serializers.ComputedInspirationSerializer
+    filterset_fields = (
+        'site_observation',
+        'computed_inspiration',
+        'computed_set',
+        'computed_set__target',
+    )

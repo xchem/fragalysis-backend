@@ -81,7 +81,7 @@ class CmpdChoiceView(
     queryset = CmpdChoice.filter_manager.filter_qs()
     serializer_class = CmpdChoiceSerializer
     filterset_fields = ("user_id", "cmpd_id", "choice_type")
-    filter_permissions = "cmpd_id__project_id"
+    filter_permissions = "cmpd_id__project"
     permission_classes = [IsObjectProposalMember]
 
 

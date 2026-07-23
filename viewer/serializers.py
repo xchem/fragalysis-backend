@@ -20,7 +20,8 @@ from rest_framework.exceptions import PermissionDenied
 from api.security import ISPyBSafeQuerySet
 from api.utils import draw_mol, validate_tas
 from viewer import models
-from viewer.cset_upload import EMPTY_VALUES
+
+# from viewer.cset_upload import EMPTY_VALUES
 from viewer.target_loader import XTALFORMS_FILE
 from viewer.target_set_upload import sanitize_mol
 from viewer.utils import get_https_host
@@ -231,7 +232,7 @@ class TargetSerializer(serializers.ModelSerializer):
             "external_url",
             "external_url_display_name",
             "alias_order",
-            # "settings",
+            "settings",
         )
         extra_kwargs = {
             "id": {"read_only": True},
@@ -248,7 +249,7 @@ class TargetSerializer(serializers.ModelSerializer):
             "organism": {"read_only": False},
             "external_url": {"read_only": False},
             "external_url_display_name": {"read_only": False},
-            # "settings": {"read_only": False},
+            "settings": {"read_only": False},
         }
 
 
@@ -261,7 +262,7 @@ class CompoundSerializer(serializers.ModelSerializer):
             "smiles",
             "current_identifier",
             "all_identifiers",
-            "project_id",
+            "project",
             "compound_code",
             "inspirations",
             "description",
@@ -273,7 +274,7 @@ class CompoundSerializer(serializers.ModelSerializer):
             "smiles": {"read_only": True},
             "current_identifier": {"read_only": False},
             "all_identifiers": {"read_only": True},
-            "project_id": {"read_only": True},
+            "project": {"read_only": True},
             "compound_code": {"read_only": True},
             "inspirations": {"read_only": True},
             "description": {"read_only": True},
@@ -732,110 +733,6 @@ class ComputedSetCreateSerializer(serializers.ModelSerializer):
         }
 
 
-class ComputedMoleculeSerializer(serializers.ModelSerializer):
-    # performance issue
-    # inspiration_frags = MoleculeSerializer(read_only=True, many=True)
-    class Meta:
-        model = models.ComputedMolecule
-        fields = '__all__'
-
-
-class ScoreDescriptionSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = models.ScoreDescription
-        fields = '__all__'
-
-
-class NumericalScoreSerializer(serializers.ModelSerializer):
-    score = ScoreDescriptionSerializer(read_only=True)
-
-    class Meta:
-        model = models.NumericalScoreValues
-        fields = '__all__'
-
-
-class TextScoreSerializer(serializers.ModelSerializer):
-    score = ScoreDescriptionSerializer(read_only=True)
-
-    class Meta:
-        model = models.TextScoreValues
-        fields = '__all__'
-
-
-class ComputedMolAndScoreSerializer(serializers.ModelSerializer):
-    numerical_scores = serializers.SerializerMethodField()
-    text_scores = serializers.SerializerMethodField()
-    pdb_info = serializers.SerializerMethodField()
-
-    # avoid 'nan' values in returned data
-    # TODO: as the input is now validated, at some point it may make
-    # more sense to clean the db and get rid of this method
-    def to_representation(self, instance):
-        data = super().to_representation(instance)
-        result = {}
-        for key, value in data.items():
-            if key == 'text_scores':
-                inner_result = {}
-                for inner_key, inner_value in value.items():
-                    inner_value = None if inner_value in EMPTY_VALUES else inner_value
-                    inner_result[inner_key] = inner_value
-                result[key] = inner_result
-            else:
-                result[key] = value
-
-        return result
-
-    class Meta:
-        model = models.ComputedMolecule
-        fields = (
-            "id",
-            "sdf_info",
-            "name",
-            "smiles",
-            "pdb_info",
-            "compound",
-            "computed_set",
-            "computed_inspirations",
-            "numerical_scores",
-            "text_scores",
-        )
-
-    def get_numerical_scores(self, obj):
-        scores = models.NumericalScoreValues.objects.filter(compound=obj)
-        score_dict = {}
-        for score in scores:
-            score_dict[score.score.name] = score.value
-        return score_dict
-
-    def get_text_scores(self, obj):
-        scores = models.TextScoreValues.objects.filter(compound=obj)
-        score_dict = {}
-        for score in scores:
-            score_dict[score.score.name] = score.value
-        return score_dict
-
-    def get_pdb_info(self, obj):
-        # For this (new XCA) Fragalysis phase we do not support
-        # PDB material in the ComputedMolecule. So instead of this (original code)
-        # we now return a constant 'None'
-        #        if obj.pdb:
-        #            return obj.pdb.pdb_info.url
-        #        else:
-        #            return None
-
-        # Unused arguments
-        del obj
-
-        return None
-
-    # def get_score_descriptions(self, obj):
-    #     descriptions = ScoreDescription.objects.filter(computed_set=obj.computed_set)
-    #     desc_dict = {}
-    #     for desc in descriptions:
-    #         desc_dict[desc.name] = desc.description
-    #     return desc_dict
-
-
 # Class for customer Discourse API
 class DiscoursePostWriteSerializer(serializers.Serializer):
     category_name = serializers.CharField(max_length=200)
@@ -932,6 +829,7 @@ class DownloadStructuresSerializer(serializers.Serializer):
     static_link = serializers.BooleanField(default=False)
     file_url = serializers.CharField(max_length=200, default='', allow_blank=True)
     use_zip = serializers.BooleanField(default=False, label='Use ZIP format (slower)')
+    include_virtual_observations = serializers.BooleanField(default=False)
 
 
 # Start of Serializers for Squonk Jobs
@@ -1409,6 +1307,7 @@ class AssayDataUploadSerializer(serializers.Serializer):
     identifier_column = serializers.CharField()
     identifier_type = serializers.ChoiceField(
         choices=[
+            ('experiment', 'Experiment'),
             ('compound', 'Compound'),
             (
                 'site_observation',
@@ -1456,20 +1355,21 @@ class AssayDataCurationSerializer(serializers.ModelSerializer):
     new_data_type = serializers.ChoiceField(choices=[], required=False)
 
     class Meta:
-        model = models.ResultUpload
+        # model = models.ResultUpload
+        model = models.ComputedSet
         fields = (
             'target_access_string',
-            'upload_file',
-            'upload_date',
-            'uploaded_by',
+            'submitted_sdf',
+            'upload_datetime',
+            'owner_user',
             'upload_file_name',
             'column',
             'new_data_type',
         )
         extra_kwargs = {
-            "upload_file": {"read_only": True},
-            "upload_date": {"read_only": True},
-            "uploaded_by": {"read_only": True},
+            "submitted_sdf": {"read_only": True, 'label': 'Uploaded file'},
+            "upload_datetime": {"read_only": True},
+            "owner_user": {"read_only": True},
         }
 
     def __init__(self, *args, **kwargs):
@@ -1489,15 +1389,22 @@ class AssayDataCurationSerializer(serializers.ModelSerializer):
             )
             targets = models.Target.objects.filter(project__title__in=proposals)
 
-        uploads = models.ResultUpload.objects.filter(target__in=targets)
+        # uploads = models.ResultUpload.objects.filter(target__in=targets)
+        uploads = models.ComputedSet.objects.filter(
+            target__in=targets,
+            # limit only to assay uploads
+            # potential TODO:  possibly not the best solution
+            name__isnull=True,
+        )
         logger.debug('uploads: %s', uploads)
         self.fields['upload_file_name'].choices = [
-            (f.pk, f'{f.target.title}:: {Path(f.upload_file.name).name}')
+            (f.pk, f'{f.target.title}:: {Path(f.submitted_sdf.name).name}')
             for f in uploads
         ]
 
         columns = models.ResultProperty.objects.filter(
-            pk__in=models.Result.objects.filter(result_upload__in=uploads).values(
+            # pk__in=models.Result.objects.filter(result_upload__in=uploads).values(
+            pk__in=models.Result.objects.filter(computed_set__in=uploads).values(
                 'result_property'
             ),
         )
@@ -1562,3 +1469,9 @@ class PlotDataSerializer(serializers.ModelSerializer):
             "last_name": {"read_only": True},
             "upload_time": {"read_only": True},
         }
+
+
+class ComputedInspirationSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = models.ComputedInspiration
+        fields = '__all__'

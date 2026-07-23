@@ -15,7 +15,7 @@ from django.conf import settings
 from django.db import transaction
 from django.db.models.deletion import ProtectedError
 
-from viewer.models import ComputedMolecule, Target
+from viewer.models import Target
 
 logger = logging.getLogger(__name__)
 
@@ -37,10 +37,12 @@ def _computed_set_media_files(target: Target) -> list[Path]:
         # The originally submitted SDF - a FileField under computed_set_data/.
         if computed_set.submitted_sdf:
             paths.append(media_root.joinpath(computed_set.submitted_sdf.name))
-        # Each computed molecule's pdb file - a FileField under computed_set_data/.
-        for comp_mol in computed_set.computed_molecules.all():
-            if comp_mol.pdb_info:
-                paths.append(media_root.joinpath(comp_mol.pdb_info.name))
+        # Each computed observation's uploaded pdb file - a FileField under
+        # computed_set_data/ (SiteObservation.virtual_pdb_info, formerly the
+        # ComputedMolecule.pdb_info of the pre-unification model).
+        for site_obvs in computed_set.site_observations.all():
+            if site_obvs.virtual_pdb_info:
+                paths.append(media_root.joinpath(site_obvs.virtual_pdb_info.name))
 
     return paths
 
@@ -83,22 +85,6 @@ def delete_target(target: Target) -> None:
     target_loader_dir = _target_loader_media_dir(target)
 
     with transaction.atomic():
-        # 1. Computed molecules whose pdb (SiteObservation) belongs to this
-        #    target. ComputedMolecule.pdb is on_delete=PROTECT, so deleting the
-        #    target would raise ProtectedError if these still referenced its site
-        #    observations. Remove them first.
-        ComputedMolecule.objects.filter(
-            pdb__cmpd__experiment__experiment_upload__target=target
-        ).delete()
-
-        # 2. Computed molecules belonging to this target's computed sets. These
-        #    are linked by an m2m and so are not cleaned up by the cascade from
-        #    target.delete().
-        ComputedMolecule.objects.filter(computed_set__target=target).delete()
-
-        # 3. The target itself. This cascades to the experiment uploads,
-        #    experiments, site observations, computed sets, session projects,
-        #    tags, result uploads, plot data, download links and jobs.
         try:
             target.delete()
         except ProtectedError:

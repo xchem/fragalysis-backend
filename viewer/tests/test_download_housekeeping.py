@@ -31,23 +31,15 @@ def _make_link(
     )
 
 
-def _patch_state(mocker, state, info=None):
-    """Make AsyncResult(...).state/.info return the given values."""
-    result = mocker.Mock()
-    result.state = state
-    result.info = info
-    return mocker.patch.object(download_structures, "AsyncResult", return_value=result)
-
-
 @pytest.fixture
 def now():
     return datetime.now(timezone.utc)
 
 
 @pytest.mark.django_db
-def test_within_start_grace_is_left_alone(mocker, now):
+def test_within_start_grace_is_left_alone(mock_async_result, now):
     """A young record is given time to start - not even queried."""
-    async_result = _patch_state(mocker, "PENDING")
+    async_result = mock_async_result("PENDING")
     link = _make_link(now - timedelta(minutes=1))
 
     download_structures.expire_lost_download_records()
@@ -60,8 +52,8 @@ def test_within_start_grace_is_left_alone(mocker, now):
 
 @pytest.mark.django_db
 @pytest.mark.parametrize("state", ["FAILURE", "REVOKED"])
-def test_failed_task_is_expired(mocker, now, state):
-    _patch_state(mocker, state, info="boom")
+def test_failed_task_is_expired(mock_async_result, now, state):
+    mock_async_result(state, info="boom")
     link = _make_link(now - timedelta(minutes=10))
 
     download_structures.expire_lost_download_records()
@@ -73,9 +65,9 @@ def test_failed_task_is_expired(mocker, now, state):
 
 
 @pytest.mark.django_db
-def test_pending_task_is_expired_as_lost(mocker, now):
+def test_pending_task_is_expired_as_lost(mock_async_result, now):
     """PENDING past the grace means no worker result - the task is lost."""
-    _patch_state(mocker, "PENDING")
+    mock_async_result("PENDING")
     link = _make_link(now - timedelta(minutes=10))
 
     download_structures.expire_lost_download_records()
@@ -86,9 +78,9 @@ def test_pending_task_is_expired_as_lost(mocker, now):
 
 
 @pytest.mark.django_db
-def test_running_within_max_runtime_is_left_alone(mocker, now):
+def test_running_within_max_runtime_is_left_alone(mock_async_result, now):
     """A genuinely long-running download must not be killed prematurely."""
-    _patch_state(mocker, "PROCESSING")
+    mock_async_result("PROCESSING")
     link = _make_link(now - timedelta(minutes=10))
 
     download_structures.expire_lost_download_records()
@@ -99,10 +91,10 @@ def test_running_within_max_runtime_is_left_alone(mocker, now):
 
 
 @pytest.mark.django_db
-def test_running_beyond_max_runtime_is_expired(mocker, now):
+def test_running_beyond_max_runtime_is_expired(mock_async_result, now):
     """A 'running' task older than the max runtime is presumed lost (frozen
     result after a worker restart)."""
-    _patch_state(mocker, "PROCESSING")
+    mock_async_result("PROCESSING")
     link = _make_link(now - timedelta(minutes=90))
 
     download_structures.expire_lost_download_records()
@@ -113,9 +105,9 @@ def test_running_beyond_max_runtime_is_expired(mocker, now):
 
 
 @pytest.mark.django_db
-def test_no_task_id_is_expired(mocker, now):
+def test_no_task_id_is_expired(mock_async_result, now):
     """A record past the grace that never got a task_id was never launched."""
-    async_result = _patch_state(mocker, "PENDING")
+    async_result = mock_async_result("PENDING")
     link = _make_link(now - timedelta(minutes=10), task_id=None)
 
     download_structures.expire_lost_download_records()
@@ -127,9 +119,9 @@ def test_no_task_id_is_expired(mocker, now):
 
 
 @pytest.mark.django_db
-def test_completed_record_is_not_a_candidate(mocker, now):
+def test_completed_record_is_not_a_candidate(mock_async_result, now):
     """A record with keep_zip_until set has finished and is ignored here."""
-    async_result = _patch_state(mocker, "FAILURE")
+    async_result = mock_async_result("FAILURE")
     link = _make_link(
         now - timedelta(minutes=10), keep_zip_until=now + timedelta(minutes=30)
     )
@@ -142,8 +134,8 @@ def test_completed_record_is_not_a_candidate(mocker, now):
 
 
 @pytest.mark.django_db
-def test_static_link_is_left_alone(mocker, now):
-    async_result = _patch_state(mocker, "FAILURE")
+def test_static_link_is_left_alone(mock_async_result, now):
+    async_result = mock_async_result("FAILURE")
     link = _make_link(now - timedelta(minutes=10), static_link=True)
 
     download_structures.expire_lost_download_records()
