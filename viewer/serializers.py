@@ -958,6 +958,11 @@ class TargetExperimentValidateSerializer(serializers.ModelSerializer):
     data_version = serializers.CharField(required=False)
     target_name = serializers.CharField(required=False)
     upload_version = serializers.CharField(required=False)
+    # Optional pre-flight compound reconciliation: the uploader may send the
+    # incoming compounds (extracted from meta_aligner.yaml) so the backend can
+    # flag any that conflict with existing rows before the (large) upload. Sent
+    # as JSON; absent for the legacy form-encoded callers.
+    compounds = serializers.ListField(child=serializers.DictField(), required=False)
 
     def validate(self, data):
         """Verify TAS is correctly formed."""
@@ -973,6 +978,7 @@ class TargetExperimentValidateSerializer(serializers.ModelSerializer):
             'data_version',
             'target_name',
             'upload_version',
+            'compounds',
         )
 
 

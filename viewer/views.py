@@ -46,6 +46,7 @@ from api.utils import (
 )
 from service_status.models import Service
 from viewer import filters, models, serializers
+from viewer.compound_reconciliation import reconcile_compounds
 from viewer.permissions import IsObjectProposalMember
 from viewer.squonk2_agent import (
     AccessParams,
@@ -2036,6 +2037,22 @@ class UploadExperimentValidateView(viewsets.ViewSet):
                 validation_response['success'] and upload_val_result
             )
             validation_response['message'].append(upload_val_msg)  # type: ignore[attr-defined]
+
+            # Pre-flight compound reconciliation (advisory - the real check runs
+            # again during upload, where the DB state is authoritative). If the
+            # uploader supplied the incoming compounds, flag any needing curation.
+            compounds = serializer.validated_data.get('compounds')
+            if compounds:
+                visit = target_access_string.split()[0]
+                project = models.Project.objects.filter(title=visit).first()
+                reconciliation = reconcile_compounds(project, compounds)
+                curation = reconciliation.curation_payload()
+                if curation:
+                    validation_response['success'] = False
+                    validation_response['compound_conflicts'] = curation
+                    validation_response['message'].append(  # type: ignore[attr-defined]
+                        f"{len(curation)} compound(s) need review before upload"
+                    )
 
             return Response(
                 validation_response,
