@@ -31,6 +31,17 @@ logger = logging.getLogger(__name__)
 _ISPYB_SAFE_QUERY_SET = ISPyBSafeQuerySet()
 
 
+def _int_param(params, name: str, default: int) -> int:
+    """The named query parameter as an int, or `default` if it wasn't supplied.
+
+    Values are read via float() first, so a decimal string (e.g. "125.0") is
+    accepted and truncated. A supplied but unparseable value still raises.
+    """
+    if name not in params:
+        return default
+    return int(float(params[name]))
+
+
 class ValidateProjectMixin:
     """Mixin for serializers to check if user is allowed to create objects.
 
@@ -430,17 +441,19 @@ class ProjectSerializer(serializers.ModelSerializer):
 class MolImageSerializer(serializers.ModelSerializer):
     mol_image = serializers.SerializerMethodField()
 
+    # Image size used when the request doesn't ask for one.
+    DEFAULT_HEIGHT = 125
+    DEFAULT_WIDTH = 125
+
     def get_mol_image(self, obj):
-        request = self.context["request"]
-        params = request.query_params
-        if params:
-            return draw_mol(
-                obj.smiles,
-                height=int(float(params["height"])),
-                width=int(float(params["width"])),
-            )
-        else:
-            return draw_mol(obj.smiles, height=125, width=125)
+        # Size from the query parameters, each defaulting independently - the
+        # request may carry filtering or pagination parameters and no size.
+        params = self.context["request"].query_params
+        return draw_mol(
+            obj.smiles,
+            height=_int_param(params, "height", self.DEFAULT_HEIGHT),
+            width=_int_param(params, "width", self.DEFAULT_WIDTH),
+        )
 
     class Meta:
         model = models.SiteObservation
