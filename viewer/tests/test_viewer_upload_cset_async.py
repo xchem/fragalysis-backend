@@ -28,6 +28,10 @@ so it authenticates as the stack's superuser over HTTP Basic - already in DRF's
 login would need. The GET assertions afterwards are deliberately **anonymous**,
 as the LHS test's are: ``PUBLIC_TAS`` publishes the proposal, so this also
 proves the computed set is publicly visible.
+
+Finally it downloads the uploaded set back out of
+``/api/compound-sets/<pk>/download/``, mirroring the target download the LHS
+test ends with.
 """
 
 import os
@@ -148,6 +152,32 @@ def _post_computed_set(
     )
 
 
+def _download_computed_set(
+    http: urllib3.PoolManager, base_url: str, computed_set_id: int
+) -> None:
+    """Fetch an uploaded computed set's archive and assert it is a real zip.
+
+    The mirror of the LHS test's target download: prove the thing we just
+    uploaded can be got back out again. ``ComputedSetView.download`` builds the
+    zip in-process (no task to poll) and resolves access with
+    ``restrict_public_to_membership=False``, so - like the other GETs here -
+    this runs **anonymously** and doubles as a public-visibility check.
+
+    Note this is ``/api/compound-sets/<pk>/download/``, *not* the
+    ``cset_download_url``/``pset_download_url`` the upload task returns: those
+    point at ``/viewer/compound_set/<id>`` and ``/viewer/protein_set/<id>``,
+    which have no route in ``viewer/urls.py`` and 404.
+    """
+    archive = http.request(
+        "GET", f"{base_url}/api/compound-sets/{computed_set_id}/download/"
+    )
+    assert archive.status == 200, (archive.status, archive.data[:200])
+    assert int(archive.headers.get("Content-Length", "0")) > 0
+    assert (
+        archive.data[:4] == b"PK\x03\x04"
+    ), f"download body is not a zip archive: {archive.data[:4]!r}"
+
+
 @requires_external_data
 @requires_base_url
 def test_upload_cset_poll_then_get(tmp_path):
@@ -209,10 +239,18 @@ def test_upload_cset_poll_then_get(tmp_path):
     else:
         assert compound_sets["count"] == expected_sets
 
+    results = _get_all_results(http, f"{base_url}/api/compound-sets/")
+
     expected_objects = (expect.get("objects") or {}).get("compound_sets") or []
     if expected_objects:
-        results = _get_all_results(http, f"{base_url}/api/compound-sets/")
         missing = missing_objects(results, expected_objects)
         assert (
             not missing
         ), f"expected compound sets not found in /api/compound-sets/: {missing}"
+
+    # Finally: prove every uploaded set can be downloaded again. Reuses the
+    # already-uploaded state - no second upload - exactly as the LHS test's
+    # target download does.
+    assert results, "no computed sets to download"
+    for computed_set in results:
+        _download_computed_set(http, base_url, computed_set["id"])

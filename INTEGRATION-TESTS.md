@@ -194,7 +194,17 @@ do, so they also prove the computed set is publicly visible.
 `/api/site_observations/` grew by `expect.computed_molecules` (each computed
 molecule creates a *virtual* `SiteObservation`, so the growth is a direct check
 on how many molecules were processed); that `/api/compound-sets/` holds
-`expect.compound_sets`; and any `expect.objects.compound_sets` field-subsets.
+`expect.compound_sets`; any `expect.objects.compound_sets` field-subsets; and
+finally that each uploaded set downloads back out of
+`/api/compound-sets/<pk>/download/` as a real, non-empty zip — the mirror of the
+target download the LHS test ends with.
+
+> **Download the set via `/api/compound-sets/<pk>/download/`.** The upload task
+> returns `cset_download_url` and `pset_download_url` pointing at
+> `/viewer/compound_set/<id>` and `/viewer/protein_set/<id>`, but neither has a
+> route in `viewer/urls.py` — both 404. The DRF `download` action on
+> `ComputedSetView` is the live endpoint, and it resolves access with
+> `restrict_public_to_membership=False`, so the anonymous GET works.
 
 > **Don't pin the ComputedSet `name`.** It is generated as
 > `"<method>-<upload date>-A"` (`cset_upload.py`), so it changes every day. Pin
