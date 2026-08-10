@@ -23,38 +23,27 @@ which must include the manifest's TAS; the upload itself runs with the stack's
 ``AUTHENTICATE_UPLOAD`` off.
 """
 import json
-import os
-import time
 import warnings
-from typing import List, Optional
 
 import pytest
 import urllib3
 
 from viewer.tests.external_data import (
-    data_identifier,
     download,
     load_manifest,
     missing_objects,
+    relative_key,
     requires_external_data,
 )
+from viewer.tests.integration_http import base_url as _base_url
+from viewer.tests.integration_http import get_all_results as _get_all_results
+from viewer.tests.integration_http import get_json as _get_json
+from viewer.tests.integration_http import poll_until_finished as _poll_until_finished
+from viewer.tests.integration_http import pool_manager, requires_base_url
 
-ENDPOINT = "upload_target_experiments"
-
-#: Base URL of the running stack. Absent on the host/CI run, so the test skips.
-BASE_URL_ENV = "INTEGRATION_BASE_URL"
-
-#: How long to wait for the async load to finish, and how often to poll.
-#: Generous because the load runs on a single Celery worker and a slow/contended
-#: CI runner has been seen to take ~30 min for the target load alone - 45 min
-#: leaves headroom so a sluggish runner does not flake the test on a timeout.
-POLL_TIMEOUT_SECONDS = 45 * 60
-POLL_INTERVAL_SECONDS = 5
-
-#: Per-request read timeout (seconds). The whole load completes in a few minutes
-#: and every GET is sub-second, so a request that goes this long with no data is
-#: wedged - fail loudly rather than hang the unattended CI job indefinitely.
-REQUEST_READ_TIMEOUT_SECONDS = 120.0
+#: This test's endpoint, named by its path relative to the test-data root. The
+#: same string is the manifest directory and the S3 key prefix.
+ENDPOINT = "api/upload_target_experiments"
 
 #: Endpoints whose ``count`` is asserted against the manifest. These are the
 #: model objects a target load produces, beyond the target itself. Each key
@@ -85,66 +74,6 @@ OBJECT_ENDPOINTS = {
 }
 
 pytestmark = pytest.mark.integration
-
-requires_base_url = pytest.mark.skipif(
-    not os.environ.get(BASE_URL_ENV),
-    reason=f"{BASE_URL_ENV} unset; only the integration stack runs this test.",
-)
-
-
-def _base_url() -> str:
-    return os.environ[BASE_URL_ENV].rstrip("/")
-
-
-def _get_json(http: urllib3.PoolManager, url: str) -> dict:
-    """GET ``url`` and return the decoded JSON body, raising on non-200."""
-    response = http.request("GET", url)
-    if response.status != 200:
-        raise RuntimeError(f"GET {url} returned HTTP {response.status}")
-    return json.loads(response.data.decode("utf-8"))
-
-
-def _get_all_results(http: urllib3.PoolManager, url: str) -> list:
-    """Return every ``results`` row from a paginated DRF list endpoint.
-
-    Content assertions must search the whole result set, not just the first
-    page, so follow the absolute ``next`` link the pagination emits until it is
-    null. ``next`` URLs are absolute, so they are requested verbatim.
-    """
-    results: List[dict] = []
-    next_url: Optional[str] = url
-    while next_url:
-        body = _get_json(http, next_url)
-        results.extend(body["results"])
-        next_url = body.get("next")
-    return results
-
-
-def _poll_until_finished(http: urllib3.PoolManager, status_url: str) -> dict:
-    """Poll ``status_url`` until the task reports finished, or time out.
-
-    Transient non-200s are expected *while the load runs* and must not fail the
-    poll: task_status briefly returns 404 ("Proposal not found") because the
-    proposal's Project is not committed until partway through the load, and it
-    reports an unfinished body before that. Either just means "not ready yet",
-    so keep polling until the deadline; only a finished body ends the wait.
-    """
-    deadline = time.monotonic() + POLL_TIMEOUT_SECONDS
-    last_seen: object = None
-    while time.monotonic() < deadline:
-        response = http.request("GET", status_url)
-        if response.status == 200:
-            body = json.loads(response.data.decode("utf-8"))
-            if body.get("finished"):
-                return body
-            last_seen = body
-        else:
-            last_seen = f"HTTP {response.status}"
-        time.sleep(POLL_INTERVAL_SECONDS)
-    raise AssertionError(
-        f"Task at {status_url} did not finish within {POLL_TIMEOUT_SECONDS}s; "
-        f"last seen: {last_seen}"
-    )
 
 
 def _download_target(
@@ -205,26 +134,16 @@ def _download_target(
 def test_upload_poll_then_get(tmp_path):
     """Upload over HTTP, poll to SUCCESS, then assert the GET endpoints match."""
     base_url = _base_url()
-    # A read timeout is essential: every request below is unattended in CI, so a
-    # slow or wedged endpoint must fail the test loudly rather than hang the job
-    # for hours. The read timeout is the gap allowed *between* bytes, so it does
-    # not penalise a large-but-steady upload; retries are off so a stuck request
-    # surfaces immediately instead of being silently retried.
-    http = urllib3.PoolManager(
-        timeout=urllib3.Timeout(connect=15.0, read=REQUEST_READ_TIMEOUT_SECONDS),
-        retries=False,
-    )
+    http = pool_manager()
 
     entry = load_manifest(ENDPOINT)
-    identifier = data_identifier()
     expect = entry["expect"]
 
     for upload in entry["uploads"]:
         tas = upload["tas"]
         filename = upload["file"]
 
-        relative_key = f"api/{ENDPOINT}/{identifier}/{filename}"
-        local_file = download(relative_key, tmp_path / filename)
+        local_file = download(relative_key(ENDPOINT, filename), tmp_path / filename)
 
         with open(local_file, "rb") as bundle:
             response = http.request(
