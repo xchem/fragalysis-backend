@@ -34,6 +34,44 @@ def test_s3_url_to_https_rejects_non_s3(bad_url):
         external_data.s3_url_to_https(bad_url)
 
 
+# --- manifest_path / relative_key ------------------------------------------
+#
+# An endpoint is named by its path RELATIVE to test_data (e.g.
+# "api/upload_target_experiments", "viewer/upload_cset"). The same string is
+# the manifest directory and the S3 key prefix - that invariant is what lets a
+# reader find the bucket objects for a manifest, so it is asserted here.
+
+
+def test_manifest_path_is_under_test_data():
+    path = external_data.manifest_path("api/upload_target_experiments")
+    assert path.parent.name == "upload_target_experiments"
+    assert path.parent.parent.name == "api"
+    assert path.name == "manifest.yaml"
+
+
+def test_manifest_path_accepts_a_non_api_endpoint():
+    path = external_data.manifest_path("viewer/upload_cset")
+    assert path.parent.name == "upload_cset"
+    assert path.parent.parent.name == "viewer"
+
+
+def test_relative_key_prefixes_endpoint_and_identifier(monkeypatch):
+    monkeypatch.setenv(external_data.DATA_IDENTIFIER_ENV, "ALPHA")
+    assert (
+        external_data.relative_key("viewer/upload_cset", "compound-set_A71EV2A.sdf")
+        == "viewer/upload_cset/ALPHA/compound-set_A71EV2A.sdf"
+    )
+
+
+def test_relative_key_matches_the_manifest_directory(monkeypatch):
+    """The S3 key prefix and the manifest directory must be the same string."""
+    monkeypatch.setenv(external_data.DATA_IDENTIFIER_ENV, "ALPHA")
+    endpoint = "api/upload_target_experiments"
+    key = external_data.relative_key(endpoint, "bundle.tgz")
+    assert key.startswith(f"{endpoint}/")
+    assert external_data.manifest_path(endpoint).parent.match(f"*/{endpoint}")
+
+
 def test_external_data_disabled_without_env(monkeypatch):
     monkeypatch.delenv(external_data.BUCKET_AND_PATH_ENV, raising=False)
     monkeypatch.delenv(external_data.DATA_IDENTIFIER_ENV, raising=False)

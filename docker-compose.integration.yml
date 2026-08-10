@@ -34,6 +34,14 @@ x-backend-environment: &backend-environment
   PUBLIC_TAS: ${PUBLIC_TAS:-lb32627-66}
   LOGGING_FRAMEWORK_ROOT_LEVEL: ${LOGGING_FRAMEWORK_ROOT_LEVEL:-INFO}
   PROXY_FORWARDED_PROTO_HEADER: http
+  # The computed-set (RHS) upload needs a real logged-in user - the user id
+  # becomes ComputedSet.owner_user - and authenticates over HTTP Basic as this
+  # superuser, which launch-stack.sh creates on first boot. Pinned here rather
+  # than left to launch-stack.sh's admin/UNSECURED fallback so the test and the
+  # stack cannot drift apart.
+  WEB_DJANGO_SUPERUSER_NAME: &superuser-name admin
+  WEB_DJANGO_SUPERUSER_PASSWORD: &superuser-password UNSECURED
+  WEB_DJANGO_SUPERUSER_EMAIL: admin@example.com
 
 services:
 
@@ -104,15 +112,22 @@ services:
     image: ${BE_NAMESPACE:-xchem}/fragalysis-backend:${BE_IMAGE_TAG:-latest}
     container_name: integration_test
     working_dir: /code
+    # The two test files are listed LHS-first and pytest honours argument order:
+    # the computed-set (RHS) upload resolves its ref_mols against site
+    # observations the target load creates, so it cannot run before it.
     command: >-
       sh -c "pip install --quiet pytest pytest-django pytest-cov &&
       python -m pytest
       viewer/tests/test_api_upload_target_experiments_async.py
+      viewer/tests/test_viewer_upload_cset_async.py
       -m integration --no-cov -p no:cacheprovider -v"
     environment:
       INTEGRATION_BASE_URL: 'http://backend:80'
       UNIT_TEST_BUCKET_AND_PATH: ${UNIT_TEST_BUCKET_AND_PATH}
       UNIT_TEST_DATA_IDENTIFIER: ${UNIT_TEST_DATA_IDENTIFIER}
+      # Must match the backend's superuser - the RHS upload authenticates as it.
+      WEB_DJANGO_SUPERUSER_NAME: *superuser-name
+      WEB_DJANGO_SUPERUSER_PASSWORD: *superuser-password
       # pyproject points DJANGO_SETTINGS_MODULE at tests.test_settings, but the
       # top-level tests/ package is .dockerignore'd out of the image. The async
       # test is pure HTTP, but pytest still imports viewer/tests/conftest.py
