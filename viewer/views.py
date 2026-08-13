@@ -12,6 +12,7 @@ from wsgiref.util import FileWrapper
 
 import pandas as pd
 import pytz
+import ta_auth_connector
 from celery import Celery
 from celery.result import AsyncResult
 from dateutil.parser import parse
@@ -3638,6 +3639,73 @@ class TASStatsView(viewsets.ViewSet):
         }
 
         return JsonResponse(result)
+
+
+class TASUsersView(viewsets.ViewSet):
+    """The users (logins) that are members of a target access string.
+
+      GET /api/tas/<target-access-string>/
+
+    Answers "who else has access to this proposal/visit?" - the question the
+    frontend's target settings modal asks. The membership comes from the TA
+    authenticator's '/users/{tas}' endpoint (which needs TA-Auth 1.5.0 or
+    later), and ultimately from ISPyB.
+
+    The caller must be a member of the TAS they are asking about. Public
+    proposals are no exception - 'restrict_public_to_membership=True' means
+    everyone can *see* a public target, but only its members can see who those
+    members are.
+    """
+
+    permission_classes = [permissions.IsAuthenticated]
+
+    def retrieve(self, request, pk=None):
+        target_access_string = pk
+
+        # Membership is checked before the authenticator is asked: unlike
+        # '/target-access/{username}', the '/users/{tas}' endpoint is not
+        # cached upstream, so every call reaches ISPyB. An unauthorised
+        # request must stop here rather than become a database query.
+        if not ISPyBSafeQuerySet().user_is_member_of_any_given_proposals(
+            request.user, [target_access_string], restrict_public_to_membership=True
+        ):
+            # Deliberately the same response whether the TAS exists or not -
+            # otherwise this becomes a way to enumerate proposals.
+            return Response(
+                {
+                    "error": "You are not authorized to see the users of "
+                    f"'{target_access_string}'"
+                },
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        response = ta_auth_connector.get_auth_users(target_access_string)
+        if response.error:
+            # The authenticator could not tell us. Report that rather than an
+            # empty set - "nobody has access" and "we do not know who has
+            # access" are very different answers to this question.
+            logger.warning(
+                'Could not get users for "%s": %s',
+                target_access_string,
+                response.error,
+            )
+            return Response(
+                {
+                    "error": "Unable to get the users for "
+                    f"'{target_access_string}' ({response.error})"
+                },
+                status=status.HTTP_503_SERVICE_UNAVAILABLE,
+            )
+
+        # Sorted so the caller gets a stable order (the source is a set).
+        users = sorted(response.users)
+        return Response(
+            {
+                "target_access_string": target_access_string,
+                "count": len(users),
+                "users": users,
+            }
+        )
 
 
 class ComputedInspirationView(ISPyBSafeQuerySet):

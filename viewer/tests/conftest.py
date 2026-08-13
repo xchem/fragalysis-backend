@@ -134,6 +134,31 @@ def mock_target_access(monkeypatch) -> Callable[[Iterable[str]], None]:
     return _set
 
 
+@pytest.fixture
+def mock_tas_users(monkeypatch) -> Callable[..., None]:
+    """Patch the TAS-membership seam used by the ``/api/tas/`` endpoint.
+
+    ``viewer.views.TASUsersView`` calls ``ta_auth_connector.get_auth_users(tas)``
+    to ask the authenticator who is a member of a target access string. This
+    fixture returns a setter that makes that call answer with a chosen set of
+    usernames, or - by passing ``error`` - report that the membership could not
+    be determined (the authenticator answers 503 rather than an empty set when
+    ISPyB is unreachable, and the endpoint must not blur the two).
+    """
+
+    def _set(users: Iterable[str] = (), error: str | None = None) -> None:
+        user_set = set(users)
+        monkeypatch.setattr(
+            ta_auth_connector,
+            "get_auth_users",
+            lambda tas: ta_auth_connector.TasAuthUsersGetResponse(
+                users=set(user_set), error=error
+            ),
+        )
+
+    return _set
+
+
 class _FakeNeo4jSession:
     """A neo4j session whose ``run`` raises a chosen exception, or no-ops.
 
