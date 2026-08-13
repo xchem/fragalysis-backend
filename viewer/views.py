@@ -3646,7 +3646,7 @@ class TASUsersView(viewsets.ViewSet):
 
       GET /api/tas/<target-access-string>/
 
-    Answers "who else has access to this proposal/visit?" - the question the
+    Answers "who has access to this proposal/visit?" - the question the
     frontend's target settings modal asks. The membership comes from the TA
     authenticator's '/users/{tas}' endpoint (which needs TA-Auth 1.5.0 or
     later), and ultimately from ISPyB.
@@ -3662,35 +3662,21 @@ class TASUsersView(viewsets.ViewSet):
          "ping": "OK",
          "users": ["abc12345", "def12345"]}
 
-    The caller must be a member of the TAS they are asking about. Public
-    proposals are no exception - 'restrict_public_to_membership=True' means
-    everyone can *see* a public target, but only its members can see who those
-    members are.
+    Being authenticated is the only requirement - the caller does not have to
+    be a member of the TAS they are asking about, and the TAS need not
+    correspond to a Fragalysis Project (the authenticator knows about
+    proposals this deployment may never have loaded a target for).
     """
 
     permission_classes = [permissions.IsAuthenticated]
 
     def retrieve(self, request, pk=None):
+        del request
+
         target_access_string = pk
 
-        # Membership is checked before the authenticator is asked: unlike
-        # '/target-access/{username}', the '/users/{tas}' endpoint is not
-        # cached upstream, so every call reaches ISPyB. An unauthorised
-        # request must stop here rather than become a database query.
-        if not ISPyBSafeQuerySet().user_is_member_of_any_given_proposals(
-            request.user, [target_access_string], restrict_public_to_membership=True
-        ):
-            # Deliberately the same response whether the TAS exists or not -
-            # otherwise this becomes a way to enumerate proposals.
-            return Response(
-                {
-                    "tas": target_access_string,
-                    "error": "You are not authorized to see the users of "
-                    f"'{target_access_string}'",
-                },
-                status=status.HTTP_403_FORBIDDEN,
-            )
-
+        # Note that, unlike '/target-access/{username}', the '/users/{tas}'
+        # endpoint is not cached upstream - every call here reaches ISPyB.
         users_response = ta_auth_connector.get_auth_users(target_access_string)
         if users_response.error:
             # The authenticator could not tell us. Report that rather than an
