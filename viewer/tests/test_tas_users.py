@@ -10,6 +10,10 @@ shape every test here:
   whether or not they are a member of it. There is no membership check - the
   tests below assert that a caller with no relationship to the TAS is answered,
   not refused. Only an anonymous caller is turned away.
+- **A malformed TAS is the caller's error, not an outage.** The string is
+  checked against ``settings.TAS_REGEX`` (via ``api.utils.validate_tas``, the
+  same gate the upload serializers use) before the authenticator is contacted,
+  so nonsense comes back as 400 rather than being reported as a 503.
 - **"Nobody" is not "we do not know".** The authenticator answers 503, rather
   than an empty set, when it cannot reach ISPyB, and the client preserves that
   distinction. The endpoint must too - reporting an empty membership for a
@@ -150,6 +154,55 @@ def test_authenticator_failure_is_reported_not_hidden(
     assert "error" in body
     # No 'users' key at all - an empty list here would read as "nobody".
     assert "users" not in body
+
+
+@pytest.mark.parametrize(
+    "bad_tas",
+    [
+        "xx12345-1",  # wrong prefix
+        "lb1234-1",  # too few digits
+        "lb12345",  # missing visit
+        "not-a-tas",
+    ],
+)
+def test_malformed_tas_is_a_400(
+    authenticated_client, mock_tas_users, no_ta_service, bad_tas
+):
+    """A string that is not a TAS is the caller's mistake - say so."""
+    mock_tas_users(users=["abc12345"])
+
+    response = authenticated_client.get(f"/api/tas/{bad_tas}/")
+
+    assert response.status_code == 400
+    body = response.json()
+    assert body["tas"] == bad_tas
+    assert "error" in body
+    assert "users" not in body
+
+
+def test_malformed_tas_is_not_passed_to_the_authenticator(
+    authenticated_client, monkeypatch, no_ta_service
+):
+    """Validation happens first, so a bad TAS costs no ISPyB query.
+
+    Without this the authenticator would answer 400, which the client reports
+    as a bare error string - indistinguishable from an outage, and returned to
+    the caller as a misleading 503.
+    """
+    import ta_auth_connector
+
+    asked: list[str] = []
+
+    def _record(tas: str):
+        asked.append(tas)
+        return ta_auth_connector.TasAuthUsersGetResponse(users=set())
+
+    monkeypatch.setattr(ta_auth_connector, "get_auth_users", _record)
+
+    response = authenticated_client.get("/api/tas/not-a-tas/")
+
+    assert response.status_code == 400
+    assert asked == []
 
 
 def test_authenticator_is_asked_for_the_tas_the_caller_named(

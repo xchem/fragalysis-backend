@@ -44,6 +44,7 @@ from api.utils import (
     get_highlighted_diffs,
     get_img_from_smiles,
     pretty_request,
+    validate_tas,
 )
 from service_status.models import Service
 from viewer import filters, models, serializers
@@ -3665,7 +3666,8 @@ class TASUsersView(viewsets.ViewSet):
     Being authenticated is the only requirement - the caller does not have to
     be a member of the TAS they are asking about, and the TAS need not
     correspond to a Fragalysis Project (the authenticator knows about
-    proposals this deployment may never have loaded a target for).
+    proposals this deployment may never have loaded a target for). The string
+    must, however, look like a TAS.
     """
 
     permission_classes = [permissions.IsAuthenticated]
@@ -3674,6 +3676,17 @@ class TASUsersView(viewsets.ViewSet):
         del request
 
         target_access_string = pk
+
+        # Validate before asking anyone else. The authenticator would answer
+        # 400 for a malformed TAS, but the client reports every non-200 as a
+        # bare error string - so passing this on would reach the caller as a
+        # 503, blaming the service for what is the caller's typo.
+        valid, error_msg = validate_tas(target_access_string)
+        if not valid:
+            return Response(
+                {"tas": target_access_string, "error": error_msg},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
 
         # Note that, unlike '/target-access/{username}', the '/users/{tas}'
         # endpoint is not cached upstream - every call here reaches ISPyB.
