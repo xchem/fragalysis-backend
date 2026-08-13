@@ -174,6 +174,62 @@ def test_endpoint_is_listed_in_the_api_root(authenticated_client):
     assert "tas" in response.json()
 
 
+@pytest.mark.parametrize("accept", ["application/json", "text/html", "*/*"])
+def test_always_returns_json(
+    authenticated_client, mock_tas_users, no_ta_service, accept
+):
+    """JSON regardless of what the caller asks for, exactly like /api/user/.
+
+    DRF's default renderers include BrowsableAPIRenderer, so a plain
+    ``Response`` would hand a browser (``Accept: text/html``) an HTML page
+    instead of data. This is an API endpoint, so it answers JSON to everyone.
+    """
+    mock_tas_users(users=["abc12345"])
+
+    response = authenticated_client.get(
+        f"/api/tas/?tas={_TAS}", headers={"Accept": accept}
+    )
+
+    assert response.status_code == 200
+    assert response["Content-Type"].startswith("application/json")
+    assert response.json()["users"] == ["abc12345"]
+
+
+@pytest.mark.parametrize("accept", ["application/json", "text/html"])
+def test_errors_are_json_too(
+    authenticated_client, mock_tas_users, no_ta_service, accept
+):
+    """The failure paths are data as well - no HTML error page."""
+    mock_tas_users(error="Status was 503 (not 200)")
+
+    response = authenticated_client.get(
+        f"/api/tas/?tas={_TAS}", headers={"Accept": accept}
+    )
+
+    assert response.status_code == 503
+    assert response["Content-Type"].startswith("application/json")
+
+    bad = authenticated_client.get("/api/tas/", headers={"Accept": accept})
+    assert bad.status_code == 400
+    assert bad["Content-Type"].startswith("application/json")
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("accept", ["application/json", "text/html"])
+def test_authentication_failure_is_json_too(api_client, no_ta_service, accept):
+    """Even the response DRF generates for us is data, not an HTML page.
+
+    The 401/403 comes from the permission class rather than our own code, so
+    it is rendered by DRF's content negotiation - which would hand a browser
+    the browsable API's HTML. Pinning the renderer keeps the whole endpoint
+    JSON, whoever is asking.
+    """
+    response = api_client.get(f"/api/tas/?tas={_TAS}", headers={"Accept": accept})
+
+    assert response.status_code in (401, 403)
+    assert response["Content-Type"].startswith("application/json")
+
+
 def test_missing_tas_parameter_is_a_400(
     authenticated_client, mock_tas_users, no_ta_service
 ):
