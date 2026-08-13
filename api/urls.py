@@ -196,7 +196,7 @@ router.register("plot_data", viewer_views.PlotDataView, basename='plot_data')
 
 router.register("user", viewer_views.TASStatsView, basename='user')
 router.register("user_roles", viewer_views.UserRoleView, basename='user_roles')
-# The members of a target access string, e.g. /api/tas/lb32627-66/
+# The members of a target access string, e.g. /api/tas/?tas=lb32627-66
 router.register("tas", viewer_views.TASUsersView, basename='tas')
 
 # Squonk Jobs

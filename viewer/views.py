@@ -3645,7 +3645,7 @@ class TASStatsView(viewsets.ViewSet):
 class TASUsersView(viewsets.ViewSet):
     """The users (logins) that are members of a target access string.
 
-      GET /api/tas/<target-access-string>/
+      GET /api/tas/?tas=<target-access-string>
 
     Answers "who has access to this proposal/visit?" - the question the
     frontend's target settings modal asks. The membership comes from the TA
@@ -3668,14 +3668,28 @@ class TASUsersView(viewsets.ViewSet):
     correspond to a Fragalysis Project (the authenticator knows about
     proposals this deployment may never have loaded a target for). The string
     must, however, look like a TAS.
+
+    The TAS is a query parameter rather than a path segment so that this is a
+    DRF 'list' route. That is what puts the endpoint in the browsable API root:
+    APIRootView indexes each viewset by reversing its '<basename>-list' route
+    and silently skips any that has none, so a detail-only viewset is
+    undiscoverable from '/api/'.
     """
 
     permission_classes = [permissions.IsAuthenticated]
 
-    def retrieve(self, request, pk=None):
-        del request
-
-        target_access_string = pk
+    def list(self, request):
+        target_access_string = request.query_params.get("tas")
+        if not target_access_string:
+            # The API root links here without a parameter, so this is the first
+            # thing a caller browsing the API sees. Say what is wanted.
+            return Response(
+                {
+                    "error": "A 'tas' query parameter is required, "
+                    "e.g. /api/tas/?tas=lb12345-1"
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
 
         # Validate before asking anyone else. The authenticator would answer
         # 400 for a malformed TAS, but the client reports every non-200 as a
