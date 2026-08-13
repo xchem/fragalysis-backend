@@ -3651,6 +3651,17 @@ class TASUsersView(viewsets.ViewSet):
     authenticator's '/users/{tas}' endpoint (which needs TA-Auth 1.5.0 or
     later), and ultimately from ISPyB.
 
+    The response is shaped like '/api/user/'s, which answers the mirror-image
+    question ("which target access strings does this user have?"), and carries
+    the same authenticator/ping block so the caller knows which service, at
+    which version, produced the answer: -
+
+        {"tas": "lb12345-1",
+         "authenticator": {"kind": ..., "name": ..., "version": ...,
+                           "location": ...},
+         "ping": "OK",
+         "users": ["abc12345", "def12345"]}
+
     The caller must be a member of the TAS they are asking about. Public
     proposals are no exception - 'restrict_public_to_membership=True' means
     everyone can *see* a public target, but only its members can see who those
@@ -3673,37 +3684,51 @@ class TASUsersView(viewsets.ViewSet):
             # otherwise this becomes a way to enumerate proposals.
             return Response(
                 {
+                    "tas": target_access_string,
                     "error": "You are not authorized to see the users of "
-                    f"'{target_access_string}'"
+                    f"'{target_access_string}'",
                 },
                 status=status.HTTP_403_FORBIDDEN,
             )
 
-        response = ta_auth_connector.get_auth_users(target_access_string)
-        if response.error:
+        users_response = ta_auth_connector.get_auth_users(target_access_string)
+        if users_response.error:
             # The authenticator could not tell us. Report that rather than an
             # empty set - "nobody has access" and "we do not know who has
-            # access" are very different answers to this question.
+            # access" are very different answers to this question. There is
+            # deliberately no 'users' key here: an empty list would read as
+            # the former.
             logger.warning(
                 'Could not get users for "%s": %s',
                 target_access_string,
-                response.error,
+                users_response.error,
             )
             return Response(
                 {
+                    "tas": target_access_string,
                     "error": "Unable to get the users for "
-                    f"'{target_access_string}' ({response.error})"
+                    f"'{target_access_string}' ({users_response.error})",
                 },
                 status=status.HTTP_503_SERVICE_UNAVAILABLE,
             )
 
-        # Sorted so the caller gets a stable order (the source is a set).
-        users = sorted(response.users)
+        # Called through the module (rather than the names imported at the top
+        # of this file) so the connector stays a patchable seam for tests.
+        auth_version = ta_auth_connector.get_auth_version()
+        ping = ta_auth_connector.get_auth_ping()
+
         return Response(
             {
-                "target_access_string": target_access_string,
-                "count": len(users),
-                "users": users,
+                "tas": target_access_string,
+                "authenticator": {
+                    "kind": auth_version.kind,
+                    "name": auth_version.name,
+                    "version": auth_version.version,
+                    "location": auth_version.location,
+                },
+                "ping": ping.ping,
+                # Sorted so the caller gets a stable order (source is a set).
+                "users": sorted(users_response.users),
             }
         )
 

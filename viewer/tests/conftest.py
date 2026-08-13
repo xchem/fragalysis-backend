@@ -159,6 +159,42 @@ def mock_tas_users(monkeypatch) -> Callable[..., None]:
     return _set
 
 
+@pytest.fixture
+def mock_authenticator(monkeypatch) -> Callable[..., None]:
+    """Patch the authenticator's self-description (version and ping).
+
+    Both ``/api/user/`` and ``/api/tas/`` report which authenticator answered
+    them, via ``ta_auth_connector.get_auth_version()`` and ``get_auth_ping()``.
+    Unpatched, and with no ``TA_AUTH_SERVICE`` in the *environment* (the
+    connector reads the environment at import, not Django settings), those
+    report ``AUTH_SERVICE_NOT_DEFINED`` without any HTTP - which is what most
+    tests want. This fixture is for the tests that need the reported values to
+    be something recognisable.
+    """
+
+    def _set(
+        version: str = "1.5.0",
+        kind: str = "ISPYB",
+        name: str = "XChem Python FastAPI TAS Authenticator",
+        location: str = "https://ta-auth.example.ac.uk",
+        ping: str = "OK",
+    ) -> None:
+        monkeypatch.setattr(
+            ta_auth_connector,
+            "get_auth_version",
+            lambda: ta_auth_connector.TasAuthVersionGetResponse(
+                version=version, kind=kind, name=name, location=location
+            ),
+        )
+        monkeypatch.setattr(
+            ta_auth_connector,
+            "get_auth_ping",
+            lambda: ta_auth_connector.TasAuthPingGetResponse(ping=ping),
+        )
+
+    return _set
+
+
 class _FakeNeo4jSession:
     """A neo4j session whose ``run`` raises a chosen exception, or no-ops.
 

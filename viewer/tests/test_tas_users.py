@@ -1,8 +1,10 @@
 """Tests for the ``/api/tas/`` endpoint (issue #1017).
 
 The endpoint answers "who else is a member of this target access string?", by
-way of the authenticator's ``/users/{tas}`` endpoint (TA-Auth 1.5.0). Two
-things are worth stating up front, because they shape every test here:
+way of the authenticator's ``/users/{tas}`` endpoint (TA-Auth 1.5.0). It is
+shaped like ``/api/user/``, which answers the mirror-image question, and
+carries the same authenticator/ping block. Two things are worth stating up
+front, because they shape every test here:
 
 - **It is membership-gated.** A caller may only ask about a TAS they are
   themselves a member of - the answer is a list of people, and knowing who has
@@ -55,10 +57,43 @@ def test_member_sees_the_users_of_the_tas(
 
     assert response.status_code == 200
     body = response.json()
-    assert body["target_access_string"] == _TAS
-    assert body["count"] == 2
+    assert body["tas"] == _TAS
     # Sorted, so the response is stable for the caller (the source is a set).
     assert body["users"] == ["abc12345", "xyz98765"]
+    # The whole contract, so the shape cannot drift away from /api/user/'s.
+    assert sorted(body.keys()) == ["authenticator", "ping", "tas", "users"]
+
+
+def test_response_names_the_authenticator_that_answered(
+    authenticated_client,
+    user,
+    make_project,
+    mock_tas_users,
+    mock_authenticator,
+    no_ta_service,
+):
+    """The response carries the same authenticator/ping block as /api/user/.
+
+    The two endpoints are a pair - both are answers *from the authenticator* -
+    so a caller can tell which service, at which version, produced the list.
+    """
+    make_project(_TAS, members=[user])
+    mock_tas_users(users=["abc12345"])
+    mock_authenticator(
+        version="1.5.0", kind="ISPYB", location="https://ta-auth.example.ac.uk"
+    )
+
+    response = authenticated_client.get(f"/api/tas/{_TAS}/")
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["ping"] == "OK"
+    assert body["authenticator"] == {
+        "kind": "ISPYB",
+        "name": "XChem Python FastAPI TAS Authenticator",
+        "version": "1.5.0",
+        "location": "https://ta-auth.example.ac.uk",
+    }
 
 
 def test_non_member_is_refused(
@@ -109,7 +144,7 @@ def test_tas_with_no_members_is_an_empty_list_not_an_error(
 
     assert response.status_code == 200
     body = response.json()
-    assert body["count"] == 0
+    assert body["tas"] == _TAS
     assert body["users"] == []
 
 
@@ -123,7 +158,11 @@ def test_authenticator_failure_is_reported_not_hidden(
     response = authenticated_client.get(f"/api/tas/{_TAS}/")
 
     assert response.status_code == 503
-    assert "error" in response.json()
+    body = response.json()
+    assert body["tas"] == _TAS
+    assert "error" in body
+    # No 'users' key at all - an empty list here would read as "nobody".
+    assert "users" not in body
 
 
 def test_membership_is_checked_before_the_authenticator_is_asked(
