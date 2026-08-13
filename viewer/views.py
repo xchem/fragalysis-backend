@@ -12,6 +12,7 @@ from wsgiref.util import FileWrapper
 
 import pandas as pd
 import pytz
+import ta_auth_connector
 from celery import Celery
 from celery.result import AsyncResult
 from dateutil.parser import parse
@@ -43,6 +44,7 @@ from api.utils import (
     get_highlighted_diffs,
     get_img_from_smiles,
     pretty_request,
+    validate_tas,
 )
 from service_status.models import Service
 from viewer import filters, models, serializers
@@ -3638,6 +3640,96 @@ class TASStatsView(viewsets.ViewSet):
         }
 
         return JsonResponse(result)
+
+
+class TASUsersView(viewsets.ViewSet):
+    """The users (logins) that are members of a target access string.
+
+      GET /api/tas/<target-access-string>/
+
+    Answers "who has access to this proposal/visit?" - the question the
+    frontend's target settings modal asks. The membership comes from the TA
+    authenticator's '/users/{tas}' endpoint (which needs TA-Auth 1.5.0 or
+    later), and ultimately from ISPyB.
+
+    The response is shaped like '/api/user/'s, which answers the mirror-image
+    question ("which target access strings does this user have?"), and carries
+    the same authenticator/ping block so the caller knows which service, at
+    which version, produced the answer: -
+
+        {"tas": "lb12345-1",
+         "authenticator": {"kind": ..., "name": ..., "version": ...,
+                           "location": ...},
+         "ping": "OK",
+         "users": ["abc12345", "def12345"]}
+
+    Being authenticated is the only requirement - the caller does not have to
+    be a member of the TAS they are asking about, and the TAS need not
+    correspond to a Fragalysis Project (the authenticator knows about
+    proposals this deployment may never have loaded a target for). The string
+    must, however, look like a TAS.
+    """
+
+    permission_classes = [permissions.IsAuthenticated]
+
+    def retrieve(self, request, pk=None):
+        del request
+
+        target_access_string = pk
+
+        # Validate before asking anyone else. The authenticator would answer
+        # 400 for a malformed TAS, but the client reports every non-200 as a
+        # bare error string - so passing this on would reach the caller as a
+        # 503, blaming the service for what is the caller's typo.
+        valid, error_msg = validate_tas(target_access_string)
+        if not valid:
+            return Response(
+                {"tas": target_access_string, "error": error_msg},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # Note that, unlike '/target-access/{username}', the '/users/{tas}'
+        # endpoint is not cached upstream - every call here reaches ISPyB.
+        users_response = ta_auth_connector.get_auth_users(target_access_string)
+        if users_response.error:
+            # The authenticator could not tell us. Report that rather than an
+            # empty set - "nobody has access" and "we do not know who has
+            # access" are very different answers to this question. There is
+            # deliberately no 'users' key here: an empty list would read as
+            # the former.
+            logger.warning(
+                'Could not get users for "%s": %s',
+                target_access_string,
+                users_response.error,
+            )
+            return Response(
+                {
+                    "tas": target_access_string,
+                    "error": "Unable to get the users for "
+                    f"'{target_access_string}' ({users_response.error})",
+                },
+                status=status.HTTP_503_SERVICE_UNAVAILABLE,
+            )
+
+        # Called through the module (rather than the names imported at the top
+        # of this file) so the connector stays a patchable seam for tests.
+        auth_version = ta_auth_connector.get_auth_version()
+        ping = ta_auth_connector.get_auth_ping()
+
+        return Response(
+            {
+                "tas": target_access_string,
+                "authenticator": {
+                    "kind": auth_version.kind,
+                    "name": auth_version.name,
+                    "version": auth_version.version,
+                    "location": auth_version.location,
+                },
+                "ping": ping.ping,
+                # Sorted so the caller gets a stable order (source is a set).
+                "users": sorted(users_response.users),
+            }
+        )
 
 
 class ComputedInspirationView(ISPyBSafeQuerySet):
