@@ -37,7 +37,7 @@ django-celery-results = "^2.6"
 numpy = "^2.3"
 python-dateutil = "^2"
 pgvector = "^0.4"
-setuptools = "^80.9.0"
+setuptools = ">=80.9,<84.0"
 bcrypt = "^5.0"
 djangorestframework = "^3.16.1"
 legacy-cgi = "^2.6.3"   # required by djangorestframwork
