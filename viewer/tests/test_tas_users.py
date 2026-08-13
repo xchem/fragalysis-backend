@@ -3,9 +3,14 @@
 The endpoint answers "who is a member of this target access string?", by way of
 the authenticator's ``/users/{tas}`` endpoint (TA-Auth 1.5.0). It is shaped like
 ``/api/user/``, which answers the mirror-image question, and carries the same
-authenticator/ping block. Two things are worth stating up front, because they
+authenticator/ping block. Four things are worth stating up front, because they
 shape every test here:
 
+- **The TAS arrives as a ``?tas=`` query parameter**, which makes this a DRF
+  *list* route. That is what gets the endpoint listed in the browsable API root
+  - ``APIRootView`` builds the index by reversing each viewset's ``-list`` route
+  and silently skips the ones that fail, so a detail-only route
+  (``/api/tas/<tas>/``) is undiscoverable there.
 - **Authentication is the only gate.** Any logged-in user may ask about any TAS,
   whether or not they are a member of it. There is no membership check - the
   tests below assert that a caller with no relationship to the TAS is answered,
@@ -42,7 +47,7 @@ def test_requires_authentication(api_client, mock_tas_users, no_ta_service):
     """An anonymous caller is turned away - being logged in is the one gate."""
     mock_tas_users(users=["abc12345"])
 
-    response = api_client.get(f"/api/tas/{_TAS}/")
+    response = api_client.get(f"/api/tas/?tas={_TAS}")
 
     assert response.status_code in (401, 403)
 
@@ -53,7 +58,7 @@ def test_authenticated_user_sees_the_users_of_the_tas(
     """A logged-in caller gets the membership the authenticator reports."""
     mock_tas_users(users=["xyz98765", "abc12345"])
 
-    response = authenticated_client.get(f"/api/tas/{_TAS}/")
+    response = authenticated_client.get(f"/api/tas/?tas={_TAS}")
 
     assert response.status_code == 200
     body = response.json()
@@ -76,7 +81,7 @@ def test_non_member_may_query_any_tas(
     make_project(_TAS, members=[make_user("someone-else")])
     mock_tas_users(users=["someone-else"])
 
-    response = authenticated_client.get(f"/api/tas/{_TAS}/")
+    response = authenticated_client.get(f"/api/tas/?tas={_TAS}")
 
     assert response.status_code == 200
     assert response.json()["users"] == ["someone-else"]
@@ -92,7 +97,7 @@ def test_tas_unknown_to_fragalysis_is_still_queried(
     """
     mock_tas_users(users=["abc12345"])
 
-    response = authenticated_client.get("/api/tas/lb99999-9/")
+    response = authenticated_client.get("/api/tas/?tas=lb99999-9")
 
     assert response.status_code == 200
     body = response.json()
@@ -113,7 +118,7 @@ def test_response_names_the_authenticator_that_answered(
         version="1.5.0", kind="ISPYB", location="https://ta-auth.example.ac.uk"
     )
 
-    response = authenticated_client.get(f"/api/tas/{_TAS}/")
+    response = authenticated_client.get(f"/api/tas/?tas={_TAS}")
 
     assert response.status_code == 200
     body = response.json()
@@ -132,7 +137,7 @@ def test_tas_with_no_members_is_an_empty_list_not_an_error(
     """An empty membership is a legitimate answer, and answered as 200."""
     mock_tas_users(users=[])
 
-    response = authenticated_client.get(f"/api/tas/{_TAS}/")
+    response = authenticated_client.get(f"/api/tas/?tas={_TAS}")
 
     assert response.status_code == 200
     body = response.json()
@@ -146,13 +151,101 @@ def test_authenticator_failure_is_reported_not_hidden(
     """When the authenticator cannot answer, say so - do not report "nobody"."""
     mock_tas_users(error="Status was 503 (not 200)")
 
-    response = authenticated_client.get(f"/api/tas/{_TAS}/")
+    response = authenticated_client.get(f"/api/tas/?tas={_TAS}")
 
     assert response.status_code == 503
     body = response.json()
     assert body["tas"] == _TAS
     assert "error" in body
     # No 'users' key at all - an empty list here would read as "nobody".
+    assert "users" not in body
+
+
+def test_endpoint_is_listed_in_the_api_root(authenticated_client):
+    """The endpoint is discoverable from /api/.
+
+    This is the whole reason the TAS is a query parameter rather than a path
+    segment: ``APIRootView`` indexes viewsets by reversing '<basename>-list',
+    and quietly drops any that has no list route.
+    """
+    response = authenticated_client.get("/api/")
+
+    assert response.status_code == 200
+    assert "tas" in response.json()
+
+
+@pytest.mark.parametrize("accept", ["application/json", "text/html", "*/*"])
+def test_always_returns_json(
+    authenticated_client, mock_tas_users, no_ta_service, accept
+):
+    """JSON regardless of what the caller asks for, exactly like /api/user/.
+
+    DRF's default renderers include BrowsableAPIRenderer, so a plain
+    ``Response`` would hand a browser (``Accept: text/html``) an HTML page
+    instead of data. This is an API endpoint, so it answers JSON to everyone.
+    """
+    mock_tas_users(users=["abc12345"])
+
+    response = authenticated_client.get(
+        f"/api/tas/?tas={_TAS}", headers={"Accept": accept}
+    )
+
+    assert response.status_code == 200
+    assert response["Content-Type"].startswith("application/json")
+    assert response.json()["users"] == ["abc12345"]
+
+
+@pytest.mark.parametrize("accept", ["application/json", "text/html"])
+def test_errors_are_json_too(
+    authenticated_client, mock_tas_users, no_ta_service, accept
+):
+    """The failure paths are data as well - no HTML error page."""
+    mock_tas_users(error="Status was 503 (not 200)")
+
+    response = authenticated_client.get(
+        f"/api/tas/?tas={_TAS}", headers={"Accept": accept}
+    )
+
+    assert response.status_code == 503
+    assert response["Content-Type"].startswith("application/json")
+
+    bad = authenticated_client.get("/api/tas/", headers={"Accept": accept})
+    assert bad.status_code == 400
+    assert bad["Content-Type"].startswith("application/json")
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("accept", ["application/json", "text/html"])
+def test_authentication_failure_is_json_too(api_client, no_ta_service, accept):
+    """Even the response DRF generates for us is data, not an HTML page.
+
+    The 401/403 comes from the permission class rather than our own code, so
+    it is rendered by DRF's content negotiation - which would hand a browser
+    the browsable API's HTML. Pinning the renderer keeps the whole endpoint
+    JSON, whoever is asking.
+    """
+    response = api_client.get(f"/api/tas/?tas={_TAS}", headers={"Accept": accept})
+
+    assert response.status_code in (401, 403)
+    assert response["Content-Type"].startswith("application/json")
+
+
+def test_missing_tas_parameter_is_a_400(
+    authenticated_client, mock_tas_users, no_ta_service
+):
+    """/api/tas/ with no ?tas= says what it wants, rather than 500-ing.
+
+    The API root links here without a parameter, so this is the first thing a
+    caller browsing the API will see - it needs to be useful.
+    """
+    mock_tas_users(users=["abc12345"])
+
+    response = authenticated_client.get("/api/tas/")
+
+    assert response.status_code == 400
+    body = response.json()
+    assert "error" in body
+    assert "tas" in body["error"]
     assert "users" not in body
 
 
@@ -171,7 +264,7 @@ def test_malformed_tas_is_a_400(
     """A string that is not a TAS is the caller's mistake - say so."""
     mock_tas_users(users=["abc12345"])
 
-    response = authenticated_client.get(f"/api/tas/{bad_tas}/")
+    response = authenticated_client.get(f"/api/tas/?tas={bad_tas}")
 
     assert response.status_code == 400
     body = response.json()
@@ -199,7 +292,7 @@ def test_malformed_tas_is_not_passed_to_the_authenticator(
 
     monkeypatch.setattr(ta_auth_connector, "get_auth_users", _record)
 
-    response = authenticated_client.get("/api/tas/not-a-tas/")
+    response = authenticated_client.get("/api/tas/?tas=not-a-tas")
 
     assert response.status_code == 400
     assert asked == []
@@ -219,7 +312,7 @@ def test_authenticator_is_asked_for_the_tas_the_caller_named(
 
     monkeypatch.setattr(ta_auth_connector, "get_auth_users", _record)
 
-    response = authenticated_client.get(f"/api/tas/{_TAS}/")
+    response = authenticated_client.get(f"/api/tas/?tas={_TAS}")
 
     assert response.status_code == 200
     assert asked == [_TAS]
