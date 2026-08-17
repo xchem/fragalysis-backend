@@ -141,6 +141,32 @@ def test_delete_target_removes_db_rows_and_media(
     ).exists()
 
 
+def test_delete_target_removes_migrated_ligand_mol_files(
+    db, settings, tmp_path, user, make_project, make_target
+):
+    """The computed observations' .mol files go too.
+
+    Migration 0149 stored ``virtual_ligand_mol`` as a bare basename while writing
+    the file into computed_set_data/, so these were previously left behind on
+    every target deletion - the debris ``cleanup_media`` now reclaims.
+    """
+    media_root = _make_media_root(settings, tmp_path)
+    cset_dir = media_root / settings.COMPUTED_SET_MEDIA_DIRECTORY
+    target = make_target(make_project("proposal", members=[user]), title="DeleteMe")
+    computed_set = _add_computed_set(target, user, media_root, settings, name="goner")
+
+    ligand_mol = cset_dir / "goner_upload_1_v1072a_ABC-N_TN6H.mol"
+    ligand_mol.write_text("mol")
+    obs = SiteObservation.objects.create(virtual_ligand_mol=ligand_mol.name)
+    ComputedSetSiteObservation.objects.create(
+        computed_set=computed_set, site_observation=obs
+    )
+
+    delete_target(target)
+
+    assert not ligand_mol.exists()
+
+
 def test_delete_target_without_media_is_safe(
     db, settings, tmp_path, user, make_project, make_target
 ):
