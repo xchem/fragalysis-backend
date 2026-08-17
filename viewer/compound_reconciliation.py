@@ -25,22 +25,10 @@ from enum import Enum
 
 from rdkit import Chem
 
+from viewer.compound_curation import CONTENT_FIELDS
 from viewer.models import Compound
 
 logger = logging.getLogger(__name__)
-
-# Compound fields populated from an upload (meta_aligner.yaml), excluding the
-# identity key (inchi_key) and the project FK. A difference in any of these
-# between an incoming compound and its single existing match is a conflict.
-CONTENT_FIELDS = (
-    "smiles",
-    "compound_code",
-    "ligand_name",
-    "modeled_smiles_soakdb",
-    "modeled_smiles_canon",
-    "soaked_smiles_soakdb",
-    "soaked_smiles_canon",
-)
 
 
 class MatchStatus(str, Enum):
@@ -93,7 +81,10 @@ class CompoundMatch:
             "inchi_key": self.inchi_key,
             "status": self.status.value,
             "incoming": self.incoming,
-            "existing": [{"id": e.id, **e.values} for e in self.existing],
+            "existing": [
+                {"id": e.id, "inchi_key": self.inchi_key, **e.values}
+                for e in self.existing
+            ],
             "conflicts": self.conflicts,
         }
 
@@ -116,6 +107,10 @@ class ReconciliationResult:
             for m in self.matches
             if m.status in (MatchStatus.CONFLICT, MatchStatus.AMBIGUOUS)
         ]
+
+    def all_payload(self) -> list:
+        """Every match as a plain dict, in input order (for the loader's plan)."""
+        return [m.as_payload() for m in self.matches]
 
 
 def _field_conflicts(existing: Compound, incoming: dict) -> dict:

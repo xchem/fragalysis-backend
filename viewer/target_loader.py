@@ -35,6 +35,15 @@ from rdkit import Chem
 from api.utils import deployment_mode_is_production
 from fragalysis.settings import TARGET_LOADER_MEDIA_DIRECTORY
 from viewer.cache import clear_view_cache
+from viewer.compound_curation import (
+    CONTENT_FIELDS,
+    CurationFormatError,
+    auto_merge_non_conflicting_compounds,
+    compound_row_id,
+    parse_curation_xlsx,
+    resolve_curation,
+)
+from viewer.compound_reconciliation import reconcile_compounds
 from viewer.models import (
     AtomCoordinates,
     CanonSite,
@@ -584,6 +593,7 @@ class TargetLoader:
         tempdir: str,
         user_id=None,
         task: Task | None = None,
+        curation_file: str | None = None,
     ):
         self.data_bundle = Path(data_bundle).name
         self.bundle_name = Path(data_bundle).stem
@@ -596,6 +606,17 @@ class TargetLoader:
         self.version_dir = None
         self.previous_version_dirs = None
         self.user_id = user_id
+        # Completed compound-curation spreadsheet (optional). Resolved into a
+        # {row_id: ResolvedAction} map by the reconciliation gate in
+        # process_bundle, then consulted by process_compound.
+        self.curation_file = curation_file
+        self._compound_resolution: dict = {}
+        # {row_id: ResolvedAction} for decisions that retire existing compounds.
+        # Applied by _apply_compound_supersessions once the survivors exist.
+        self._compound_supersede: dict = {}
+        # {row_id: (experiment_name, ligand_key)} recorded by process_compound so
+        # a newly-created survivor can be found in its output.
+        self._compound_keys: dict = {}
 
         self.report = UploadReport(task=task, proposal_ref=self.proposal_ref)
 
@@ -1006,6 +1027,207 @@ class TargetLoader:
             index_data=index_fields,
         )
 
+    @staticmethod
+    def _extract_incoming_compounds(crystals: dict) -> list[dict]:
+        """Collect distinct incoming compounds from the crystals meta block.
+
+        Mirrors what the uploader sends at validation time, so the loader's
+        authoritative reconciliation sees the same compounds. Deduplicates by
+        the stable row id (same inchi-key basis) and skips ligands with no
+        smiles (they cannot be keyed).
+        """
+        fields = (
+            "smiles",
+            "compound_code",
+            "ligand_name",
+            "modeled_smiles_soakdb",
+            "modeled_smiles_canon",
+            "soaked_smiles_soakdb",
+            "soaked_smiles_canon",
+        )
+        compounds: list[dict] = []
+        seen: set = set()
+        for xtal in (crystals or {}).values():
+            if not isinstance(xtal, dict):
+                continue
+            ligands = (
+                xtal.get("crystallographic_files", {})
+                .get("ligand_cif", {})
+                .get("ligands", {})
+            )
+            for ligand in (ligands or {}).values():
+                if not isinstance(ligand, dict) or not ligand.get("smiles"):
+                    continue
+                entry = {f: ligand[f] for f in fields if ligand.get(f) is not None}
+                key = tuple(sorted(entry.items()))
+                if key in seen:
+                    continue
+                seen.add(key)
+                compounds.append(entry)
+        return compounds
+
+    def _reconcile_compounds_gate(self, crystals: dict) -> None:
+        """Reconcile incoming compounds, apply curation, fail safe if unresolved.
+
+        Populates ``self._compound_resolution`` ({row_id: ResolvedAction}) that
+        ``process_compound`` consults. Logs an ERROR (which triggers rollback of
+        the whole load) for any conflict/ambiguity the user has not resolved.
+        """
+        incoming = self._extract_incoming_compounds(crystals)
+        if not incoming:
+            return
+
+        reconciliation = reconcile_compounds(self.project, incoming)
+
+        # Auto-merge compounds with no genuine conflicts
+        all_payload = reconciliation.all_payload()
+        # Settles what it can on its own; entries it resolves stay in the list
+        # (as auto_merged) so they still yield a "reuse the matched row" action.
+        resolved_payload, merge_stats = auto_merge_non_conflicting_compounds(
+            all_payload
+        )
+        if merge_stats['auto_merged'] > 0:
+            self.report.log(
+                logging.INFO,
+                f"Auto-merged {merge_stats['auto_merged']} compound(s) during upload: {merge_stats}",
+            )
+
+        parsed = None
+        if self.curation_file:
+            try:
+                parsed = parse_curation_xlsx(Path(self.curation_file).read_bytes())
+            except (CurationFormatError, OSError, ValueError, KeyError) as exc:
+                self.report.log(
+                    logging.ERROR,
+                    f"Could not read the supplied compound-curation file: {exc}",
+                )
+                return
+
+        plan = resolve_curation(resolved_payload, parsed)
+
+        for unresolved in plan.unresolved:
+            self.report.log(
+                logging.ERROR,
+                f"Compound (inchi_key={unresolved.inchi_key}) needs curation: "
+                f"{unresolved.reason}. Re-run validation, complete the curation "
+                "spreadsheet, and upload again with --curation-file.",
+            )
+
+        # Key by the incoming compound's identity as it appears in the UPLOAD -
+        # that is what process_compound computes from the yaml. Read it from
+        # all_payload, not the resolved copy: both a MERGE decision and an
+        # auto-merge can rewrite incoming (e.g. a different compound_code), and
+        # keying off that would make the lookup miss. The two lists share an
+        # index because auto-merge preserves length and order.
+        self._compound_resolution = {}
+        self._compound_supersede = {}
+        for action in plan.actions:
+            original = all_payload[action.index]
+            row_id = compound_row_id(
+                original.get("inchi_key", ""), original.get("incoming", {})
+            )
+            if action.op in ("reuse", "update"):
+                self._compound_resolution[row_id] = action
+            if action.superseded_ids:
+                self._compound_supersede[row_id] = action
+
+    @staticmethod
+    def _relink_compound_references(survivor, superseded_ids) -> int:
+        """Point everything referencing the superseded compounds at the survivor.
+
+        Walks Django's own relation metadata rather than a hand-maintained list,
+        so a future foreign key to Compound is picked up automatically. Must run
+        before the superseded rows are deleted - every one of these relations
+        cascades, so deleting first would take the site observations with it.
+        """
+        relinked = 0
+        for rel in Compound._meta.related_objects:  # pylint: disable=protected-access
+            if rel.many_to_many:
+                # Auto-created through table: move rows across by hand so an
+                # existing (survivor, other) pair is not duplicated.
+                through = rel.through
+                to_compound = next(
+                    f
+                    for f in through._meta.fields  # pylint: disable=protected-access
+                    if f.is_relation and f.related_model is Compound
+                )
+                other = next(
+                    f
+                    for f in through._meta.fields  # pylint: disable=protected-access
+                    if f.is_relation and f.related_model not in (Compound, None)
+                )
+                already = set(
+                    through.objects.filter(**{to_compound.name: survivor}).values_list(
+                        f"{other.name}_id", flat=True
+                    )
+                )
+                for row in through.objects.filter(
+                    **{f"{to_compound.name}__in": superseded_ids}
+                ):
+                    if getattr(row, f"{other.name}_id") in already:
+                        row.delete()
+                    else:
+                        setattr(row, to_compound.name, survivor)
+                        row.save(update_fields=[to_compound.name])
+                        relinked += 1
+            else:
+                name = rel.field.name
+                relinked += rel.related_model.objects.filter(
+                    **{f"{name}__in": superseded_ids}
+                ).update(**{name: survivor})
+        return relinked
+
+    def _apply_compound_supersessions(self, compound_objects) -> None:
+        """Retire the existing compounds the user's curation decisions replaced.
+
+        Runs after process_compound so the surviving compound exists, whether it
+        was reused in place (KEEP/MERGE) or created fresh (all rows DELETEd).
+        """
+        for row_id, action in self._compound_supersede.items():
+            if action.existing_id is not None:
+                survivor = Compound.objects.filter(pk=action.existing_id).first()
+            else:
+                key = self._compound_keys.get(row_id)
+                obj = compound_objects.get(key) if key else None
+                survivor = getattr(obj, "instance", None)
+
+            if survivor is None:
+                self.report.log(
+                    logging.ERROR,
+                    "Could not apply a compound curation decision: the surviving "
+                    f"compound for {row_id} was not found. No compounds were deleted.",
+                )
+                continue
+
+            # Only ever delete within the project the reconciliation searched;
+            # a compound belonging to someone else is not ours to remove.
+            doomed = list(
+                Compound.objects.filter(
+                    project=self.project, pk__in=action.superseded_ids
+                ).exclude(pk=survivor.pk)
+            )
+            skipped = set(action.superseded_ids) - {c.pk for c in doomed}
+            if skipped:
+                self.report.log(
+                    logging.INFO,
+                    f"Compound(s) {sorted(skipped)} are outside this project and "
+                    "were left in place rather than deleted.",
+                )
+            if not doomed:
+                continue
+
+            relinked = self._relink_compound_references(
+                survivor, [c.pk for c in doomed]
+            )
+            for compound in doomed:
+                compound.delete()
+
+            self.report.log(
+                logging.INFO,
+                f"Curation: merged compound(s) {[c.pk for c in doomed]} into "
+                f"{survivor.pk}, relinking {relinked} reference(s).",
+            )
+
     @create_objects(depth=5)
     def process_compound(
         self,
@@ -1113,6 +1335,53 @@ class TargetLoader:
                 logger.debug(
                     "did not find old experiment: %s, it's likely from soqkdb",
                     experiment_name,
+                )
+
+        # Apply the authoritative reconciliation decision for this compound, if
+        # one was produced by the gate. Only reuse an existing row that is
+        # reachable within THIS target (by_target); a cross-target match is left
+        # to create a fresh linked copy rather than risk mutating another
+        # target's compound.
+        row_id = compound_row_id(
+            inchi_key, {"smiles": smiles, "compound_code": compound_code}
+        )
+        # Remember where this compound lands so a supersession whose survivor is
+        # created (rather than reused) can find the instance afterwards.
+        if row_id in self._compound_supersede:
+            self._compound_keys[row_id] = (experiment_name, ligand_key)
+
+        action = self._compound_resolution.get(row_id)
+        if action is not None and action.existing_id is not None:
+            if (
+                Compound.filter_manager.by_target(self.target)
+                .filter(pk=action.existing_id)
+                .exists()
+            ):
+                fields = {"id": action.existing_id}
+                if action.op == "reuse":
+                    # KEEP_EXISTING / exact reuse: link to the existing row
+                    # without overwriting its (possibly curated) content.
+                    defaults = {"project": self.project}
+                elif action.op == "update":
+                    # MERGE / auto-merge: the row must end up with the *decided*
+                    # content, not the raw upload values - those are what the
+                    # decision was made about. defaults is what actually gets
+                    # written (create_objects applies it to the found row), so
+                    # the merged values have to be folded in here.
+                    defaults = {
+                        **defaults,
+                        **{
+                            k: v
+                            for k, v in action.incoming.items()
+                            if k in CONTENT_FIELDS
+                        },
+                    }
+            else:
+                self.report.log(
+                    logging.INFO,
+                    f"Compound (inchi_key={inchi_key}) matches existing compound "
+                    f"{action.existing_id} in another target; creating a new linked "
+                    "copy (cross-target de-duplication is not yet automated).",
                 )
 
         return ProcessedObject(
@@ -1977,9 +2246,20 @@ class TargetLoader:
         #         val.instance.save()
         #         val.instance.refresh_from_db()
 
+        # Authoritative compound reconciliation gate. Re-derive the match of
+        # incoming compounds against existing ones (the DB may have changed since
+        # pre-flight validation) and fold in the user's curation decisions. If
+        # anything is unresolved, log ERRORs - report.failed then rolls back the
+        # whole atomic load (fail safe), rather than silently creating dupes.
+        self._reconcile_compounds_gate(crystals)
+
         compound_objects = self.process_compound(
             yaml_data=crystals, experiments=experiment_objects
         )
+
+        # Now the surviving compounds exist, retire the ones the user's curation
+        # decisions replaced: relink their references across, then delete them.
+        self._apply_compound_supersessions(compound_objects)
 
         # save components manytomany to experiment
         # TODO: is it 1:1 relationship? looking at the meta_align it
@@ -3519,6 +3799,7 @@ def load_target(
     proposal_ref: str,
     user_id=None,
     task=None,
+    curation_file=None,
 ):
     # A temporary working directory for decompressing the uploaded bundle.
     # This lives within the Pod (the default location, an emptyDir mounted at
@@ -3527,7 +3808,12 @@ def load_target(
     # copes with a cross-filesystem move. See ticket #935.
     with TemporaryDirectory() as tempdir:
         target_loader = TargetLoader(
-            data_bundle, proposal_ref, tempdir, user_id=user_id, task=task
+            data_bundle,
+            proposal_ref,
+            tempdir,
+            user_id=user_id,
+            task=task,
+            curation_file=curation_file,
         )
 
         # Decompression can take some time, so we want to report progress
