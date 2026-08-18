@@ -15,7 +15,8 @@ from django.conf import settings
 from django.db import transaction
 from django.db.models.deletion import ProtectedError
 
-from viewer.models import Target
+from viewer.media_cleanup import computed_set_file_names, media_subdir
+from viewer.models import SiteObservation, Target
 
 logger = logging.getLogger(__name__)
 
@@ -25,26 +26,20 @@ def _computed_set_media_files(target: Target) -> list[Path]:
     target. These live under ``media/computed_set_data/`` which is shared across
     targets, so they must be removed individually - never by nuking the dir.
 
+    Resolution is delegated to :func:`viewer.media_cleanup.computed_set_file_names`
+    so that this deleter and the ``cleanup_media`` command can never disagree
+    about what points at a file - anything missed here becomes debris there.
+    The three storage flavours involved (absolute, ``computed_set_data/``-prefixed
+    and bare basename) are documented in that module.
+
     Must be called *before* the database rows are deleted.
     """
-    paths: list[Path] = []
-    media_root = Path(settings.MEDIA_ROOT)
-
-    for computed_set in target.computedset_set.all():
-        # The written ComputedSet SDF - an absolute path stored in a TextField.
-        if computed_set.written_sdf_filename:
-            paths.append(Path(computed_set.written_sdf_filename))
-        # The originally submitted SDF - a FileField under computed_set_data/.
-        if computed_set.submitted_sdf:
-            paths.append(media_root.joinpath(computed_set.submitted_sdf.name))
-        # Each computed observation's uploaded pdb file - a FileField under
-        # computed_set_data/ (SiteObservation.virtual_pdb_info, formerly the
-        # ComputedMolecule.pdb_info of the pre-unification model).
-        for site_obvs in computed_set.site_observations.all():
-            if site_obvs.virtual_pdb_info:
-                paths.append(media_root.joinpath(site_obvs.virtual_pdb_info.name))
-
-    return paths
+    computed_set_dir = media_subdir(settings.COMPUTED_SET_MEDIA_DIRECTORY)
+    names = computed_set_file_names(
+        target.computedset_set.all(),
+        SiteObservation.objects.filter(computed_set__target=target),
+    )
+    return [computed_set_dir.joinpath(name) for name in sorted(names)]
 
 
 def _target_loader_media_dir(target: Target) -> Path | None:

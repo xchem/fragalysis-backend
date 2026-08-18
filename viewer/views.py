@@ -14,6 +14,7 @@ from wsgiref.util import FileWrapper
 
 import pandas as pd
 import pytz
+import ta_auth_connector
 from celery import Celery
 from celery.result import AsyncResult
 from dateutil.parser import parse
@@ -29,7 +30,9 @@ from django.views.decorators.vary import vary_on_headers
 from python_ipware import IpWare
 from rest_framework import generics, mixins, permissions, status, viewsets
 from rest_framework.decorators import action
+from rest_framework.negotiation import DefaultContentNegotiation
 from rest_framework.parsers import BaseParser
+from rest_framework.renderers import JSONRenderer
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from ta_auth_connector import get_auth_ping, get_auth_target_access, get_auth_version
@@ -45,6 +48,7 @@ from api.utils import (
     get_highlighted_diffs,
     get_img_from_smiles,
     pretty_request,
+    validate_tas,
 )
 from service_status.models import Service
 from viewer import filters, models, serializers
@@ -3758,6 +3762,136 @@ class TASStatsView(viewsets.ViewSet):
         }
 
         return JsonResponse(result)
+
+
+class _AlwaysJSONContentNegotiation(DefaultContentNegotiation):
+    """Content negotiation that ignores 'Accept' and always chooses JSON.
+
+    Pinning 'renderer_classes' to JSONRenderer alone is not enough on its own:
+    DRF would then answer '406 Not Acceptable' to a browser asking for
+    text/html, which is worse than the HTML page it replaces. Selecting the
+    (single, JSON) renderer regardless of what was asked for gives an endpoint
+    that always answers with data.
+    """
+
+    def select_renderer(self, request, renderers, format_suffix=None):
+        del request, format_suffix
+        return renderers[0], renderers[0].media_type
+
+
+class TASUsersView(viewsets.ViewSet):
+    """The users (logins) that are members of a target access string.
+
+      GET /api/tas/?tas=<target-access-string>
+
+    Answers "who has access to this proposal/visit?" - the question the
+    frontend's target settings modal asks. The membership comes from the TA
+    authenticator's '/users/{tas}' endpoint (which needs TA-Auth 1.5.0 or
+    later), and ultimately from ISPyB.
+
+    The response is shaped like '/api/user/'s, which answers the mirror-image
+    question ("which target access strings does this user have?"), and carries
+    the same authenticator/ping block so the caller knows which service, at
+    which version, produced the answer: -
+
+        {"tas": "lb12345-1",
+         "authenticator": {"kind": ..., "name": ..., "version": ...,
+                           "location": ...},
+         "ping": "OK",
+         "users": ["abc12345", "def12345"]}
+
+    Being authenticated is the only requirement - the caller does not have to
+    be a member of the TAS they are asking about, and the TAS need not
+    correspond to a Fragalysis Project (the authenticator knows about
+    proposals this deployment may never have loaded a target for). The string
+    must, however, look like a TAS.
+
+    The TAS is a query parameter rather than a path segment so that this is a
+    DRF 'list' route. That is what puts the endpoint in the browsable API root:
+    APIRootView indexes each viewset by reversing its '<basename>-list' route
+    and silently skips any that has none, so a detail-only viewset is
+    undiscoverable from '/api/'.
+
+    Every path answers with a JsonResponse, as '/api/user/' does. A DRF
+    Response would content-negotiate, and DRF's default renderers include the
+    BrowsableAPIRenderer - so a browser would be handed an HTML page instead
+    of data. This is an API endpoint; it returns JSON to everyone.
+
+    The renderer/negotiation pair below pins the same rule on the responses
+    DRF generates for us - the 401/403 from the permission class, which our
+    own code never sees and so cannot hand a JsonResponse.
+    """
+
+    permission_classes = [permissions.IsAuthenticated]
+    renderer_classes = [JSONRenderer]
+    content_negotiation_class = _AlwaysJSONContentNegotiation
+
+    def list(self, request):
+        target_access_string = request.query_params.get("tas")
+        if not target_access_string:
+            # The API root links here without a parameter, so this is the first
+            # thing a caller browsing the API sees. Say what is wanted.
+            return JsonResponse(
+                {
+                    "error": "A 'tas' query parameter is required, "
+                    "e.g. /api/tas/?tas=lb12345-1"
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # Validate before asking anyone else. The authenticator would answer
+        # 400 for a malformed TAS, but the client reports every non-200 as a
+        # bare error string - so passing this on would reach the caller as a
+        # 503, blaming the service for what is the caller's typo.
+        valid, error_msg = validate_tas(target_access_string)
+        if not valid:
+            return JsonResponse(
+                {"tas": target_access_string, "error": error_msg},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # Note that, unlike '/target-access/{username}', the '/users/{tas}'
+        # endpoint is not cached upstream - every call here reaches ISPyB.
+        users_response = ta_auth_connector.get_auth_users(target_access_string)
+        if users_response.error:
+            # The authenticator could not tell us. Report that rather than an
+            # empty set - "nobody has access" and "we do not know who has
+            # access" are very different answers to this question. There is
+            # deliberately no 'users' key here: an empty list would read as
+            # the former.
+            logger.warning(
+                'Could not get users for "%s": %s',
+                target_access_string,
+                users_response.error,
+            )
+            return JsonResponse(
+                {
+                    "tas": target_access_string,
+                    "error": "Unable to get the users for "
+                    f"'{target_access_string}' ({users_response.error})",
+                },
+                status=status.HTTP_503_SERVICE_UNAVAILABLE,
+            )
+
+        # Called through the module (rather than the names imported at the top
+        # of this file) so the connector stays a patchable seam for tests.
+        auth_version = ta_auth_connector.get_auth_version()
+        ping = ta_auth_connector.get_auth_ping()
+
+        return JsonResponse(
+            {
+                "tas": target_access_string,
+                "authenticator": {
+                    "kind": auth_version.kind,
+                    "name": auth_version.name,
+                    "version": auth_version.version,
+                    "location": auth_version.location,
+                },
+                "ping": ping.ping,
+                # Sorted so the caller gets a stable order (source is a set).
+                "users": sorted(users_response.users),
+            }
+        )
 
 
 class ComputedInspirationView(ISPyBSafeQuerySet):
