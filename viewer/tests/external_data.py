@@ -12,7 +12,10 @@ every test that uses this mechanism is gated on two environment variables:
 
 ``UNIT_TEST_DATA_IDENTIFIER``
     Selects one entry from a per-endpoint ``manifest.yaml`` (e.g. ``ALPHA``),
-    naming the object(s) to upload and the results to expect.
+    naming the object(s) to upload and the results to expect. One identifier
+    spans every endpoint: the ``viewer/upload_cset`` (RHS) data for ``ALPHA``
+    is only valid against the ``api/upload_target_experiments`` (LHS) load for
+    ``ALPHA``, because a computed set references that load's site observations.
 
 When either variable is absent the ``requires_external_data`` marker skips the
 test, mirroring ``requires_archive`` in ``test_target_loader.py``.
@@ -33,8 +36,13 @@ BUCKET_AND_PATH_ENV = "UNIT_TEST_BUCKET_AND_PATH"
 #: Environment variable selecting the manifest entry (e.g. "ALPHA").
 DATA_IDENTIFIER_ENV = "UNIT_TEST_DATA_IDENTIFIER"
 
-#: Where the per-endpoint manifests live, relative to this file.
-_TEST_DATA_ROOT = Path(__file__).parent / "test_data" / "api"
+#: Where the per-endpoint manifests live, relative to this file. An *endpoint*
+#: is named by its path relative to this root - "api/upload_target_experiments",
+#: "viewer/upload_cset" - because the endpoints under test no longer all live
+#: under "api/". That same string is also the object's S3 key prefix (see
+#: :func:`relative_key`), so a manifest's directory always tells you where its
+#: objects live in the bucket.
+_TEST_DATA_ROOT = Path(__file__).parent / "test_data"
 
 
 def external_data_enabled() -> bool:
@@ -81,14 +89,15 @@ def _root_https_url() -> str:
     return s3_url_to_https(os.environ[BUCKET_AND_PATH_ENV]).rstrip("/")
 
 
-def download(relative_key: str, dest: Path) -> Path:
-    """Stream an object from ``<root>/<relative_key>`` to ``dest`` (anonymous GET).
+def download(key: str, dest: Path) -> Path:
+    """Stream an object from ``<root>/<key>`` to ``dest`` (anonymous GET).
 
-    Raises ``RuntimeError`` on any non-200 response - a missing or unreadable
-    object must fail the test loudly rather than silently producing an empty or
-    partial file.
+    ``key`` is relative to ``UNIT_TEST_BUCKET_AND_PATH``; :func:`relative_key`
+    builds one. Raises ``RuntimeError`` on any non-200 response - a missing or
+    unreadable object must fail the test loudly rather than silently producing
+    an empty or partial file.
     """
-    url = f"{_root_https_url()}/{relative_key.lstrip('/')}"
+    url = f"{_root_https_url()}/{key.lstrip('/')}"
     http = urllib3.PoolManager()
     with http.request("GET", url, preload_content=False) as response:
         if response.status != 200:
@@ -104,26 +113,46 @@ def download(relative_key: str, dest: Path) -> Path:
     return dest
 
 
+def manifest_path(endpoint: str) -> Path:
+    """The ``manifest.yaml`` for ``endpoint``, an *endpoint-relative* path.
+
+    ``endpoint`` is the endpoint's path relative to the test-data root, e.g.
+    ``api/upload_target_experiments`` or ``viewer/upload_cset`` - the same
+    string :func:`relative_key` uses as the S3 key prefix.
+    """
+    return _TEST_DATA_ROOT / endpoint / "manifest.yaml"
+
+
+def relative_key(endpoint: str, filename: str) -> str:
+    """The bucket key of ``filename``, relative to ``UNIT_TEST_BUCKET_AND_PATH``.
+
+    Objects live at ``<endpoint>/<IDENTIFIER>/<file>``, so the key prefix is
+    the endpoint string that also names the manifest directory (see
+    :func:`manifest_path`). Keeping both in one place is what stops the two
+    drifting apart.
+    """
+    return f"{endpoint}/{data_identifier()}/{filename}"
+
+
 def load_manifest(endpoint: str) -> Dict[str, Any]:
     """Return the manifest entry for the current ``UNIT_TEST_DATA_IDENTIFIER``.
 
-    ``endpoint`` names the sub-directory under ``test_data/api/`` holding the
-    ``manifest.yaml`` (e.g. ``upload_target_experiments``). If the manifest has
-    no entry for the selected identifier the test is skipped rather than
+    ``endpoint`` names the directory under ``test_data/`` holding the
+    ``manifest.yaml`` (e.g. ``api/upload_target_experiments``). If the manifest
+    has no entry for the selected identifier the test is skipped rather than
     failing, so a bucket carrying only some identifiers stays usable.
     """
-    manifest_path = _TEST_DATA_ROOT / endpoint / "manifest.yaml"
-    if not manifest_path.is_file():
-        pytest.skip(f"No manifest at {manifest_path}")
+    path = manifest_path(endpoint)
+    if not path.is_file():
+        pytest.skip(f"No manifest at {path}")
 
-    with open(manifest_path, "rt", encoding="utf-8") as manifest_file:
+    with open(path, "rt", encoding="utf-8") as manifest_file:
         manifest = yaml.safe_load(manifest_file) or {}
 
     identifier = data_identifier()
     if identifier not in manifest:
         pytest.skip(
-            f"Manifest {manifest_path} has no entry for "
-            f"{DATA_IDENTIFIER_ENV}={identifier!r}"
+            f"Manifest {path} has no entry for " f"{DATA_IDENTIFIER_ENV}={identifier!r}"
         )
     return manifest[identifier]
 

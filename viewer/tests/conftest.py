@@ -134,6 +134,67 @@ def mock_target_access(monkeypatch) -> Callable[[Iterable[str]], None]:
     return _set
 
 
+@pytest.fixture
+def mock_tas_users(monkeypatch) -> Callable[..., None]:
+    """Patch the TAS-membership seam used by the ``/api/tas/`` endpoint.
+
+    ``viewer.views.TASUsersView`` calls ``ta_auth_connector.get_auth_users(tas)``
+    to ask the authenticator who is a member of a target access string. This
+    fixture returns a setter that makes that call answer with a chosen set of
+    usernames, or - by passing ``error`` - report that the membership could not
+    be determined (the authenticator answers 503 rather than an empty set when
+    ISPyB is unreachable, and the endpoint must not blur the two).
+    """
+
+    def _set(users: Iterable[str] = (), error: str | None = None) -> None:
+        user_set = set(users)
+        monkeypatch.setattr(
+            ta_auth_connector,
+            "get_auth_users",
+            lambda tas: ta_auth_connector.TasAuthUsersGetResponse(
+                users=set(user_set), error=error
+            ),
+        )
+
+    return _set
+
+
+@pytest.fixture
+def mock_authenticator(monkeypatch) -> Callable[..., None]:
+    """Patch the authenticator's self-description (version and ping).
+
+    Both ``/api/user/`` and ``/api/tas/`` report which authenticator answered
+    them, via ``ta_auth_connector.get_auth_version()`` and ``get_auth_ping()``.
+    Unpatched, and with no ``TA_AUTH_SERVICE`` in the *environment* (the
+    connector reads the environment at import, not Django settings), those
+    report ``AUTH_SERVICE_NOT_DEFINED`` without any HTTP - which is what most
+    tests want. This fixture is for the tests that need the reported values to
+    be something recognisable.
+    """
+
+    def _set(
+        version: str = "1.5.0",
+        kind: str = "ISPYB",
+        name: str = "XChem Python FastAPI TAS Authenticator",
+        location: str = "https://ta-auth.example.ac.uk",
+        ping: str = "OK",
+    ) -> None:
+        monkeypatch.setattr(
+            ta_auth_connector,
+            "get_auth_version",
+            lambda: ta_auth_connector.TasAuthVersionGetResponse(
+                version=version, kind=kind, name=name, location=location
+            ),
+        )
+        monkeypatch.setattr(
+            ta_auth_connector,
+            "get_auth_ping",
+            lambda: ta_auth_connector.TasAuthPingGetResponse(ping=ping),
+        )
+
+    return _set
+
+
 class _FakeNeo4jSession:
     """A neo4j session whose ``run`` raises a chosen exception, or no-ops.
 
