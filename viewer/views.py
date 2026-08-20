@@ -1,3 +1,5 @@
+import base64
+import binascii
 import copy
 import json
 import logging
@@ -50,6 +52,15 @@ from api.utils import (
 )
 from service_status.models import Service
 from viewer import filters, models, serializers
+from viewer.compound_curation import (
+    CurationFormatError,
+    auto_merge_non_conflicting_compounds,
+    build_curation_xlsx,
+    needs_curation,
+    parse_curation_xlsx,
+    resolve_curation,
+)
+from viewer.compound_reconciliation import reconcile_compounds
 from viewer.permissions import IsObjectProposalMember
 from viewer.squonk2_agent import (
     AccessParams,
@@ -1911,6 +1922,14 @@ class UploadExperimentUploadView(viewsets.ViewSet):
         target_file = temp_path.joinpath(filename.name)
         handle_uploaded_file(target_file, filename)
 
+        # optional completed compound-curation spreadsheet; persist it alongside
+        # the bundle so the loader can apply the user's decisions.
+        curation_path = None
+        if curation_upload := serializer.validated_data.get('curation_file'):
+            curation_file = temp_path.joinpath(curation_upload.name)
+            handle_uploaded_file(curation_file, curation_upload)
+            curation_path = str(curation_file)
+
         if file_hash := serializer.validated_data.get('sha256checksum', None):
             checksum = calculate_sha256(str(target_file))
             if checksum != file_hash:
@@ -1938,12 +1957,65 @@ class UploadExperimentUploadView(viewsets.ViewSet):
             data_bundle=str(target_file),
             proposal_ref=target_access_string,
             user_id=request.user.pk,
+            curation_file=curation_path,
         )
         logger.info("+ UploadTargetExperiments.create got Celery id %s", task.task_id)
 
         url = reverse('viewer:task_status', kwargs={'task_id': task.task_id})
         # as it launches task, I think 202 is more appropriate
         return Response({'task_status_url': url}, status=status.HTTP_202_ACCEPTED)
+
+
+def _unresolved_after_curation(reconciliation, encoded_xlsx):
+    """Apply a completed curation spreadsheet and report what is still unresolved.
+
+    Returns (unresolved, reasons, error_cells, decisions): the curation-payload
+    entries the user's decisions did NOT settle, a human-readable reason per
+    entry, the exact cells to flag red in the re-issued workbook, and the
+    decisions they made (to write back into it - see
+    :func:`build_curation_xlsx`). The first three are empty when everything is
+    settled. An unreadable or invalid spreadsheet settles nothing.
+
+    Note the re-issued workbook is built from the FULL conflict set, not from
+    ``unresolved``: a group missing from the sheet reaches the resolver with no
+    decision and silently falls back to the defaults, throwing away what the user
+    already told us.
+
+    The identity columns are locked in the sheet and are not trusted here in any
+    case: the loader re-derives the reconciliation from the database before it
+    applies anything.
+    """
+    try:
+        all_payload = reconciliation.all_payload()
+        # Mirror the loader exactly: auto-merge first, then apply the sheet. This
+        # is a prediction of what the upload will do, so it has to run the same
+        # steps in the same order or it can pass something the loader rejects.
+        resolved_payload, _ = auto_merge_non_conflicting_compounds(all_payload)
+        parsed = parse_curation_xlsx(base64.b64decode(encoded_xlsx))
+    except (
+        CurationFormatError,
+        binascii.Error,
+        zipfile.BadZipFile,
+        ValueError,
+        KeyError,
+    ) as exc:
+        logger.warning("Could not read supplied curation file: %s", exc)
+        return (
+            reconciliation.curation_payload(),
+            [f"The curation file could not be read: {exc}"],
+            {},
+            {},
+        )
+
+    # auto-merge preserves length and order, so an index into the resolved copy
+    # is also an index into all_payload.
+    plan = resolve_curation(resolved_payload, parsed)
+    entries = [all_payload[u.index] for u in plan.unresolved]
+    reasons = [f"{u.inchi_key or 'compound'}: {u.reason}" for u in plan.unresolved]
+    # Only groups the resolver actually rejected get flagged; anything merely
+    # still outstanding is left yellow in the re-issued sheet.
+    error_cells = {u.key: list(u.fields) for u in plan.unresolved if u.key}
+    return entries, reasons, error_cells, parsed.field_actions
 
 
 class UploadExperimentValidateView(viewsets.ViewSet):
@@ -2005,14 +2077,6 @@ class UploadExperimentValidateView(viewsets.ViewSet):
                     status=status.HTTP_200_OK,
                 )
 
-            data_val_result, data_val_msg = validate_data_version(
-                major, minor, target_name=target_name, project_name=target_access_string
-            )
-            validation_response['success'] = (
-                validation_response['success'] and data_val_result
-            )
-            validation_response['message'].append(data_val_msg)  # type: ignore[attr-defined]
-
             try:
                 upload_version = int(serializer.validated_data['upload_version'])
             except (ValueError, TypeError) as exc:
@@ -2023,14 +2087,9 @@ class UploadExperimentValidateView(viewsets.ViewSet):
                     },
                     status=status.HTTP_200_OK,
                 )
-            try:
-                target_name = serializer.validated_data['target_name']
-            except KeyError:
-                return Response(
-                    {'success': False, 'message': 'Target name not given'},
-                    status=status.HTTP_200_OK,
-                )
 
+            # Check versions FIRST (before compound reconciliation)
+            # validate_upload_version checks against the database
             upload_val_result, upload_val_msg = validate_upload_version(
                 upload_version,
                 target_name=target_name,
@@ -2040,6 +2099,94 @@ class UploadExperimentValidateView(viewsets.ViewSet):
                 validation_response['success'] and upload_val_result
             )
             validation_response['message'].append(upload_val_msg)  # type: ignore[attr-defined]
+
+            # Only if upload version is valid, check data version
+            data_val_result, data_val_msg = validate_data_version(
+                major, minor, target_name=target_name, project_name=target_access_string
+            )
+            validation_response['success'] = (
+                validation_response['success'] and data_val_result
+            )
+            validation_response['message'].append(data_val_msg)  # type: ignore[attr-defined]
+
+            # If version validation failed, stop here - don't do compound reconciliation
+            if not (upload_val_result and data_val_result):
+                return Response(
+                    validation_response,
+                    status=status.HTTP_200_OK,
+                )
+
+            # Pre-flight compound reconciliation (advisory - the real check runs
+            # again during upload, where the DB state is authoritative). If the
+            # uploader supplied the incoming compounds, flag any needing curation.
+            compounds = serializer.validated_data.get('compounds')
+            if compounds:
+                visit = target_access_string.split()[0]
+                project = models.Project.objects.filter(title=visit).first()
+                reconciliation = reconcile_compounds(project, compounds)
+                curation = reconciliation.curation_payload()
+
+                # Auto-merge compounds with no genuine conflicts. Entries it
+                # settles stay in the list marked auto_merged, so drop them here
+                # to leave only what the user must actually decide.
+                if curation:
+                    curation, merge_stats = auto_merge_non_conflicting_compounds(
+                        curation
+                    )
+                    curation = needs_curation(curation)
+                    if merge_stats['auto_merged'] > 0:
+                        msg = f"{merge_stats['auto_merged']} compound(s) auto-merged (NULL/empty values or concatenated fields)"
+                        validation_response['message'].append(msg)  # type: ignore[attr-defined]
+                        logger.info(
+                            "Auto-merged %s compounds: %s",
+                            merge_stats['auto_merged'],
+                            merge_stats,
+                        )
+
+                # On a re-run the uploader sends the completed spreadsheet; apply
+                # the decisions and only keep flagging what is still unresolved.
+                encoded = serializer.validated_data.get('curation_file')
+                curation_errors: list = []
+                error_cells: dict = {}
+                decisions: dict = {}
+                if curation and encoded:
+                    outcome = _unresolved_after_curation(reconciliation, encoded)
+                    unresolved, curation_errors, error_cells, decisions = outcome
+                    # `curation` stays the FULL set of groups needing a decision.
+                    # Only whether anything is still outstanding comes from the
+                    # user's file - re-issuing just the rejected groups would
+                    # drop every other decision they had already made.
+                    if not unresolved:
+                        curation = []
+
+                if curation:
+                    target = serializer.validated_data.get('target_name') or 'target'
+                    validation_response['success'] = False
+                    validation_response['compound_conflicts'] = curation
+                    # Red marks only the individual cells we could not accept, so
+                    # a first issue (no decisions yet) is entirely yellow.
+                    validation_response['curation_file'] = base64.b64encode(
+                        build_curation_xlsx(
+                            curation,
+                            target_name=target,
+                            error_cells=error_cells,
+                            prefill=decisions,
+                        )
+                    ).decode('ascii')
+                    validation_response['curation_filename'] = f"{target}_curation.xlsx"
+                    validation_response['message'].append(  # type: ignore[attr-defined]
+                        f"{len(curation)} compound(s) need manual review before upload"
+                    )
+                    # Say *why* each one is still outstanding, so a half-filled
+                    # curation file is actionable rather than just rejected.
+                    for reason in curation_errors:
+                        validation_response['message'].append(reason)  # type: ignore[attr-defined]
+                else:
+                    # All conflicts auto-merged, no curation needed
+                    if compounds:
+                        validation_response['message'].append(  # type: ignore[attr-defined]
+                            "All compounds validated and auto-merged successfully"
+                        )
 
             return Response(
                 validation_response,
