@@ -10,13 +10,20 @@ import io
 
 from openpyxl import load_workbook
 
+from viewer.compound_curation import ROW_MARKER_INCOMING, ROW_MARKER_MERGE
+
 SHEET = "Incoming compounds"
+# Re-exported so tests address the rows by role, not by whatever the sheet
+# happens to call them this week.
+INCOMING_ROW = ROW_MARKER_INCOMING
+MERGE_ROW = ROW_MARKER_MERGE
 
 
 def edit_group_row(data: bytes, marker, **cell_values) -> bytes:
     """Set named columns on every row whose id column equals ``marker``.
 
-    ``marker`` is "Incoming", "Merge", or an existing compound's database id.
+    ``marker`` is ``INCOMING_ROW``, ``MERGE_ROW``, or an existing compound's
+    database id.
     Returns the re-saved workbook bytes.
     """
     wb = load_workbook(io.BytesIO(data))
@@ -29,7 +36,9 @@ def edit_group_row(data: bytes, marker, **cell_values) -> bytes:
             continue
         if str(first).strip().lower() == str(marker).strip().lower():
             for name, value in cell_values.items():
-                ws.cell(row[0].row, cols[name], value)
+                # Assign through .value: ws.cell(r, c, None) is a no-op in
+                # openpyxl, so passing None could not clear a cell.
+                ws.cell(row[0].row, cols[name]).value = value
     buf = io.BytesIO()
     wb.save(buf)
     return buf.getvalue()
@@ -51,7 +60,10 @@ def existing_row_ids(data: bytes):
     for row in ws.iter_rows(values_only=True):
         if not row or row[0] in (None, "", "id"):
             continue
-        if str(row[0]).strip().lower() in ("incoming", "merge"):
+        if str(row[0]).strip().lower() in (
+            ROW_MARKER_INCOMING.lower(),
+            ROW_MARKER_MERGE.lower(),
+        ):
             continue
         ids.append(row[0])
     return ids

@@ -45,13 +45,19 @@ def _conflict_match(inchi="AAA", smiles="CCO", code="Z1", existing_id=5):
     )
 
 
-def _decision(action, inchi="AAA", smiles="CCO", code="Z1", existing_id=5):
+def _decision(
+    action, inchi="AAA", smiles="CCO", code="Z1", existing_id=5, incoming=None
+):
     """A ParsedCuration as _parse_incoming_molecules_sheet would produce it:
     existing-row decisions are keyed by the *incoming* identity plus the
-    existing row's database id."""
-    return ParsedCuration(
-        payload_hash="", field_actions={(inchi, smiles, code, existing_id): action}
-    )
+    existing row's database id, and the incoming row's own action by the bare
+    identity. A missing incoming action means CREATE, the sheet's default."""
+    # Heterogeneous keys by design: 4-tuple per existing row, 3-tuple for the
+    # incoming row's own action.
+    field_actions: dict = {(inchi, smiles, code, existing_id): action}
+    if incoming is not None:
+        field_actions[(inchi, smiles, code)] = incoming
+    return ParsedCuration(payload_hash="", field_actions=field_actions)
 
 
 def test_resolve_create_and_reuse_need_no_decision():
@@ -65,9 +71,19 @@ def test_resolve_create_and_reuse_need_no_decision():
     assert plan.actions[1].op == "reuse" and plan.actions[1].existing_id == 7
 
 
-def test_resolve_conflict_keep_becomes_reuse():
+def test_resolve_conflict_keep_plus_create_adds_the_incoming_compound():
+    """The sheet's defaults, and what they say on the tin: the existing compound
+    is kept as it is and the incoming one is added alongside."""
     matches = [_conflict_match()]
     plan = resolve_curation(matches, _decision("KEEP"))
+    assert plan.ok
+    assert plan.actions[0].op == "create" and plan.actions[0].existing_id is None
+
+
+def test_resolve_conflict_keep_becomes_reuse():
+    """Dropping CREATE from the incoming row folds it into the kept row."""
+    matches = [_conflict_match()]
+    plan = resolve_curation(matches, _decision("KEEP", incoming="KEEP"))
     assert plan.ok
     assert plan.actions[0].op == "reuse" and plan.actions[0].existing_id == 5
 

@@ -309,6 +309,24 @@ def _validate_bundle_against_mode(config_yaml: Dict[str, Any]) -> Optional[str]:
     return None
 
 
+def _row_named_by_pk(instance_data):
+    """The row an explicit primary key in ``fields`` refers to, or None.
+
+    ``fields`` is normally a natural-key lookup, but both compound paths set it
+    to {"id": N} meaning "this exact row". A primary key is a GLOBAL identity:
+    the target-scoped manager filters visibility, not identity, so a miss there
+    does not mean the row is absent. It must never reach the create branch
+    either - saving a model instance that carries an existing pk issues an
+    UPDATE, blanking every column not present in ``defaults``.
+    """
+    model = instance_data.model_class
+    meta = model._meta  # pylint: disable=protected-access
+    pk_names = {"pk", meta.pk.name, meta.pk.attname}
+    if not pk_names & set(instance_data.fields):
+        return None
+    return model.objects.filter(**instance_data.fields).first()
+
+
 def create_objects(func=None, *, depth=math.inf):
     """Wrapper function for saving database objects.
 
@@ -355,15 +373,27 @@ def create_objects(func=None, *, depth=math.inf):
                         logger.debug("Object exists: %s", instance_data.fields)
                         new = False
                     except instance_data.model_class.DoesNotExist:
-                        # revalidate files
-                        logger.debug("Object doesn't exist: %s", instance_data)
-                        instance_data = func(self, *args, item_data=item, **kwargs)
-                        obj = instance_data.model_class(
-                            **instance_data.fields,
-                            **instance_data.defaults,
-                        )
-                        obj.save()
-                        new = True
+                        obj = _row_named_by_pk(instance_data)
+                        if obj is not None:
+                            # Named by primary key, just not visible through
+                            # this target - e.g. a compound the curation gate
+                            # resolved to a row belonging to a sibling target.
+                            # Only `defaults` is written to it, below.
+                            logger.debug(
+                                "Object exists outside this target: %s",
+                                instance_data.fields,
+                            )
+                            new = False
+                        else:
+                            # revalidate files
+                            logger.debug("Object doesn't exist: %s", instance_data)
+                            instance_data = func(self, *args, item_data=item, **kwargs)
+                            obj = instance_data.model_class(
+                                **instance_data.fields,
+                                **instance_data.defaults,
+                            )
+                            obj.save()
+                            new = True
                     except MultipleObjectsReturned:
                         msg = "{}.get_or_create in {} returned multiple objects for {}".format(
                             instance_data.model_class._meta.object_name,  # pylint: disable=protected-access
@@ -1338,10 +1368,7 @@ class TargetLoader:
                 )
 
         # Apply the authoritative reconciliation decision for this compound, if
-        # one was produced by the gate. Only reuse an existing row that is
-        # reachable within THIS target (by_target); a cross-target match is left
-        # to create a fresh linked copy rather than risk mutating another
-        # target's compound.
+        # one was produced by the gate.
         row_id = compound_row_id(
             inchi_key, {"smiles": smiles, "compound_code": compound_code}
         )
@@ -1352,11 +1379,7 @@ class TargetLoader:
 
         action = self._compound_resolution.get(row_id)
         if action is not None and action.existing_id is not None:
-            if (
-                Compound.filter_manager.by_target(self.target)
-                .filter(pk=action.existing_id)
-                .exists()
-            ):
+            if self._resolved_compound_applies(action.existing_id):
                 fields = {"id": action.existing_id}
                 if action.op == "reuse":
                     # KEEP_EXISTING / exact reuse: link to the existing row
@@ -1377,11 +1400,14 @@ class TargetLoader:
                         },
                     }
             else:
+                # Not an ordinary case any more: the gate derived this id from
+                # this project's own compounds, so failing to find it here means
+                # it was deleted or moved between the gate and now.
                 self.report.log(
-                    logging.INFO,
-                    f"Compound (inchi_key={inchi_key}) matches existing compound "
-                    f"{action.existing_id} in another target; creating a new linked "
-                    "copy (cross-target de-duplication is not yet automated).",
+                    logging.WARNING,
+                    f"Compound (inchi_key={inchi_key}) was reconciled to existing "
+                    f"compound {action.existing_id}, which is no longer in project "
+                    f"{self.project}; creating a new compound instead.",
                 )
 
         return ProcessedObject(
@@ -1391,6 +1417,20 @@ class TargetLoader:
             key=(experiment_name, ligand_key),
             versioned_key=(experiment_name, ligand_key),
         )
+
+    def _resolved_compound_applies(self, compound_id) -> bool:
+        """Is a reconciliation decision about ``compound_id`` still applicable?
+
+        Scoped to the PROJECT, because that is what reconciliation matched on -
+        (project, inchi_key) - and Compound.project is a scalar FK.
+
+        It must NOT be scoped to this target. by_target() reaches compounds only
+        through their site observations, so every compound matched in a sibling
+        target was invisible here and its decision was silently downgraded to
+        "create a new one" - which is how a KEEP meaning "reuse compound N"
+        produced a duplicate instead.
+        """
+        return Compound.objects.filter(pk=compound_id, project=self.project).exists()
 
     @create_objects(depth=1)
     def process_xtalform(

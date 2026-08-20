@@ -58,7 +58,22 @@ ACTION_HEADER = "action"
 # Written into the id column to mark the two synthetic rows of a group. Matched
 # case-insensitively on the way back in.
 ROW_MARKER_INCOMING = "Incoming"
-ROW_MARKER_MERGE = "Merge"
+ROW_MARKER_MERGE = "Merge to"
+
+# Each kind of row offers only the actions that mean something for it, so the
+# dropdown cannot suggest a decision the resolver has no reading for.
+EXISTING_ROW_ACTIONS = ("KEEP", "DELETE")  # default KEEP
+# The optional actions offer their one word and nothing else. A dropdown cannot
+# carry a blank entry - a literal validation list drops empty and whitespace-only
+# items alike, so both render as a menu with nothing to change your mind with -
+# and a visible placeholder was rejected as saying nothing about what happens.
+# Clearing the cell with Delete is the gesture for "no", which allow_blank
+# accepts and every reader here treats as the absence of that action.
+INCOMING_ROW_ACTION = "CREATE"  # default; cleared means "fold into a KEEP row"
+
+# The merge row's only meaningful decision is "fold this group into one", so it
+# reads like the incoming row: the one word, or blank for no.
+MERGE_ROW_ACTION = "MERGE"  # default blank
 
 
 def curation_headers() -> list[str]:
@@ -137,8 +152,9 @@ _LOCKED_FILL = PatternFill(
 _EDIT_FILL = PatternFill(
     start_color="FFFFF3C4", end_color="FFFFF3C4", fill_type="solid"
 )
-# A merge-row cell the user MUST fill in: light red, so an unresolved conflict
-# is visible at a glance rather than only surfacing as an upload failure.
+# A merge-row decision that came back unresolved on a re-run: light red, so the
+# user sees which of their answers the upload rejected. A first-issue workbook
+# never uses this - there, everything editable is _EDIT_FILL yellow.
 _REQUIRED_FILL = PatternFill(
     start_color="FFFFC7CE", end_color="FFFFC7CE", fill_type="solid"
 )
@@ -289,13 +305,30 @@ def needs_curation(payload) -> list:
     return [m for m in payload if m.get("status") in CURATION_STATUSES]
 
 
-def build_curation_xlsx(curation_payload, *, target_name=None) -> bytes:
+def build_curation_xlsx(
+    curation_payload, *, target_name=None, error_cells=None, prefill=None
+) -> bytes:
     """Render conflicts/duplicates into a hierarchical compound-group workbook.
 
     Each incoming compound that has conflicts or duplicates gets its own subtable:
     - Existing duplicates (with conflicting fields)
     - Incoming compound row
     - Merge row (where user specifies which values win, only for conflicting fields)
+
+    ``error_cells`` marks individual cells red instead of the ordinary editable
+    yellow. It maps a group's identity triple (inchi_key, incoming smiles,
+    incoming compound_code) to the merge-row field names at fault, where an empty
+    list means the group's action column is at fault. Pass it only when
+    re-issuing the workbook after the user's completed one came back unresolved,
+    so red always means "we could not accept this answer" and never merely "fill
+    this in".
+
+    ``prefill`` is a previously parsed ``field_actions`` map. A re-issued
+    workbook must carry EVERY group that still needs a decision, not just the
+    rejected ones - a group left out of the sheet reaches the resolver with no
+    decision at all and silently falls back to the defaults, discarding what the
+    user said last time. Passing their answers back means the full sheet costs
+    them nothing: only the red cells need attention.
     """
     conflicts = [m for m in curation_payload if m.get("status") == STATUS_CONFLICT]
     duplicates = [m for m in curation_payload if m.get("status") == STATUS_AMBIGUOUS]
@@ -303,7 +336,13 @@ def build_curation_xlsx(curation_payload, *, target_name=None) -> bytes:
     wb = Workbook()
 
     # Single sheet: Incoming compounds with conflicts and duplicates in compound groups
-    _build_incoming_molecules_sheet(wb.active, conflicts, duplicates)
+    _build_incoming_molecules_sheet(
+        wb.active,
+        conflicts,
+        duplicates,
+        error_cells=error_cells or {},
+        prefill=prefill or {},
+    )
     wb.active.title = "Incoming compounds"
 
     # Hidden metadata sheet
@@ -336,7 +375,26 @@ def _apply_group_border(ws, start_row, end_row, inner_border, outer_border):
             cell.border = Border(top=top, bottom=bottom, left=left, right=right)
 
 
-def _build_incoming_molecules_sheet(ws, conflicts, duplicates):
+def _list_validation(options, *, allow_blank=True):
+    """A dropdown offering exactly ``options``.
+
+    ``allow_blank`` lets the cell be cleared with Delete, which is the only way
+    to unset an optional action: it stops an already-empty cell being flagged as
+    invalid, but puts nothing in the menu, and a list cannot carry a blank entry
+    to pick (empty and whitespace-only items are both dropped when the dropdown
+    is built). So an optional action is a one-item list plus allow_blank.
+    """
+    return DataValidation(
+        type="list",
+        formula1='"{}"'.format(",".join(options)),
+        allow_blank=allow_blank,
+        showDropDown=False,
+    )
+
+
+def _build_incoming_molecules_sheet(
+    ws, conflicts, duplicates, *, error_cells=None, prefill=None
+):
     """Build sheet with compound groups: existing dups, incoming, merge row per group.
 
     Merge row is populated only with NON-conflicting fields (fields that are identical
@@ -391,19 +449,30 @@ def _build_incoming_molecules_sheet(ws, conflicts, duplicates):
         )
 
     row_num = 1
-    action_dv = DataValidation(
-        type="list",
-        formula1='"DELETE,KEEP,CREATE,MERGE"',
-        allow_blank=False,
-        showDropDown=False,
-    )
-    ws.add_data_validation(action_dv)
+
+    # One validation per row kind. An existing row can only be kept or retired;
+    # the incoming row can only be created or blank; the merge row merged or
+    # blank. Both optional ones carry an empty entry in the list itself - see
+    # _list_validation as to why allow_blank is not enough.
+    existing_dv = _list_validation(EXISTING_ROW_ACTIONS, allow_blank=False)
+    incoming_dv = _list_validation((INCOMING_ROW_ACTION,))
+    merge_dv = _list_validation((MERGE_ROW_ACTION,))
+    for dv in (existing_dv, incoming_dv, merge_dv):
+        ws.add_data_validation(dv)
+
+    errors = error_cells or {}
+    previous = prefill or {}
 
     for key, group_data in groups.items():
         inchi_key, incoming_smiles, _ = key
         existing = group_data["existing"]
         incoming = group_data["incoming"]
         conflicts = group_data["conflicts"]
+        # Which cells of THIS group we could not accept. Absent from `errors`
+        # means the group is simply outstanding, not wrong, so it stays yellow.
+        group_error = errors.get(key)
+        bad_fields = set(group_error or ())
+        bad_action = group_error is not None and not group_error
 
         # Write header row for this group
         for col, header in enumerate(headers, 1):
@@ -423,9 +492,12 @@ def _build_incoming_molecules_sheet(ws, conflicts, duplicates):
             for name, col_num in field_to_col.items():
                 ws.cell(row_num, col_num, existing_compound.get(name, ""))
 
-            action_cell = ws.cell(row_num, action_col, "KEEP" if existing else "DELETE")
+            said = previous.get((*key, existing_compound.get("id")))
+            action_cell = ws.cell(row_num, action_col, said or EXISTING_ROW_ACTIONS[0])
             _editable(action_cell)
-            action_dv.add(action_cell)
+            if bad_action:
+                action_cell.fill = _REQUIRED_FILL
+            existing_dv.add(action_cell)
 
             for col in range(1, action_col):
                 _lock(ws.cell(row_num, col))
@@ -448,9 +520,16 @@ def _build_incoming_molecules_sheet(ws, conflicts, duplicates):
         for name, col_num in field_to_col.items():
             ws.cell(row_num, col_num, incoming.get(name, "")).fill = incoming_bg
 
-        action_cell = ws.cell(row_num, action_col, "CREATE")
+        said = previous.get(key)
+        action_cell = ws.cell(
+            row_num,
+            action_col,
+            INCOMING_ROW_ACTION if said is None else said,
+        )
         _editable(action_cell)
-        action_dv.add(action_cell)
+        if bad_action:
+            action_cell.fill = _REQUIRED_FILL
+        incoming_dv.add(action_cell)
 
         for col in range(1, action_col):
             _lock(ws.cell(row_num, col))
@@ -459,7 +538,7 @@ def _build_incoming_molecules_sheet(ws, conflicts, duplicates):
 
         # Write merge row - only populate NON-conflicting fields
         merge_id = ws.cell(row_num, 1, ROW_MARKER_MERGE)
-        merge_id.font = Font(bold=True)  # Keep "Merge" black and bold
+        merge_id.font = Font(bold=True)  # Keep the label black and bold
         merge_id.protection = Protection(locked=True)
         merge_id.fill = _LOCKED_FILL
         merge_id.alignment = Alignment(vertical="top", wrap_text=True)
@@ -477,16 +556,22 @@ def _build_incoming_molecules_sheet(ws, conflicts, duplicates):
         # decided by the same helper resolve_curation validates against, so the
         # sheet cannot offer a choice the loader then fails to require.
         needs_choice = set(fields_needing_merge_choice(existing, incoming))
+        # Presence of the key, not truthiness of the dict: a MERGE whose values
+        # were all left blank parses to {}, and must still come back as MERGE.
+        merged_before = previous.get(("MERGE", key))
         for name in CONFLICT_FIELDS:
             col_num = field_to_col[name]
             candidates = merge_candidate_values(name, existing, incoming)
 
             if name in needs_choice:
-                # Two or more values on offer: the user MUST pick one. Red so it
-                # reads as "action required" - leaving it blank fails the upload.
-                cell = ws.cell(row_num, col_num, "")
+                # Two or more values on offer: the user MUST pick one. Yellow, the
+                # same as the action column, so the whole sheet reads as "these are
+                # yours to fill in". Only a re-issued workbook turns these red, to
+                # single out the decisions that came back unresolved.
+                chosen = (merged_before or {}).get(name, "")
+                cell = ws.cell(row_num, col_num, chosen)
                 cell.protection = Protection(locked=False)
-                cell.fill = _REQUIRED_FILL
+                cell.fill = _REQUIRED_FILL if name in bad_fields else _EDIT_FILL
                 cell.alignment = Alignment(vertical="top", wrap_text=True)
                 options = ",".join(str(v) for v in candidates)
                 dv = DataValidation(
@@ -506,9 +591,13 @@ def _build_incoming_molecules_sheet(ws, conflicts, duplicates):
                 cell.font = _GREY_FONT
                 cell.alignment = Alignment(vertical="top", wrap_text=True)
 
-        merge_action = ws.cell(row_num, action_col, "")
+        merge_action = ws.cell(
+            row_num,
+            action_col,
+            MERGE_ROW_ACTION if merged_before is not None else "",
+        )
         _editable(merge_action)
-        action_dv.add(merge_action)
+        merge_dv.add(merge_action)
 
         row_num += 1
 
@@ -598,7 +687,10 @@ def parse_curation_xlsx(data: bytes, match_payloads=None) -> ParsedCuration:
     return ParsedCuration(payload_hash=payload_hash, field_actions=field_actions)
 
 
-VALID_ROW_ACTIONS = ("DELETE", "KEEP", "CREATE", "MERGE")
+# What an existing-duplicate row may say. Only KEEP and DELETE are offered now,
+# but CREATE/MERGE are still tolerated: sheets issued earlier carried the full
+# vocabulary on every row, and the resolver has always ignored both here.
+VALID_ROW_ACTIONS = (*EXISTING_ROW_ACTIONS, "CREATE", "MERGE")
 
 
 def _flush_curation_group(rows, cols, actions) -> None:
@@ -636,11 +728,13 @@ def _flush_curation_group(rows, cols, actions) -> None:
         action = (_cell(row, cols, ACTION_HEADER) or "").strip()
 
         if marker == ROW_MARKER_INCOMING.lower():
-            if action:
-                actions[key] = action
+            # Recorded even when blank: the sheet pre-fills CREATE, so a cleared
+            # cell is a deliberate "do not create this, fold it into an existing
+            # row" and must be distinguishable from a group we never saw.
+            actions[key] = action
 
         elif marker == ROW_MARKER_MERGE.lower():
-            if action.upper() == "MERGE":
+            if action.upper() == MERGE_ROW_ACTION:
                 # Read back every conflict field the sheet actually carries, so
                 # a decision on a newly-added CONTENT_FIELD is not silently
                 # dropped. Blank cells (a dropdown the user never picked) are
@@ -654,14 +748,29 @@ def _flush_curation_group(rows, cols, actions) -> None:
 
         else:
             # An existing duplicate row; its id column holds the database id.
+            # Insist on that. Anything else here - most likely a row marker this
+            # version does not know - would otherwise be taken for a compound id
+            # and its action filed under it, which no lookup would ever match:
+            # a silent misparse rather than a rejected file.
+            try:
+                existing_id = int(row[0])
+            except (TypeError, ValueError) as exc:
+                raise CurationFormatError(
+                    f"Row {row_num}: '{row[0]}' is neither a compound id nor a "
+                    f"known row marker ('{ROW_MARKER_INCOMING}', "
+                    f"'{ROW_MARKER_MERGE}'); the curation file is corrupt or was "
+                    "produced by a different version - re-run validation to get "
+                    "a fresh one."
+                ) from exc
+
             if not action:
                 continue
             if action not in VALID_ROW_ACTIONS:
                 raise CurationFormatError(
                     f"Row {row_num}: '{action}' is not a valid action; "
-                    f"expected {', '.join(VALID_ROW_ACTIONS)}"
+                    f"expected {', '.join(EXISTING_ROW_ACTIONS)}"
                 )
-            actions[(*key, row[0])] = action
+            actions[(*key, existing_id)] = action
 
 
 def _parse_incoming_molecules_sheet(  # pylint: disable=unused-argument
@@ -721,6 +830,12 @@ class Unresolved:
     index: int
     inchi_key: str
     reason: str
+    # What the user should look at, so a re-issued sheet can point at the exact
+    # cells rather than reddening every decision in the workbook. ``key`` is the
+    # group's identity triple; ``fields`` are the merge-row columns at fault, and
+    # an empty ``fields`` means the fault is in the action column itself.
+    key: tuple | None = None
+    fields: list = field(default_factory=list)
 
 
 @dataclass
@@ -740,6 +855,13 @@ def _resolve_group(i, m, parsed, actions, unresolved) -> None:
     compound. MERGE on the merge row wins over whatever the per-row actions say:
     it is the only decision that can express "fold all of these into one", so
     the KEEP/DELETE cells left at their defaults must not contradict it.
+
+    Otherwise the group means exactly what its cells say. The incoming row's own
+    action decides the incoming compound's fate: CREATE (the sheet's default)
+    adds it as a new compound and leaves every KEEP row alone, so an untouched
+    sheet is always satisfiable however many duplicates the group holds. Only
+    when the incoming compound is NOT being created does it have to fold into
+    one existing row, and only then is a second KEEP a contradiction.
     """
     inchi_key = m.get("inchi_key", "")
     incoming = m.get("incoming", {})
@@ -763,8 +885,11 @@ def _resolve_group(i, m, parsed, actions, unresolved) -> None:
                 Unresolved(
                     i,
                     inchi_key,
-                    "MERGE was selected but no value was chosen for: "
+                    f"{MERGE_ROW_ACTION} was selected on the "
+                    f"'{ROW_MARKER_MERGE}' row but no value was chosen for: "
                     + ", ".join(missing),
+                    key=key,
+                    fields=missing,
                 )
             )
             return
@@ -780,36 +905,67 @@ def _resolve_group(i, m, parsed, actions, unresolved) -> None:
         )
         return
 
-    # No MERGE: each existing row's own KEEP/DELETE decides its fate.
+    # No MERGE: each existing row's own KEEP/DELETE decides its fate, and the
+    # incoming row's action decides the incoming compound's.
     per_row = {
         ex_id: parsed.field_actions.get((*key, ex_id), "KEEP") for ex_id in existing_ids
     }
     kept = [ex_id for ex_id, act in per_row.items() if act == "KEEP"]
     deleted = [ex_id for ex_id, act in per_row.items() if act == "DELETE"]
+    # A group the sheet never mentioned falls back to the sheet's own default;
+    # one whose incoming action the user cleared means the opposite, so the two
+    # cases cannot be collapsed with `or`.
+    raw_incoming = parsed.field_actions.get(key)
+    if raw_incoming is None:
+        incoming_action = INCOMING_ROW_ACTION
+    else:
+        incoming_action = str(raw_incoming).strip().upper()
+
+    if incoming_action == INCOMING_ROW_ACTION:
+        # "Keep the old ones and add the new one" - the sheet's default, and
+        # always satisfiable. The KEEP rows are left untouched; only rows the
+        # user explicitly retired fold into the newly created compound.
+        actions.append(ResolvedAction(i, "create", None, incoming, deleted))
+        return
+
+    # The incoming compound is not being created, so it has to become one of the
+    # existing rows - which only makes sense if exactly one of them survives.
+    if not kept:
+        # Nothing would be left standing. Worth naming plainly: read literally
+        # the block says "delete all of these and add nothing", which would
+        # leave the retired rows' site observations with nothing to fold into.
+        unresolved.append(
+            Unresolved(
+                i,
+                inchi_key,
+                "this would leave no compound at all - nothing here is marked "
+                f"KEEP and the incoming compound is not marked "
+                f"{INCOMING_ROW_ACTION}. Mark one existing compound KEEP to "
+                f"survive, or mark the incoming one {INCOMING_ROW_ACTION} so the "
+                "deleted rows have something to fold into",
+                key=key,
+            )
+        )
+        return
 
     if len(kept) > 1:
         unresolved.append(
             Unresolved(
                 i,
                 inchi_key,
-                f"{len(kept)} existing compounds are marked KEEP; mark all but one "
-                "DELETE, or use MERGE to fold them into a single compound",
+                f"the incoming compound is not marked {INCOMING_ROW_ACTION}"
+                f"{f' but {incoming_action}' if incoming_action else ''}, so it "
+                f"must fold into an existing compound, but {len(kept)} of them "
+                f"are marked KEEP; mark exactly one KEEP, or put "
+                f"{MERGE_ROW_ACTION} on the '{ROW_MARKER_MERGE}' row to fold "
+                "them into a single compound",
+                key=key,
             )
         )
         return
 
-    if kept:
-        # Reuse the kept row; anything explicitly deleted folds into it.
-        actions.append(ResolvedAction(i, "reuse", kept[0], incoming, deleted))
-        return
-
-    if deleted:
-        # Everything retired: the incoming compound is created fresh and the
-        # retired rows are relinked onto it.
-        actions.append(ResolvedAction(i, "create", None, incoming, deleted))
-        return
-
-    unresolved.append(Unresolved(i, inchi_key, "compound has no curation decision"))
+    # Reuse the kept row; anything explicitly deleted folds into it.
+    actions.append(ResolvedAction(i, "reuse", kept[0], incoming, deleted))
 
 
 def resolve_curation(match_payloads, parsed: ParsedCuration | None) -> ResolutionPlan:
@@ -821,9 +977,12 @@ def resolve_curation(match_payloads, parsed: ParsedCuration | None) -> Resolutio
     - MERGE on the merge row: fold the group into one compound carrying the
       merge row's values. Overrides the per-row actions. Every field the sheet
       offered a choice for must be filled in, or the group is left unresolved.
-    - KEEP on exactly one existing row: reuse it; any DELETE rows fold into it.
-    - DELETE on all existing rows: create the incoming compound fresh and fold
-      the deleted rows into it.
+      Blank (the default) means no merge.
+    - CREATE on the incoming row (the sheet's default): add the incoming
+      compound as a new one, leaving every KEEP row untouched and folding any
+      DELETE rows into it. Always satisfiable, so an untouched sheet is valid.
+    - Anything else on the incoming row: it folds into the single existing row
+      marked KEEP. Unresolved if that is not exactly one row.
 
     Anything else is reported through :attr:`ResolutionPlan.unresolved`, which
     the loader turns into an error that rolls the whole upload back.

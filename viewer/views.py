@@ -1969,10 +1969,17 @@ class UploadExperimentUploadView(viewsets.ViewSet):
 def _unresolved_after_curation(reconciliation, encoded_xlsx):
     """Apply a completed curation spreadsheet and report what is still unresolved.
 
-    Returns (entries, reasons): the curation-payload entries the user's decisions
-    did NOT settle, and a human-readable reason per entry to send back so they
-    can see what to fix. Both empty when everything is settled. An unreadable or
-    invalid spreadsheet resolves nothing (the full conflict set is returned).
+    Returns (unresolved, reasons, error_cells, decisions): the curation-payload
+    entries the user's decisions did NOT settle, a human-readable reason per
+    entry, the exact cells to flag red in the re-issued workbook, and the
+    decisions they made (to write back into it - see
+    :func:`build_curation_xlsx`). The first three are empty when everything is
+    settled. An unreadable or invalid spreadsheet settles nothing.
+
+    Note the re-issued workbook is built from the FULL conflict set, not from
+    ``unresolved``: a group missing from the sheet reaches the resolver with no
+    decision and silently falls back to the defaults, throwing away what the user
+    already told us.
 
     The identity columns are locked in the sheet and are not trusted here in any
     case: the loader re-derives the reconciliation from the database before it
@@ -1993,16 +2000,22 @@ def _unresolved_after_curation(reconciliation, encoded_xlsx):
         KeyError,
     ) as exc:
         logger.warning("Could not read supplied curation file: %s", exc)
-        return reconciliation.curation_payload(), [
-            f"The curation file could not be read: {exc}"
-        ]
+        return (
+            reconciliation.curation_payload(),
+            [f"The curation file could not be read: {exc}"],
+            {},
+            {},
+        )
 
     # auto-merge preserves length and order, so an index into the resolved copy
     # is also an index into all_payload.
     plan = resolve_curation(resolved_payload, parsed)
     entries = [all_payload[u.index] for u in plan.unresolved]
     reasons = [f"{u.inchi_key or 'compound'}: {u.reason}" for u in plan.unresolved]
-    return entries, reasons
+    # Only groups the resolver actually rejected get flagged; anything merely
+    # still outstanding is left yellow in the re-issued sheet.
+    error_cells = {u.key: list(u.fields) for u in plan.unresolved if u.key}
+    return entries, reasons, error_cells, parsed.field_actions
 
 
 class UploadExperimentValidateView(viewsets.ViewSet):
@@ -2134,17 +2147,31 @@ class UploadExperimentValidateView(viewsets.ViewSet):
                 # the decisions and only keep flagging what is still unresolved.
                 encoded = serializer.validated_data.get('curation_file')
                 curation_errors: list = []
+                error_cells: dict = {}
+                decisions: dict = {}
                 if curation and encoded:
-                    curation, curation_errors = _unresolved_after_curation(
-                        reconciliation, encoded
-                    )
+                    outcome = _unresolved_after_curation(reconciliation, encoded)
+                    unresolved, curation_errors, error_cells, decisions = outcome
+                    # `curation` stays the FULL set of groups needing a decision.
+                    # Only whether anything is still outstanding comes from the
+                    # user's file - re-issuing just the rejected groups would
+                    # drop every other decision they had already made.
+                    if not unresolved:
+                        curation = []
 
                 if curation:
                     target = serializer.validated_data.get('target_name') or 'target'
                     validation_response['success'] = False
                     validation_response['compound_conflicts'] = curation
+                    # Red marks only the individual cells we could not accept, so
+                    # a first issue (no decisions yet) is entirely yellow.
                     validation_response['curation_file'] = base64.b64encode(
-                        build_curation_xlsx(curation, target_name=target)
+                        build_curation_xlsx(
+                            curation,
+                            target_name=target,
+                            error_cells=error_cells,
+                            prefill=decisions,
+                        )
                     ).decode('ascii')
                     validation_response['curation_filename'] = f"{target}_curation.xlsx"
                     validation_response['message'].append(  # type: ignore[attr-defined]
