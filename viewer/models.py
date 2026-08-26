@@ -3,7 +3,7 @@ import logging
 import os
 import uuid
 from dataclasses import dataclass
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 
 from django.conf import settings
 from django.contrib.auth.models import User
@@ -797,6 +797,33 @@ class SiteObservation(Versionable, models.Model):
                     contents = f.read()
 
         return contents
+
+    def get_virtual_ligand_mol_path(self) -> Path | None:
+        """Absolute path of virtual_ligand_mol, whichever flavour is stored.
+
+        The field holds three historical flavours of value (the same catalogue
+        viewer/media_cleanup.py works from):
+
+        - an absolute path;
+        - a MEDIA_ROOT-relative path - what viewer.cset_upload writes today,
+          under target_loader_data/, because assigning the name directly
+          bypasses the field's upload_to (it can also be computed_set_data/...);
+        - a bare basename, as migration 0149 wrote it when ComputedMolecule was
+          merged into SiteObservation, with the file in computed_set_data/.
+
+        Returns None when the field is unset. The path is not guaranteed to
+        exist - callers must handle a missing file.
+        """
+        name = str(self.virtual_ligand_mol or '').strip()
+        if name in ('', 'None'):
+            return None
+
+        pure = PurePosixPath(name)
+        if pure.is_absolute():
+            return Path(name)
+        if pure.parent != PurePosixPath('.'):
+            return Path(settings.MEDIA_ROOT).joinpath(name)
+        return Path(settings.MEDIA_ROOT, settings.COMPUTED_SET_MEDIA_DIRECTORY, name)
 
     def get_filename(self):
         """Basename for this observation's uploaded pdb in downloads.
