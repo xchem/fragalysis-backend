@@ -192,10 +192,14 @@ def test_every_reference_flavour_keeps_its_file(db, settings, tmp_path, user):
         virtual_pdb_info=f"{settings.COMPUTED_SET_MEDIA_DIRECTORY}/{pdb.name}"
     )
 
-    # (e) virtual_ligand_mol as migration 0149 wrote it: a bare basename.
+    # (e) a migration 0149 row after migration 0172 normalised it: the file is
+    # still in computed_set_data/, the column now says so. It must stay
+    # protected - normalising the column must not turn live files into debris.
     migrated = cset_dir / "setA_upload_1_x_y_z.mol"
     migrated.write_text("E")
-    SiteObservation.objects.create(virtual_ligand_mol=migrated.name)
+    SiteObservation.objects.create(
+        virtual_ligand_mol=f"{settings.COMPUTED_SET_MEDIA_DIRECTORY}/{migrated.name}"
+    )
 
     # (f) virtual_ligand_mol as cset_upload writes it today: the file lives in
     # the target-loader tree, so it protects nothing here - a same-named file in
