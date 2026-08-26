@@ -631,8 +631,16 @@ class MolOps:
 
         # existing_computed_molecules = []
         for so in qs:
-            filepath = Path(settings.MEDIA_ROOT).joinpath(str(so.virtual_ligand_mol))
-            so_mol = Chem.MolFromMolFile(str(filepath))
+            # Resolve whichever flavour of value is stored (see
+            # SiteObservation.get_virtual_ligand_mol_path). MolFromMolFile
+            # raises OSError - not None - for a file that isn't there, so the
+            # existence check has to come first.
+            filepath = so.get_virtual_ligand_mol_path()
+            so_mol = (
+                Chem.MolFromMolFile(str(filepath))
+                if filepath is not None and filepath.is_file()
+                else None
+            )
             if so_mol:
                 # find distances between corresponding atoms of the
                 # two conformers. if any one exceeds the _DIST_LIMIT,

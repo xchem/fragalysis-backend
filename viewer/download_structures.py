@@ -961,9 +961,6 @@ class DownloadStructures:
         """Add compound sets to download"""
 
         self._logger.info('Processing computed sets...')
-        sdf_root = Path(settings.MEDIA_ROOT).joinpath(
-            settings.COMPUTED_SET_MEDIA_DIRECTORY
-        )
         for cset in target.computedset_set.all():
             archive_path = Path('virtual_hits').joinpath(cset.submitted_sdf.name)
             buff = StringIO()
@@ -981,8 +978,29 @@ class DownloadStructures:
                 self._logger.debug(
                     'Processing computed observation (%s)...', so.virtual_name
                 )
-                mol = Chem.MolFromMolFile(sdf_root.joinpath(str(so.virtual_ligand_mol)))
+                # The stored value comes in three flavours (see
+                # SiteObservation.get_virtual_ligand_mol_path); joining it onto
+                # computed_set_data/ here used to make the whole download fail
+                # with an OSError for anything cset_upload had written.
+                mol_path = so.get_virtual_ligand_mol_path()
+                if mol_path is None or not mol_path.is_file():
+                    self._logger.warning(
+                        'No mol file for computed observation (%s), path=%s',
+                        so.virtual_name,
+                        mol_path,
+                    )
+                    continue
+                mol = Chem.MolFromMolFile(str(mol_path))
                 self._logger.debug('mol: %s', mol)
+                if mol is None:
+                    # A readable but unparseable file - skip it rather than
+                    # blow up on the SetProp() below.
+                    self._logger.warning(
+                        'Unreadable mol file for computed observation (%s), path=%s',
+                        so.virtual_name,
+                        mol_path,
+                    )
+                    continue
                 mol.SetProp('_Name', so.virtual_name or '')
                 for result in so.result_set.filter(computed_set=cset):
                     if result.raw_value is not None:
@@ -992,6 +1010,10 @@ class DownloadStructures:
                         )
 
                 writer.write(mol)
+
+            # SDWriter buffers, so nothing reaches the StringIO until it is
+            # closed - without this every virtual_hits SDF comes out empty.
+            writer.close()
 
             self.write_file(buff.getvalue(), str(Path(archive_path)))
 
