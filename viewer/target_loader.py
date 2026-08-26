@@ -3021,10 +3021,6 @@ class TargetLoader:
         """
         logger.debug('+linking observations to computed molecules')
 
-        sdf_root = Path(settings.MEDIA_ROOT).joinpath(
-            settings.COMPUTED_SET_MEDIA_DIRECTORY
-        )
-
         # NB! see comment about filter_manager in managers.py for
         # compound only fetching LHS upload compounds. I believe here
         # this is the desired behaviour
@@ -3085,27 +3081,38 @@ class TargetLoader:
                 # cmol = Chem.MolFromMolBlock(compmol.sdf_info)
                 # Chem.RemoveStereochemistry(cmol)
 
-                logger.debug(
-                    'cmol_path: %s', sdf_root.joinpath(str(compmol.virtual_ligand_mol))
-                )
-                cmol = Chem.MolFromMolFile(
-                    sdf_root.joinpath(str(compmol.virtual_ligand_mol))
-                )
+                # Same bad join as download_structures had - see #1025.
+                cmol_path = compmol.virtual_ligand_mol_path
+                logger.debug('cmol_path: %s', cmol_path)
+                cmol = None
+                if cmol_path is not None and cmol_path.is_file():
+                    # MolFromMolFile raises OSError for a missing file.
+                    cmol = Chem.MolFromMolFile(str(cmol_path))
                 logger.debug('compmol_obj: %s', cmol)
 
                 rmsd = None
-                try:
-                    rmsd = Chem.rdMolAlign.GetBestRMS(mol, cmol)
-                    logger.debug('rmsd: %s', rmsd)
-                except RuntimeError as exc:
-                    # protection against rdkit internal errors
-                    msg = (
-                        f"Failed to find alignment between {compmol.virtual_molecule_name} "
-                        + f'and {val.instance.code}'
+                if cmol is None:
+                    # Missing or unreadable mol file. Still link the two
+                    # observations, just without an RMSD - the same outcome as
+                    # an alignment that fails below.
+                    logger.error(
+                        'No readable mol file for computed observation %s (%s)',
+                        compmol.virtual_molecule_name,
+                        cmol_path,
                     )
-                    # log an error, but don't stop processing
-                    logger.error(msg)
-                    logger.error(exc)
+                else:
+                    try:
+                        rmsd = Chem.rdMolAlign.GetBestRMS(mol, cmol)
+                        logger.debug('rmsd: %s', rmsd)
+                    except RuntimeError as exc:
+                        # protection against rdkit internal errors
+                        msg = (
+                            f"Failed to find alignment between {compmol.virtual_molecule_name} "
+                            + f'and {val.instance.code}'
+                        )
+                        # log an error, but don't stop processing
+                        logger.error(msg)
+                        logger.error(exc)
 
                 # there is a unique constraint on this model, but only
                 # new observations are being linked, so cannot clash

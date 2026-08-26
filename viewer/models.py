@@ -798,6 +798,24 @@ class SiteObservation(Versionable, models.Model):
 
         return contents
 
+    @property
+    def virtual_ligand_mol_path(self) -> Path | None:
+        """Absolute path of virtual_ligand_mol, or None when it is unset.
+
+        The stored value is relative to MEDIA_ROOT - one convention, resolved
+        one way. Migration 0172 normalised the bare basenames migration 0149
+        used to write, so there is nothing here to detect or guess at.
+
+        The file is not guaranteed to exist; callers must handle a missing one.
+        """
+        if not self.virtual_ligand_mol:
+            return None
+
+        # str(), not .name: the field is a FileField but every writer assigns
+        # a plain string to it, so static analysis cannot tell which it is.
+        # Both stringify to the stored path.
+        return Path(settings.MEDIA_ROOT).joinpath(str(self.virtual_ligand_mol))
+
     def get_filename(self):
         """Basename for this observation's uploaded pdb in downloads.
 
