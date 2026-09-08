@@ -940,6 +940,9 @@ class TargetExperimentWriteSerializer(serializers.ModelSerializer):
     target_access_string = serializers.CharField(label='Target Access String')
     file = serializers.FileField()
     sha256checksum = serializers.CharField(required=False)
+    # Optional completed compound-curation spreadsheet resolving the conflicts
+    # the validation step flagged; the loader applies it (or fails safe).
+    curation_file = serializers.FileField(required=False)
 
     def validate(self, data):
         """Verify TAS is correctly formed."""
@@ -950,7 +953,7 @@ class TargetExperimentWriteSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = models.ExperimentUpload
-        fields = ('target_access_string', 'file', 'sha256checksum')
+        fields = ('target_access_string', 'file', 'sha256checksum', 'curation_file')
 
 
 class TargetExperimentValidateSerializer(serializers.ModelSerializer):
@@ -958,6 +961,14 @@ class TargetExperimentValidateSerializer(serializers.ModelSerializer):
     data_version = serializers.CharField(required=False)
     target_name = serializers.CharField(required=False)
     upload_version = serializers.CharField(required=False)
+    # Optional pre-flight compound reconciliation: the uploader may send the
+    # incoming compounds (extracted from meta_aligner.yaml) so the backend can
+    # flag any that conflict with existing rows before the (large) upload. Sent
+    # as JSON; absent for the legacy form-encoded callers.
+    compounds = serializers.ListField(child=serializers.DictField(), required=False)
+    # Optional base64 of a completed compound-curation spreadsheet on a re-run:
+    # the backend applies the decisions and re-checks so a resolved re-run passes.
+    curation_file = serializers.CharField(required=False, allow_blank=True)
 
     def validate(self, data):
         """Verify TAS is correctly formed."""
@@ -973,6 +984,8 @@ class TargetExperimentValidateSerializer(serializers.ModelSerializer):
             'data_version',
             'target_name',
             'upload_version',
+            'compounds',
+            'curation_file',
         )
 
 

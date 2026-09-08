@@ -961,9 +961,6 @@ class DownloadStructures:
         """Add compound sets to download"""
 
         self._logger.info('Processing computed sets...')
-        sdf_root = Path(settings.MEDIA_ROOT).joinpath(
-            settings.COMPUTED_SET_MEDIA_DIRECTORY
-        )
         for cset in target.computedset_set.all():
             archive_path = Path('virtual_hits').joinpath(cset.submitted_sdf.name)
             buff = StringIO()
@@ -981,8 +978,41 @@ class DownloadStructures:
                 self._logger.debug(
                     'Processing computed observation (%s)...', so.virtual_name
                 )
-                mol = Chem.MolFromMolFile(sdf_root.joinpath(str(so.virtual_ligand_mol)))
+                # virtual_ligand_mol is MEDIA_ROOT-relative; joining it onto
+                # computed_set_data/ is what raised the OSError in #1025.
+                mol_path = so.virtual_ligand_mol_path
+                if mol_path is None:
+                    # No mol recorded for this observation. A legitimate
+                    # state - there is simply nothing to add to the archive.
+                    self._logger.debug(
+                        'No mol recorded for computed observation (%s)',
+                        so.virtual_name,
+                    )
+                    continue
+
+                if not mol_path.is_file():
+                    # Recorded but absent - that is worth complaining about.
+                    # MolFromMolFile raises OSError, not None, for a missing
+                    # file, so this check has to come first.
+                    self._logger.warning(
+                        'Missing mol file for computed observation (%s), path=%s',
+                        so.virtual_name,
+                        mol_path,
+                    )
+                    continue
+
+                mol = Chem.MolFromMolFile(str(mol_path))
                 self._logger.debug('mol: %s', mol)
+                if mol is None:
+                    # Readable but unparseable. Skip it rather than blow up on
+                    # the SetProp() below.
+                    self._logger.warning(
+                        'Unreadable mol file for computed observation (%s), path=%s',
+                        so.virtual_name,
+                        mol_path,
+                    )
+                    continue
+
                 mol.SetProp('_Name', so.virtual_name or '')
                 for result in so.result_set.filter(computed_set=cset):
                     if result.raw_value is not None:
@@ -992,6 +1022,10 @@ class DownloadStructures:
                         )
 
                 writer.write(mol)
+
+            # SDWriter buffers: without this close() the StringIO is still
+            # empty here and every virtual_hits SDF ships as a 0-byte file.
+            writer.close()
 
             self.write_file(buff.getvalue(), str(Path(archive_path)))
 

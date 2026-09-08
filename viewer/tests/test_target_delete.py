@@ -157,7 +157,9 @@ def test_delete_target_removes_migrated_ligand_mol_files(
 
     ligand_mol = cset_dir / "goner_upload_1_v1072a_ABC-N_TN6H.mol"
     ligand_mol.write_text("mol")
-    obs = SiteObservation.objects.create(virtual_ligand_mol=ligand_mol.name)
+    obs = SiteObservation.objects.create(
+        virtual_ligand_mol=f"{settings.COMPUTED_SET_MEDIA_DIRECTORY}/{ligand_mol.name}"
+    )
     ComputedSetSiteObservation.objects.create(
         computed_set=computed_set, site_observation=obs
     )
