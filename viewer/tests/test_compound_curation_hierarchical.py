@@ -750,3 +750,60 @@ def test_too_many_survivors_reports_the_other_reason():
     (reason,) = [u.reason for u in plan.unresolved]
     assert "2 of them are marked KEEP" in reason
     assert "leave no compound" not in reason
+
+
+def test_the_sheet_shows_which_crystals_an_existing_compound_came_from():
+    """The crystal column is written, locked, and does not disturb the rest.
+
+    It is informational: the curator needs to trace a flagged row back to its
+    source data. It is deliberately not a CONTENT_FIELD, so it is neither
+    mergeable nor a thing that can conflict, and nothing reads it back.
+    """
+    payload = [
+        {
+            "inchi_key": "KEY-1",
+            "status": "ambiguous",
+            "incoming": {"smiles": "CCO", "compound_code": "NEW-1"},
+            "existing": [
+                {
+                    "id": 11,
+                    "inchi_key": "KEY-1",
+                    "crystal": "A71EV2A-x0152, A71EV2A-x0999",
+                    "smiles": "CCO",
+                    "compound_code": "OLD-1",
+                },
+                {
+                    "id": 12,
+                    "inchi_key": "KEY-1",
+                    "crystal": "A71EV2A-x0200",
+                    "smiles": "CCO",
+                    "compound_code": "OLD-2",
+                },
+            ],
+            "conflicts": {},
+        }
+    ]
+
+    data = build_curation_xlsx(payload, target_name="A71EV2A")
+    ws = load_workbook(io.BytesIO(data))[SHEET]
+
+    cols, seen = {}, {}
+    for row in ws.iter_rows():
+        if row[0].value == "id":
+            cols = {c.value: c.column for c in row if c.value}
+            continue
+        if row[0].value in (11, 12):
+            seen[row[0].value] = ws.cell(row[0].row, cols["crystal"])
+
+    assert set(seen) == {11, 12}
+    assert seen[11].value == "A71EV2A-x0152, A71EV2A-x0999"
+    assert seen[12].value == "A71EV2A-x0200"
+    # locked, like the other identity columns - it is not a decision
+    assert seen[11].protection.locked
+
+    # the identity columns still land where the header says, not at a fixed offset
+    for row in ws.iter_rows():
+        if row[0].value == 11:
+            assert ws.cell(row[0].row, cols["smiles"]).value == "CCO"
+            assert ws.cell(row[0].row, cols["compound_code"]).value == "OLD-1"
+            break

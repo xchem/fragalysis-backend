@@ -1,6 +1,8 @@
 """Tests for viewer.compound_reconciliation - the shared compound-matching used
 by both the upload validation endpoint and the target loader."""
 
+# pylint: disable=unused-argument
+
 import pytest
 
 from viewer.compound_reconciliation import (
@@ -131,3 +133,38 @@ def test_curation_payload_shape():
     assert entry["conflicts"]["compound_code"] == {"existing": "OLD", "incoming": "NEW"}
     assert entry["incoming"]["compound_code"] == "NEW"
     assert entry["existing"][0]["compound_code"] == "OLD"
+
+
+def test_existing_compounds_carry_their_crystals(db, make_project):
+    """The curation sheet names the crystals an existing compound came from.
+
+    A curator looking at a conflict needs to get back to the source data, and
+    the compound row alone does not say which crystal it arrived on.
+    """
+    from django.contrib.auth.models import User
+
+    from viewer.models import Experiment, ExperimentCompound, ExperimentUpload, Target
+
+    project = make_project("proposal")
+    target = Target.objects.create(title="Xtals", project=project)
+    user = User.objects.create_user(username="curator")
+    upload = ExperimentUpload.objects.create(
+        project=project,
+        target=target,
+        committer=user,
+        commit_datetime="2026-01-01T00:00:00Z",
+        upload_version=1,
+    )
+    compound = Compound.objects.create(
+        smiles=ETHANOL, inchi_key=inchi_key_for_smiles(ETHANOL), project=project
+    )
+    # Soaked into two crystals; both are listed, in a stable order rather than
+    # whatever the database happens to return.
+    for code in ("Xtals-x0002", "Xtals-x0001"):
+        experiment = Experiment.objects.create(experiment_upload=upload, code=code)
+        ExperimentCompound.objects.create(experiment=experiment, compound=compound)
+
+    result = reconcile_compounds(project, [{"smiles": ETHANOL}])
+    existing = result.matches[0].as_payload()["existing"][0]
+
+    assert existing["crystal"] == "Xtals-x0001, Xtals-x0002"
