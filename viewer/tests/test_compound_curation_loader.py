@@ -7,7 +7,7 @@ exercised by the loader integration test; here we cover the gate's decisions
 supplied a completed curation spreadsheet).
 """
 
-# pylint: disable=protected-access,redefined-outer-name
+# pylint: disable=protected-access,redefined-outer-name,unused-argument
 
 import logging
 
@@ -54,6 +54,7 @@ def _loader(project, curation_file=None):
     tl._compound_resolution = {}
     tl._compound_supersede = {}
     tl._compound_keys = {}
+    tl._compound_pk_watermark = 0
     tl.target = None
     return tl
 
@@ -223,3 +224,103 @@ def test_pk_lookup_returns_none_when_the_row_really_is_gone():
     existing.delete()
 
     assert _row_named_by_pk(_processed({"id": missing})) is None
+
+
+# --------------------------------------------------------------------------- #
+# Within-load deduplication
+# --------------------------------------------------------------------------- #
+
+
+class _Meta:
+    """Stand-in for MetadataObject: process_compound only reads ``.new``."""
+
+    def __init__(self, new=True):
+        self.new = new
+
+
+def _process(tl, experiments, item):
+    """Call process_compound's undecorated body.
+
+    ``@create_objects`` wraps it into a whole-yaml-block driver; what is under
+    test is the single-item decision it returns.
+    """
+    # functools.wraps keeps the undecorated body here; pylint cannot see it.
+    inner = TargetLoader.process_compound.__wrapped__  # pylint: disable=no-member
+    return inner(tl, experiments=experiments, item_data=item)
+
+
+def _item(crystal, smiles, compound_code):
+    """An item_data tuple shaped as the create_objects flattener produces it."""
+    return (
+        crystal,
+        "crystallographic_files",
+        "ligand_cif",
+        "ligands",
+        "LIG",
+        {"smiles": smiles, "compound_code": compound_code},
+    )
+
+
+def test_same_compound_in_two_crystals_reuses_one_row(db, make_project):
+    """A second crystal carrying the same compound must not make a second row.
+
+    The gate reconciles against the database as it stood *before* the load, so a
+    compound this load has just created is invisible to it. Left alone, the same
+    molecule soaked into N crystals produced N identical Compound rows - and
+    every later upload was then permanently ambiguous, because reconciliation
+    cannot choose between identical rows. Measured on a real six-upload target:
+    one clean load of A71EV2A produced 37 duplicated InChI keys.
+    """
+    project = make_project("proposal")
+    tl = _loader(project)
+    experiments = {"Xtal-1": _Meta(), "Xtal-2": _Meta()}
+
+    first = _process(tl, experiments, _item("Xtal-1", ETHANOL, "CODE-1"))
+    # Nothing to reuse yet, so the loader is told to create.
+    assert first.fields == {}
+
+    # Stand in for create_objects having created that row.
+    created = Compound.objects.create(**first.defaults)
+
+    second = _process(tl, experiments, _item("Xtal-2", ETHANOL, "CODE-1"))
+    assert second.fields == {"id": created.pk}
+    assert _row_named_by_pk(second) == created
+
+
+def test_a_different_compound_code_is_left_for_curation(db, make_project):
+    """The same structure under another code is a curation decision, not a dupe.
+
+    ``viewer.compound_dedup`` groups exact duplicates by
+    (project, inchi_key, smiles, compound_code); anything short of that carries
+    information one row does not have, so the loader must not silently collapse
+    it.
+    """
+    project = make_project("proposal")
+    tl = _loader(project)
+    experiments = {"Xtal-1": _Meta(), "Xtal-2": _Meta()}
+
+    first = _process(tl, experiments, _item("Xtal-1", ETHANOL, "CODE-1"))
+    Compound.objects.create(**first.defaults)
+
+    second = _process(tl, experiments, _item("Xtal-2", ETHANOL, "CODE-2"))
+    assert second.fields == {}
+
+
+def test_compounds_from_earlier_loads_are_left_to_the_gate(db, make_project):
+    """Only rows created by THIS load are reused; older ones stay the gate's job.
+
+    An ambiguity that predates the load is exactly what the curation gate exists
+    to resolve, and quietly reusing one of the candidates here would pre-empt a
+    decision the user is supposed to make.
+    """
+    project = make_project("proposal")
+    tl = _loader(project)
+    experiments = {"Xtal-1": _Meta()}
+
+    probe = _process(tl, experiments, _item("Xtal-1", ETHANOL, "CODE-1"))
+    earlier = Compound.objects.create(**probe.defaults)
+    # The gate ran after that row existed.
+    tl._compound_pk_watermark = earlier.pk
+
+    again = _process(tl, experiments, _item("Xtal-1", ETHANOL, "CODE-1"))
+    assert again.fields == {}
