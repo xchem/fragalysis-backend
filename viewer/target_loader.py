@@ -1712,7 +1712,7 @@ class TargetLoader:
             index_data=index_data,
             key=canon_site_id,
             versioned_key=v_canon_site_id,
-            supersede_fields=fields,
+            supersede_fields={k: fields[k] for k in CanonSite.SUPERSEDE_FIELDS},
             defaults=defaults,
         )
 
@@ -1757,10 +1757,7 @@ class TargetLoader:
             "version": version,
         }
 
-        supersede_fields = {
-            "name": conf_site_name,
-            "canon_site": canon_site,
-        }
+        supersede_fields = {k: fields[k] for k in CanonSiteConf.SUPERSEDE_FIELDS}
 
         defaults = {
             "residues": residues,
@@ -1833,11 +1830,7 @@ class TargetLoader:
             "version": version,
         }
 
-        supersede_fields = {
-            "xtalform_site_id": xtalform_site_name,
-            "xtalform": xtalform,
-            "canon_site": canon_site,
-        }
+        supersede_fields = {k: fields[k] for k in XtalformSite.SUPERSEDE_FIELDS}
 
         defaults = {
             "lig_chain": lig_chain,
@@ -1923,9 +1916,13 @@ class TargetLoader:
 
         experiment = experiments[experiment_id].instance
 
-        longcode = f"{experiment.code}_{chain}_{str(ligand)}_{altloc}_v{str(version)}"
         key = f"{experiment.code}/{chain}/{str(ligand)}/{altloc}"
         v_key = f"{experiment.code}/{chain}/{str(ligand)}/{altloc}/{version}"
+        # The longcode is the versioned key with '/' swapped for '_' and the
+        # version prefixed with 'v'. Derived rather than spelled out a second
+        # time so viewer.upload_delete, which reads the same meta_aligner.yaml
+        # path to find these rows again, cannot drift from it.
+        longcode = longcode_from_tag(v_key)
 
         smiles = extract(key="ligand_smiles_string")
         ligand_name = extract(key="ligand_name")
@@ -2030,13 +2027,7 @@ class TargetLoader:
             "altloc": altloc,
         }
 
-        supersede_fields = {
-            "experiment": experiment,
-            "cmpd": compound,
-            "seq_id": ligand,
-            "chain_id": chain,
-            "altloc": altloc,
-        }
+        supersede_fields = {k: fields[k] for k in SiteObservation.SUPERSEDE_FIELDS}
 
         # smiles removed from check fields aand removed to defaults as
         # part of 1670
