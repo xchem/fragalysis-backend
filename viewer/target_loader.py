@@ -309,6 +309,24 @@ def _validate_bundle_against_mode(config_yaml: Dict[str, Any]) -> Optional[str]:
     return None
 
 
+def _supersede_values(model, fields, defaults) -> dict:
+    """Values for a model's supersede identity, wherever each field lives.
+
+    ``SUPERSEDE_FIELDS`` names what makes two rows "the same object, a later
+    version". That is not the same question as what identifies a row for lookup,
+    and the two can draw on different dicts: ``SiteObservation.cmpd`` is content
+    rather than identity - curation exists to correct it, and treating it as
+    identity made a curated compound spawn duplicate observations - yet two
+    versions of an observation still share it.
+
+    Looking in both dicts keeps the model's declaration the single source of
+    truth, so moving a field between identity and content cannot silently break
+    superseding. A name in neither is a genuine mistake and raises KeyError.
+    """
+    available = {**fields, **defaults}
+    return {name: available[name] for name in model.SUPERSEDE_FIELDS}
+
+
 def _row_named_by_pk(instance_data):
     """The row an explicit primary key in ``fields`` refers to, or None.
 
@@ -1712,7 +1730,7 @@ class TargetLoader:
             index_data=index_data,
             key=canon_site_id,
             versioned_key=v_canon_site_id,
-            supersede_fields=fields,
+            supersede_fields=_supersede_values(CanonSite, fields, defaults),
             defaults=defaults,
         )
 
@@ -1757,11 +1775,6 @@ class TargetLoader:
             "version": version,
         }
 
-        supersede_fields = {
-            "name": conf_site_name,
-            "canon_site": canon_site,
-        }
-
         defaults = {
             "residues": residues,
         }
@@ -1781,7 +1794,7 @@ class TargetLoader:
             index_data=index_fields,
             key=conf_site_name,
             versioned_key=v_conf_site_name,
-            supersede_fields=supersede_fields,
+            supersede_fields=_supersede_values(CanonSiteConf, fields, defaults),
             defaults=defaults,
         )
 
@@ -1833,12 +1846,6 @@ class TargetLoader:
             "version": version,
         }
 
-        supersede_fields = {
-            "xtalform_site_id": xtalform_site_name,
-            "xtalform": xtalform,
-            "canon_site": canon_site,
-        }
-
         defaults = {
             "lig_chain": lig_chain,
             "residues": residues,
@@ -1854,7 +1861,7 @@ class TargetLoader:
             defaults=defaults,
             key=xtalform_site_name,
             versioned_key=v_xtalform_site_name,
-            supersede_fields=supersede_fields,
+            supersede_fields=_supersede_values(XtalformSite, fields, defaults),
             index_data=index_data,
         )
 
@@ -1923,9 +1930,13 @@ class TargetLoader:
 
         experiment = experiments[experiment_id].instance
 
-        longcode = f"{experiment.code}_{chain}_{str(ligand)}_{altloc}_v{str(version)}"
         key = f"{experiment.code}/{chain}/{str(ligand)}/{altloc}"
         v_key = f"{experiment.code}/{chain}/{str(ligand)}/{altloc}/{version}"
+        # The longcode is the versioned key with '/' swapped for '_' and the
+        # version prefixed with 'v'. Derived rather than spelled out a second
+        # time so viewer.upload_delete, which reads the same meta_aligner.yaml
+        # path to find these rows again, cannot drift from it.
+        longcode = longcode_from_tag(v_key)
 
         smiles = extract(key="ligand_smiles_string")
         ligand_name = extract(key="ligand_name")
@@ -2030,14 +2041,6 @@ class TargetLoader:
             "altloc": altloc,
         }
 
-        supersede_fields = {
-            "experiment": experiment,
-            "cmpd": compound,
-            "seq_id": ligand,
-            "chain_id": chain,
-            "altloc": altloc,
-        }
-
         # smiles removed from check fields aand removed to defaults as
         # part of 1670
         # longcode removed as part of 1672, because broke superseding
@@ -2091,7 +2094,7 @@ class TargetLoader:
             defaults=defaults,
             key=key,
             versioned_key=v_key,
-            supersede_fields=supersede_fields,
+            supersede_fields=_supersede_values(SiteObservation, fields, defaults),
             index_data={'mol': mol},
         )
 
