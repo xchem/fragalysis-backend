@@ -77,6 +77,10 @@ class CompoundMatch:
     incoming: dict  # CONTENT_FIELDS -> supplied value
     status: MatchStatus
     existing: list  # list[ExistingCompound]
+    # Crystals the incoming compound arrived on, for the curation sheet. Kept
+    # beside `incoming` rather than inside it so it cannot be mistaken for a
+    # content field - it is never merged, compared or written to a Compound.
+    crystals: list = field(default_factory=list)
     # field -> {"existing": ..., "incoming": ...}, only for a CONFLICT (1 match)
     conflicts: dict = field(default_factory=dict)
 
@@ -84,7 +88,7 @@ class CompoundMatch:
         return {
             "inchi_key": self.inchi_key,
             "status": self.status.value,
-            "incoming": self.incoming,
+            "incoming": {**self.incoming, "crystal": ", ".join(self.crystals)},
             "existing": [
                 {
                     "id": e.id,
@@ -135,6 +139,21 @@ def _field_conflicts(existing: Compound, incoming: dict) -> dict:
         if _present(ev) and _present(iv) and ev != iv:
             out[f] = {"existing": ev, "incoming": iv}
     return out
+
+
+def _crystals_of(incoming: dict) -> list:
+    """Crystal codes on an incoming compound, however the sender spelled them.
+
+    The uploader sends a list under ``crystals``; a comma-joined ``crystal``
+    string is accepted too so a sheet or payload round-tripped through the
+    spreadsheet still reads back.
+    """
+    value = incoming.get("crystals")
+    if value is None:
+        value = incoming.get("crystal")
+    if isinstance(value, str):
+        return sorted({part.strip() for part in value.split(",") if part.strip()})
+    return sorted({str(v) for v in (value or ()) if v})
 
 
 def reconcile_compounds(project, incoming_compounds) -> ReconciliationResult:
@@ -198,6 +217,7 @@ def reconcile_compounds(project, incoming_compounds) -> ReconciliationResult:
                 status=status,
                 existing=existing_recs,
                 conflicts=conflicts,
+                crystals=_crystals_of(inc),
             )
         )
 

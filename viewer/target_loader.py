@@ -1071,6 +1071,10 @@ class TargetLoader:
         authoritative reconciliation sees the same compounds. Deduplicates by
         the stable row id (same inchi-key basis) and skips ligands with no
         smiles (they cannot be keyed).
+
+        Each entry also carries the crystals it was found on. That is what the
+        curation sheet shows the curator so a flagged compound can be traced
+        back to its source data; it plays no part in reconciliation itself.
         """
         fields = (
             "smiles",
@@ -1082,8 +1086,8 @@ class TargetLoader:
             "soaked_smiles_canon",
         )
         compounds: list[dict] = []
-        seen: set = set()
-        for xtal in (crystals or {}).values():
+        by_key: dict = {}
+        for code, xtal in (crystals or {}).items():
             if not isinstance(xtal, dict):
                 continue
             ligands = (
@@ -1095,11 +1099,19 @@ class TargetLoader:
                 if not isinstance(ligand, dict) or not ligand.get("smiles"):
                     continue
                 entry = {f: ligand[f] for f in fields if ligand.get(f) is not None}
+                # Keyed on the compound fields alone, before the crystal is
+                # added, so collecting crystals cannot change what counts as a
+                # duplicate. The same compound soaked into several crystals
+                # stays one entry and gains a second crystal name.
                 key = tuple(sorted(entry.items()))
-                if key in seen:
+                if key in by_key:
+                    by_key[key]["crystals"].append(code)
                     continue
-                seen.add(key)
+                entry["crystals"] = [code]
+                by_key[key] = entry
                 compounds.append(entry)
+        for entry in compounds:
+            entry["crystals"] = sorted(set(entry["crystals"]))
         return compounds
 
     def _reconcile_compounds_gate(self, crystals: dict) -> None:

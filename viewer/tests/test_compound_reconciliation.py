@@ -168,3 +168,34 @@ def test_existing_compounds_carry_their_crystals(db, make_project):
     existing = result.matches[0].as_payload()["existing"][0]
 
     assert existing["crystal"] == "Xtals-x0001, Xtals-x0002"
+
+
+def test_incoming_compounds_carry_their_crystals(db, make_project):
+    """The incoming row names the crystals the compound arrived on.
+
+    This is the one that matters to a curator: the existing rows may be shared
+    across many crystals, but the incoming compound is the thing being decided
+    about, and its crystal is how they find it in the bundle.
+    """
+    project = make_project("proposal")
+
+    result = reconcile_compounds(
+        project, [{"smiles": ETHANOL, "crystals": ["Xtals-x0002", "Xtals-x0001"]}]
+    )
+
+    assert result.matches[0].as_payload()["incoming"]["crystal"] == (
+        "Xtals-x0001, Xtals-x0002"
+    )
+
+
+def test_a_comma_joined_crystal_string_is_accepted(db, make_project):
+    """Whatever the sender spelled: a list, or the sheet's own joined string."""
+    project = make_project("proposal")
+
+    result = reconcile_compounds(
+        project, [{"smiles": ETHANOL, "crystal": "Xtals-x0002, Xtals-x0001"}]
+    )
+
+    assert result.matches[0].as_payload()["incoming"]["crystal"] == (
+        "Xtals-x0001, Xtals-x0002"
+    )

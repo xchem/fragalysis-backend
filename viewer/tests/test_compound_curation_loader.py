@@ -71,7 +71,38 @@ def _existing(project, code="OLD"):
 
 def test_extract_incoming_compounds_pure():
     assert TargetLoader._extract_incoming_compounds(CRYSTALS) == [
-        {"smiles": ETHANOL, "compound_code": "NEW"}
+        {"smiles": ETHANOL, "compound_code": "NEW", "crystals": ["Xtal-1"]}
+    ]
+
+
+def test_extract_incoming_compounds_collects_every_crystal():
+    """One compound in several crystals stays one entry and lists them all.
+
+    The crystals are what the curation sheet shows, so a curator can trace a
+    flagged compound back to its source data. Collecting them must not change
+    what counts as a duplicate: the dedup key is the compound fields alone.
+    """
+    crystals = {
+        "Xtal-2": CRYSTALS["Xtal-1"],
+        "Xtal-1": CRYSTALS["Xtal-1"],
+        "Xtal-3": {
+            "crystallographic_files": {
+                "ligand_cif": {
+                    "ligands": {"LIG": {"smiles": "CCN", "compound_code": "OTHER"}}
+                }
+            }
+        },
+    }
+
+    result = TargetLoader._extract_incoming_compounds(crystals)
+
+    assert result == [
+        {
+            "smiles": ETHANOL,
+            "compound_code": "NEW",
+            "crystals": ["Xtal-1", "Xtal-2"],
+        },
+        {"smiles": "CCN", "compound_code": "OTHER", "crystals": ["Xtal-3"]},
     ]
 
 
