@@ -199,3 +199,43 @@ def test_a_comma_joined_crystal_string_is_accepted(db, make_project):
     assert result.matches[0].as_payload()["incoming"]["crystal"] == (
         "Xtals-x0001, Xtals-x0002"
     )
+
+
+def test_compounds_without_crystals_reconcile_normally(db, make_project):
+    """An uploader that does not send crystals is not an error, just a blank column.
+
+    Fragalysis and XCA are deployed independently, so the backend must accept
+    the older payload shape for as long as it is out there.
+    """
+    project = make_project("proposal")
+    existing = Compound.objects.create(
+        smiles=ETHANOL,
+        inchi_key=inchi_key_for_smiles(ETHANOL),
+        compound_code="OLD",
+        project=project,
+    )
+
+    result = reconcile_compounds(project, [{"smiles": ETHANOL, "compound_code": "NEW"}])
+    payload = result.matches[0].as_payload()
+
+    # classified as it always was ...
+    assert result.matches[0].status is MatchStatus.CONFLICT
+    assert payload["existing"][0]["id"] == existing.pk
+    # ... with the crystal simply empty on both sides
+    assert payload["incoming"]["crystal"] == ""
+    assert payload["existing"][0]["crystal"] == ""
+
+
+def test_an_empty_or_null_crystal_value_is_tolerated(db, make_project):
+    """Whatever an intermediate uploader version happens to send."""
+    project = make_project("proposal")
+
+    variants: tuple[dict, ...] = (
+        {},
+        {"crystals": None},
+        {"crystal": ""},
+        {"crystals": []},
+    )
+    for value in variants:
+        result = reconcile_compounds(project, [{"smiles": ETHANOL, **value}])
+        assert result.matches[0].as_payload()["incoming"]["crystal"] == ""

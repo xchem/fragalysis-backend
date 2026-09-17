@@ -807,3 +807,78 @@ def test_the_sheet_shows_which_crystals_an_existing_compound_came_from():
             assert ws.cell(row[0].row, cols["smiles"]).value == "CCO"
             assert ws.cell(row[0].row, cols["compound_code"]).value == "OLD-1"
             break
+
+
+def _legacy_payload():
+    """A reconciliation payload as an uploader that knows nothing of crystals sends it.
+
+    No "crystal" key anywhere - not on the incoming compound, not on the
+    existing rows.
+    """
+    return [
+        {
+            "inchi_key": "KEY-1",
+            "status": "ambiguous",
+            "incoming": {
+                "smiles": "CCO",
+                "compound_code": "NEW-1",
+                "ligand_name": "LIG",
+            },
+            "existing": [
+                {
+                    "id": 21,
+                    "inchi_key": "KEY-1",
+                    "smiles": "CCO",
+                    "compound_code": "OLD-1",
+                },
+                {
+                    "id": 22,
+                    "inchi_key": "KEY-1",
+                    "smiles": "CCO",
+                    "compound_code": "OLD-2",
+                },
+            ],
+            "conflicts": {},
+        }
+    ]
+
+
+def test_a_payload_without_crystals_still_builds_a_sheet():
+    """An uploader that predates the crystal column must keep working.
+
+    Fragalysis and XCA roll out independently, so for a while the backend will
+    be asked to build sheets from payloads carrying no crystal at all. The
+    column is present but empty; nothing else about the sheet changes.
+    """
+    ws = load_workbook(io.BytesIO(build_curation_xlsx(_legacy_payload())))[SHEET]
+
+    cols = {}
+    rows = {}
+    for row in ws.iter_rows():
+        if row[0].value == "id":
+            cols = {c.value: c.column for c in row if c.value}
+            continue
+        rows[row[0].value] = row[0].row
+
+    assert "crystal" in cols
+    for marker in (21, 22, ROW_MARKER_INCOMING):
+        assert ws.cell(rows[marker], cols["crystal"]).value in (None, "")
+    # the identity columns still carry what they should
+    assert ws.cell(rows[21], cols["compound_code"]).value == "OLD-1"
+    assert ws.cell(rows[ROW_MARKER_INCOMING], cols["smiles"]).value == "CCO"
+
+
+def test_a_sheet_from_a_crystal_less_payload_round_trips():
+    """And the decisions made on that sheet still resolve."""
+    payload = _legacy_payload()
+    data = build_curation_xlsx(payload)
+    # keep one existing row, retire the other, fold the incoming compound in
+    data = _edit(data, 21, action="KEEP")
+    data = _edit(data, 22, action="DELETE")
+    data = _edit(data, INCOMING_ROW, action="")
+
+    plan = resolve_curation(payload, parse_curation_xlsx(data))
+
+    assert plan.ok, [u.reason for u in plan.unresolved]
+    assert plan.actions[0].existing_id == 21
+    assert plan.actions[0].superseded_ids == [22]

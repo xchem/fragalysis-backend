@@ -9,11 +9,17 @@ supplied a completed curation spreadsheet).
 
 # pylint: disable=protected-access,redefined-outer-name,unused-argument
 
+import io
 import logging
 
 import pytest
+from openpyxl import load_workbook
 
-from viewer.compound_curation import build_curation_xlsx
+from viewer.compound_curation import (
+    auto_merge_non_conflicting_compounds,
+    build_curation_xlsx,
+    needs_curation,
+)
 from viewer.compound_reconciliation import inchi_key_for_smiles, reconcile_compounds
 from viewer.models import Compound, Project, SiteObservation
 from viewer.target_loader import ProcessedObject, TargetLoader, _row_named_by_pk
@@ -355,3 +361,39 @@ def test_compounds_from_earlier_loads_are_left_to_the_gate(db, make_project):
 
     again = _process(tl, experiments, _item("Xtal-1", ETHANOL, "CODE-1"))
     assert again.fields == {}
+
+
+@pytest.mark.django_db
+def test_validation_chain_survives_an_uploader_that_sends_no_crystals():
+    """The exact sequence UploadTargetExperimentsValidate runs, on a legacy payload.
+
+    Fragalysis and XCA are released separately, so a backend carrying the
+    crystal column will be asked to reconcile payloads that predate it. The
+    whole chain - reconcile, auto-merge, filter, render - has to come through
+    with the column simply blank.
+    """
+    project = Project.objects.create(title="lb-1")
+    _existing(project)
+
+    # No "crystals" key: what an older uploader sends.
+    compounds = [{"smiles": ETHANOL, "compound_code": "NEW"}]
+
+    reconciliation = reconcile_compounds(project, compounds)
+    curation = reconciliation.curation_payload()
+    curation, _stats = auto_merge_non_conflicting_compounds(curation)
+    curation = needs_curation(curation)
+    assert curation, "this payload should still need a decision"
+
+    data = build_curation_xlsx(curation, target_name="Mpro")
+
+    ws = load_workbook(io.BytesIO(data))["Incoming compounds"]
+    cols = {}
+    blanks = 0
+    for row in ws.iter_rows():
+        if row[0].value == "id":
+            cols = {c.value: c.column for c in row if c.value}
+            continue
+        if row[0].value is not None:
+            assert ws.cell(row[0].row, cols["crystal"]).value in (None, "")
+            blanks += 1
+    assert blanks  # rows were actually written
