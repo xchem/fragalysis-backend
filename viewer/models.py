@@ -588,6 +588,14 @@ class Versionable(models.Model):
 
 
 class CanonSite(Versionable, models.Model):
+    #: Fields identifying "the same canon site, a different version". Shared with
+    #: ``viewer.target_loader`` so the loader and ``viewer.upload_delete`` cannot
+    #: drift apart about what supersedes what.
+    #: NB: unlike its siblings this deliberately includes ``version``, mirroring
+    #: the loader, which passes its whole ``fields`` dict. That is why CanonSite is
+    #: excluded from the ``superseded`` recomputation - see ``upload_delete``.
+    SUPERSEDE_FIELDS = ("name", "version")
+
     name = models.TextField()
     residues = models.JSONField(encoder=DjangoJSONEncoder)
     # TODO: missing in db, check if correct, (might be correct, but might not)
@@ -610,6 +618,9 @@ class CanonSite(Versionable, models.Model):
 
 
 class XtalformSite(Versionable, models.Model):
+    #: See :attr:`CanonSite.SUPERSEDE_FIELDS`.
+    SUPERSEDE_FIELDS = ("xtalform_site_id", "xtalform", "canon_site")
+
     xtalform = models.ForeignKey(Xtalform, on_delete=models.CASCADE)
     canon_site = models.ForeignKey(CanonSite, on_delete=models.CASCADE)
     lig_chain = models.CharField(max_length=1)
@@ -637,6 +648,9 @@ class XtalformSite(Versionable, models.Model):
 
 
 class CanonSiteConf(Versionable, models.Model):
+    #: See :attr:`CanonSite.SUPERSEDE_FIELDS`.
+    SUPERSEDE_FIELDS = ("name", "canon_site")
+
     canon_site = models.ForeignKey(CanonSite, on_delete=models.CASCADE)
     # TODO: name not present in metadata atm
     name = models.TextField(null=True)
@@ -681,6 +695,9 @@ class Pose(models.Model):
 
 
 class SiteObservation(Versionable, models.Model):
+    #: See :attr:`CanonSite.SUPERSEDE_FIELDS`.
+    SUPERSEDE_FIELDS = ("experiment", "cmpd", "seq_id", "chain_id", "altloc")
+
     SHORT_UUID_LENGTH: int = 4
 
     code = models.TextField(null=True)
