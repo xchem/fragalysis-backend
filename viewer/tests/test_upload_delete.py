@@ -21,6 +21,7 @@ import yaml
 from django.core.management import call_command
 from django.core.management.base import CommandError
 
+from viewer.media_watcher import PAUSE_PREFIX
 from viewer.models import (
     CanonSite,
     CanonSiteConf,
@@ -1045,3 +1046,38 @@ def test_other_refusals_do_not_suggest_entire_target(make_graph):
         call_command("delete_target", "--title", "Peel", "--latest-upload")
 
     assert "--entire-target" not in str(excinfo.value)
+
+
+def _watcher_markers(media_root) -> list:
+    """Pause markers the media watcher looks for; see viewer.media_watcher."""
+    return sorted(Path(media_root).glob(f"{PAUSE_PREFIX}*"))
+
+
+def test_upload_deletion_suppresses_the_watcher_including_the_media_sweep(
+    make_graph, monkeypatch
+):
+    """The marker must still be in place when the FILES go, not just the rows.
+
+    The media sweep runs after the database transaction commits and removes far
+    more than the transaction does, so a suppression that covered only the
+    transaction would miss the noise it was added for.
+    """
+    graph = make_graph()
+    media_root = graph["media_root"]
+
+    seen = []
+    real = Path.unlink
+
+    def spy(self, *args, **kwargs):
+        seen.append(_watcher_markers(media_root))
+        return real(self, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "unlink", spy)
+
+    delete_latest_upload(graph["uploads"][1])
+
+    assert seen, "no files were removed, so this proves nothing"
+    # every file removal happened while the marker was in place ...
+    assert all(len(m) == 1 for m in seen)
+    # ... and nothing is left behind
+    assert not _watcher_markers(media_root)
