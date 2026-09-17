@@ -12,6 +12,7 @@ from django.core.serializers.json import DjangoJSONEncoder
 from django.core.validators import MinLengthValidator
 from django.db import IntegrityError, models, transaction
 from django.utils import timezone
+from django_cleanup import cleanup
 from pgvector.django import HalfVectorField, HnswIndex
 from shortuuid.django_fields import ShortUUIDField
 from simple_history.models import HistoricalRecords
@@ -307,7 +308,26 @@ class ExperimentStatusType(models.Model):
         ]
 
 
+@cleanup.ignore
 class Experiment(models.Model):
+    """A crystal, and the crystallographic files a target upload supplied for it.
+
+    ``@cleanup.ignore`` is load-bearing. django_cleanup deletes the file behind a
+    FileField as soon as the field's value is replaced, and a re-upload that re-supplies
+    a crystal rewrites ``pdb_info``/``mtz_info``/``cif_info`` from the earlier upload's
+    directory to its own - which silently destroyed the earlier upload's copy. The file
+    is still listed in that upload's ``meta_aligner.yaml``, so the bundle on disk stopped
+    matching its own metadata, and deleting the newer upload could not put the path back
+    to a file that still existed.
+
+    (``map_info`` escaped this only because an ArrayField of FileField is not something
+    django_cleanup tracks, which is why the event maps survived where the pdb did not.)
+
+    Removing these files is therefore the caller's job, and the callers do it:
+    ``viewer.target_delete`` removes the target's whole directory, and
+    ``viewer.upload_delete`` sweeps the directory of the upload it deletes.
+    """
+
     experiment_upload = models.ForeignKey(ExperimentUpload, on_delete=models.CASCADE)
     code = models.TextField(null=True)
     status = models.ForeignKey(
