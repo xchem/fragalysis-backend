@@ -54,6 +54,11 @@ CONFLICT_FIELDS = tuple(f for f in CONTENT_FIELDS if f not in LOCKED_IDENTITY_FI
 # Column headings that are not compound fields.
 ROW_ID_HEADER = "id"
 ACTION_HEADER = "action"
+# The crystals an existing compound was soaked into. Informational only - locked
+# like the other identity columns, never parsed back, and deliberately not a
+# CONTENT_FIELD, so it is neither something to merge nor something that can
+# conflict. It is there so a curator can trace a row back to its source data.
+CRYSTAL_HEADER = "crystal"
 
 # Written into the id column to mark the two synthetic rows of a group. Matched
 # case-insensitively on the way back in.
@@ -84,7 +89,13 @@ def curation_headers() -> list[str]:
     list, and the parser rebuilds the same map from the header row it reads
     back. Neither side hardcodes a column number.
     """
-    return [ROW_ID_HEADER, *LOCKED_IDENTITY_FIELDS, *CONFLICT_FIELDS, ACTION_HEADER]
+    return [
+        ROW_ID_HEADER,
+        CRYSTAL_HEADER,
+        *LOCKED_IDENTITY_FIELDS,
+        *CONFLICT_FIELDS,
+        ACTION_HEADER,
+    ]
 
 
 def _column_map(headers) -> dict:
@@ -437,12 +448,17 @@ def _build_incoming_molecules_sheet(
     # layout stays consistent however CONTENT_FIELDS grows or is reordered.
     headers = curation_headers()
     field_to_col = {f: headers.index(f) + 1 for f in CONFLICT_FIELDS}
+    # Looked up by name like every other column: these used to be written at a
+    # hardcoded column 2, which silently put them in the wrong place the moment
+    # a column was inserted ahead of them.
+    identity_to_col = {f: headers.index(f) + 1 for f in LOCKED_IDENTITY_FIELDS}
     action_col = headers.index(ACTION_HEADER) + 1
 
     # Column widths, keyed the same way. SMILES-ish columns get the wide
     # treatment; the two identity columns have hand-tuned widths.
     fixed_widths = {"inchi_key": 28, "smiles": 50}
     col_widths = {1: 15}  # id
+    col_widths[headers.index(CRYSTAL_HEADER) + 1] = 24
     for name in (*LOCKED_IDENTITY_FIELDS, *CONFLICT_FIELDS):
         col_widths[headers.index(name) + 1] = fixed_widths.get(
             name, 40 if "smiles" in name else 18
@@ -483,10 +499,12 @@ def _build_incoming_molecules_sheet(
         row_num += 1
 
         # Write existing duplicates
+        crystal_col = headers.index(CRYSTAL_HEADER) + 1
         for existing_compound in existing:
             ws.cell(row_num, 1, existing_compound.get("id", ""))
+            ws.cell(row_num, crystal_col, existing_compound.get("crystal", ""))
             # Write locked identity fields
-            for idx, identity_field in enumerate(LOCKED_IDENTITY_FIELDS, start=2):
+            for identity_field, idx in identity_to_col.items():
                 ws.cell(row_num, idx, existing_compound.get(identity_field, ""))
             # Write conflict fields (includes compound_code)
             for name, col_num in field_to_col.items():
@@ -511,11 +529,14 @@ def _build_incoming_molecules_sheet(
         id_cell = ws.cell(row_num, 1, ROW_MARKER_INCOMING)
         id_cell.font = Font(bold=True)
         id_cell.fill = incoming_bg
+        ws.cell(row_num, crystal_col, incoming.get("crystal", "")).fill = incoming_bg
 
         # Write locked identity fields
-        locked_identity_values = [inchi_key, incoming_smiles]
-        for idx, value in enumerate(locked_identity_values, start=2):
-            ws.cell(row_num, idx, value).fill = incoming_bg
+        locked_identity_values = dict(
+            zip(LOCKED_IDENTITY_FIELDS, (inchi_key, incoming_smiles))
+        )
+        for name, value in locked_identity_values.items():
+            ws.cell(row_num, identity_to_col[name], value).fill = incoming_bg
         # Write conflict fields (includes compound_code)
         for name, col_num in field_to_col.items():
             ws.cell(row_num, col_num, incoming.get(name, "")).fill = incoming_bg
@@ -543,10 +564,16 @@ def _build_incoming_molecules_sheet(
         merge_id.fill = _LOCKED_FILL
         merge_id.alignment = Alignment(vertical="top", wrap_text=True)
 
+        merge_crystal = ws.cell(row_num, crystal_col, "")
+        merge_crystal.protection = Protection(locked=True)
+        merge_crystal.fill = _LOCKED_FILL
+
         # Write locked identity fields (inchi_key, smiles - never conflict)
-        locked_identity_values = [inchi_key, incoming_smiles]
-        for idx, value in enumerate(locked_identity_values, start=2):
-            cell = ws.cell(row_num, idx, value)
+        locked_identity_values = dict(
+            zip(LOCKED_IDENTITY_FIELDS, (inchi_key, incoming_smiles))
+        )
+        for name, value in locked_identity_values.items():
+            cell = ws.cell(row_num, identity_to_col[name], value)
             cell.protection = Protection(locked=True)
             cell.fill = _LOCKED_FILL
             cell.font = _GREY_FONT

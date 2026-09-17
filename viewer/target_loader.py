@@ -26,7 +26,7 @@ from django.contrib.auth import get_user_model
 from django.contrib.postgres.aggregates import ArrayAgg
 from django.core.exceptions import MultipleObjectsReturned
 from django.db import IntegrityError, transaction
-from django.db.models import Count, Exists, F, Model, OuterRef, Value
+from django.db.models import Count, Exists, F, Max, Model, OuterRef, Value
 from django.db.models.base import ModelBase
 from django.db.models.functions import Left, Length, Reverse, StrIndex
 from django.utils import timezone
@@ -647,6 +647,12 @@ class TargetLoader:
         # {row_id: (experiment_name, ligand_key)} recorded by process_compound so
         # a newly-created survivor can be found in its output.
         self._compound_keys: dict = {}
+        # Highest Compound pk at the moment the reconciliation gate ran. Rows
+        # above it were created by THIS load and are therefore invisible to the
+        # gate, which reconciled against the database as it was beforehand.
+        # process_compound uses it to reuse a compound this load already made
+        # instead of creating an identical second row.
+        self._compound_pk_watermark: int = 0
 
         self.report = UploadReport(task=task, proposal_ref=self.proposal_ref)
 
@@ -1065,6 +1071,10 @@ class TargetLoader:
         authoritative reconciliation sees the same compounds. Deduplicates by
         the stable row id (same inchi-key basis) and skips ligands with no
         smiles (they cannot be keyed).
+
+        Each entry also carries the crystals it was found on. That is what the
+        curation sheet shows the curator so a flagged compound can be traced
+        back to its source data; it plays no part in reconciliation itself.
         """
         fields = (
             "smiles",
@@ -1076,8 +1086,8 @@ class TargetLoader:
             "soaked_smiles_canon",
         )
         compounds: list[dict] = []
-        seen: set = set()
-        for xtal in (crystals or {}).values():
+        by_key: dict = {}
+        for code, xtal in (crystals or {}).items():
             if not isinstance(xtal, dict):
                 continue
             ligands = (
@@ -1089,11 +1099,19 @@ class TargetLoader:
                 if not isinstance(ligand, dict) or not ligand.get("smiles"):
                     continue
                 entry = {f: ligand[f] for f in fields if ligand.get(f) is not None}
+                # Keyed on the compound fields alone, before the crystal is
+                # added, so collecting crystals cannot change what counts as a
+                # duplicate. The same compound soaked into several crystals
+                # stays one entry and gains a second crystal name.
                 key = tuple(sorted(entry.items()))
-                if key in seen:
+                if key in by_key:
+                    by_key[key]["crystals"].append(code)
                     continue
-                seen.add(key)
+                entry["crystals"] = [code]
+                by_key[key] = entry
                 compounds.append(entry)
+        for entry in compounds:
+            entry["crystals"] = sorted(set(entry["crystals"]))
         return compounds
 
     def _reconcile_compounds_gate(self, crystals: dict) -> None:
@@ -1103,6 +1121,13 @@ class TargetLoader:
         ``process_compound`` consults. Logs an ERROR (which triggers rollback of
         the whole load) for any conflict/ambiguity the user has not resolved.
         """
+        # Everything above this mark is created by this load (see
+        # _compound_pk_watermark). Taken before the early return so it is always
+        # meaningful, even when there is nothing to reconcile.
+        self._compound_pk_watermark = (
+            Compound.objects.aggregate(Max("pk"))["pk__max"] or 0
+        )
+
         incoming = self._extract_incoming_compounds(crystals)
         if not incoming:
             return
@@ -1246,15 +1271,30 @@ class TargetLoader:
             if not doomed:
                 continue
 
-            relinked = self._relink_compound_references(
-                survivor, [c.pk for c in doomed]
-            )
+            # Captured before the delete: Model.delete() sets pk to None, so
+            # reading them afterwards yields a list of Nones - which is also why
+            # this used to log "merged compound(s) [None]".
+            doomed_pks = [c.pk for c in doomed]
+
+            relinked = self._relink_compound_references(survivor, doomed_pks)
             for compound in doomed:
                 compound.delete()
 
+            # process_compound ran before this, so compound_objects may still
+            # hold an instance of a row we have just deleted. Everything
+            # downstream reads its compound from there - the experiment.compounds
+            # link loop right after this, and process_site_observation later - so
+            # a stale instance is re-inserted as a reference to a compound that no
+            # longer exists, and Postgres only notices at COMMIT, reporting a bare
+            # foreign-key violation with nothing to tie it to the upload.
+            stale = set(doomed_pks)
+            for meta in compound_objects.values():
+                if getattr(meta.instance, "pk", None) in stale:
+                    meta.instance = survivor
+
             self.report.log(
                 logging.INFO,
-                f"Curation: merged compound(s) {[c.pk for c in doomed]} into "
+                f"Curation: merged compound(s) {doomed_pks} into "
                 f"{survivor.pk}, relinking {relinked} reference(s).",
             )
 
@@ -1409,6 +1449,38 @@ class TargetLoader:
                     f"compound {action.existing_id}, which is no longer in project "
                     f"{self.project}; creating a new compound instead.",
                 )
+
+        # A compound this load has already created is invisible to the gate,
+        # which reconciled against the database as it stood before the load.
+        # Without this, the same molecule soaked into a second crystal gets a
+        # second, identical Compound row - and every later upload is then
+        # permanently ambiguous about which of the two to reuse, because
+        # reconciliation cannot choose between identical rows.
+        #
+        # Restricted to rows created since the gate ran, so cross-load behaviour
+        # is untouched: an ambiguity that predates this load is still the gate's
+        # to resolve. Keyed exactly as viewer.compound_dedup groups an exact
+        # duplicate - (project, inchi_key, smiles, compound_code) - so this
+        # collapses only rows that carry no information the other does not.
+        if not fields and inchi_key:
+            twin = (
+                Compound.objects.filter(
+                    project=self.project,
+                    inchi_key=inchi_key,
+                    smiles=smiles,
+                    compound_code=compound_code,
+                    pk__gt=self._compound_pk_watermark,
+                )
+                .order_by("pk")
+                .first()
+            )
+            if twin is not None:
+                logger.debug(
+                    "%s: reusing compound %s created earlier in this load",
+                    experiment_name,
+                    twin.pk,
+                )
+                fields = {"id": twin.pk}
 
         return ProcessedObject(
             model_class=Compound,
@@ -1938,12 +2010,19 @@ class TargetLoader:
         ligand_smiles = ligand_smiles_t[0]
         ligand_sdf = ligand_sdf_t[0]
 
+        # What identifies this observation: a crystal, a chain, a ligand, an
+        # altloc, at a version. NOT the compound - that is something the
+        # observation *has*, and curation exists precisely to correct it. While
+        # `cmpd` was part of this lookup, a curation decision that re-pointed an
+        # existing observation's compound made the row unfindable, so the loader
+        # created a second observation for the same physical thing and then
+        # validated its aligned files against the new bundle - which does not
+        # contain them, because they belong to the upload that carried it over.
         fields = {
             # Code for this protein (e.g. Mpro_Nterm-x0029_A_501_0)
             # "longcode": longcode,
             "version": version,
             "experiment": experiment,
-            "cmpd": compound,
             "xtalform_site": xtalform_site,
             "canon_site_conf": canon_site_conf,
             "seq_id": ligand,
@@ -1965,6 +2044,10 @@ class TargetLoader:
 
         defaults = {
             "longcode": longcode,
+            # Content, not identity: an existing observation is found without it
+            # and has it written on, so a curated compound reaches the rows that
+            # already exist instead of spawning duplicates of them.
+            "cmpd": compound,
             "bound_file": self._final_path_or_none(bound_file),
             "apo_solv_file": self._final_path_or_none(apo_solv_file),
             "apo_desolv_file": self._final_path_or_none(apo_desolv_file),

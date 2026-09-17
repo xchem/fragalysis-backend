@@ -1,6 +1,8 @@
 """Tests for viewer.compound_reconciliation - the shared compound-matching used
 by both the upload validation endpoint and the target loader."""
 
+# pylint: disable=unused-argument
+
 import pytest
 
 from viewer.compound_reconciliation import (
@@ -131,3 +133,109 @@ def test_curation_payload_shape():
     assert entry["conflicts"]["compound_code"] == {"existing": "OLD", "incoming": "NEW"}
     assert entry["incoming"]["compound_code"] == "NEW"
     assert entry["existing"][0]["compound_code"] == "OLD"
+
+
+def test_existing_compounds_carry_their_crystals(db, make_project):
+    """The curation sheet names the crystals an existing compound came from.
+
+    A curator looking at a conflict needs to get back to the source data, and
+    the compound row alone does not say which crystal it arrived on.
+    """
+    from django.contrib.auth.models import User
+
+    from viewer.models import Experiment, ExperimentCompound, ExperimentUpload, Target
+
+    project = make_project("proposal")
+    target = Target.objects.create(title="Xtals", project=project)
+    user = User.objects.create_user(username="curator")
+    upload = ExperimentUpload.objects.create(
+        project=project,
+        target=target,
+        committer=user,
+        commit_datetime="2026-01-01T00:00:00Z",
+        upload_version=1,
+    )
+    compound = Compound.objects.create(
+        smiles=ETHANOL, inchi_key=inchi_key_for_smiles(ETHANOL), project=project
+    )
+    # Soaked into two crystals; both are listed, in a stable order rather than
+    # whatever the database happens to return.
+    for code in ("Xtals-x0002", "Xtals-x0001"):
+        experiment = Experiment.objects.create(experiment_upload=upload, code=code)
+        ExperimentCompound.objects.create(experiment=experiment, compound=compound)
+
+    result = reconcile_compounds(project, [{"smiles": ETHANOL}])
+    existing = result.matches[0].as_payload()["existing"][0]
+
+    assert existing["crystal"] == "Xtals-x0001, Xtals-x0002"
+
+
+def test_incoming_compounds_carry_their_crystals(db, make_project):
+    """The incoming row names the crystals the compound arrived on.
+
+    This is the one that matters to a curator: the existing rows may be shared
+    across many crystals, but the incoming compound is the thing being decided
+    about, and its crystal is how they find it in the bundle.
+    """
+    project = make_project("proposal")
+
+    result = reconcile_compounds(
+        project, [{"smiles": ETHANOL, "crystals": ["Xtals-x0002", "Xtals-x0001"]}]
+    )
+
+    assert result.matches[0].as_payload()["incoming"]["crystal"] == (
+        "Xtals-x0001, Xtals-x0002"
+    )
+
+
+def test_a_comma_joined_crystal_string_is_accepted(db, make_project):
+    """Whatever the sender spelled: a list, or the sheet's own joined string."""
+    project = make_project("proposal")
+
+    result = reconcile_compounds(
+        project, [{"smiles": ETHANOL, "crystal": "Xtals-x0002, Xtals-x0001"}]
+    )
+
+    assert result.matches[0].as_payload()["incoming"]["crystal"] == (
+        "Xtals-x0001, Xtals-x0002"
+    )
+
+
+def test_compounds_without_crystals_reconcile_normally(db, make_project):
+    """An uploader that does not send crystals is not an error, just a blank column.
+
+    Fragalysis and XCA are deployed independently, so the backend must accept
+    the older payload shape for as long as it is out there.
+    """
+    project = make_project("proposal")
+    existing = Compound.objects.create(
+        smiles=ETHANOL,
+        inchi_key=inchi_key_for_smiles(ETHANOL),
+        compound_code="OLD",
+        project=project,
+    )
+
+    result = reconcile_compounds(project, [{"smiles": ETHANOL, "compound_code": "NEW"}])
+    payload = result.matches[0].as_payload()
+
+    # classified as it always was ...
+    assert result.matches[0].status is MatchStatus.CONFLICT
+    assert payload["existing"][0]["id"] == existing.pk
+    # ... with the crystal simply empty on both sides
+    assert payload["incoming"]["crystal"] == ""
+    assert payload["existing"][0]["crystal"] == ""
+
+
+def test_an_empty_or_null_crystal_value_is_tolerated(db, make_project):
+    """Whatever an intermediate uploader version happens to send."""
+    project = make_project("proposal")
+
+    variants: tuple[dict, ...] = (
+        {},
+        {"crystals": None},
+        {"crystal": ""},
+        {"crystals": []},
+    )
+    for value in variants:
+        result = reconcile_compounds(project, [{"smiles": ETHANOL, **value}])
+        assert result.matches[0].as_payload()["incoming"]["crystal"] == ""
