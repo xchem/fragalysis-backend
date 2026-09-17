@@ -43,6 +43,7 @@ from django.db.models import Count, Exists, Min, Model, OuterRef, Q
 
 from viewer.cache import clear_view_cache
 from viewer.compound_dedup import _through_compound_fk_attname
+from viewer.media_watcher import deletions_expected
 from viewer.models import (
     CanonSite,
     CanonSiteConf,
@@ -1110,24 +1111,30 @@ def delete_latest_upload(upload: ExperimentUpload) -> UploadDeletionPlan:
     # indistinguishable from one that was already empty.
     candidates = _collect_sweep_candidates(plan.doomed)
 
-    with transaction.atomic():
-        _repoint_experiments(upload, doomed_obs, plan, commit=True)
-        _restore_experiment_files(upload, plan)
-        _repoint_pose_mains(doomed_obs, plan, commit=True)
-        _repoint_relinked_children(plan.doomed, plan, commit=True)
-        _clear_reference_fks(plan.doomed, plan, commit=True)
-        _delete_declared(plan.doomed, plan)
-        _sweep_orphans(target, candidates, plan)
-        plan.restored = restore_superseded(target)
-        upload.delete()
+    # Everything removed from here on was asked for, so keep it out of the media
+    # deletion watcher's log - that watcher exists to catch files vanishing when
+    # nothing should have touched them, and a peel removes thousands at a time.
+    with deletions_expected(f"delete upload {upload.upload_version} of {target.title}"):
+        with transaction.atomic():
+            _repoint_experiments(upload, doomed_obs, plan, commit=True)
+            _restore_experiment_files(upload, plan)
+            _repoint_pose_mains(doomed_obs, plan, commit=True)
+            _repoint_relinked_children(plan.doomed, plan, commit=True)
+            _clear_reference_fks(plan.doomed, plan, commit=True)
+            _delete_declared(plan.doomed, plan)
+            _sweep_orphans(target, candidates, plan)
+            plan.restored = restore_superseded(target)
+            upload.delete()
 
-    # post_delete signals are bypassed by cascade and queryset deletes alike, so the view
-    # cache has to be cleared explicitly - the loader does the same after a load.
-    clear_view_cache("tag", "pose", "site-observation")
+        # post_delete signals are bypassed by cascade and queryset deletes alike, so
+        # the view cache has to be cleared explicitly - the loader does the same after
+        # a load.
+        clear_view_cache("tag", "pose", "site-observation")
 
-    # Files last: the database is already consistent, so a filesystem problem degrades to
-    # debris rather than to rows pointing at things that are gone.
-    _remove_upload_media(upload, plan)
+        # Files last: the database is already consistent, so a filesystem problem
+        # degrades to debris rather than to rows pointing at things that are gone.
+        # Inside the suppression, because this is where the bulk of the removals are.
+        _remove_upload_media(upload, plan)
 
     logger.info(
         "Deleted upload %s of target %s: %s",
