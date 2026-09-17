@@ -16,6 +16,7 @@ from django.db import transaction
 from django.db.models.deletion import ProtectedError
 
 from viewer.media_cleanup import computed_set_file_names, media_subdir
+from viewer.media_watcher import deletions_expected
 from viewer.models import SiteObservation, Target
 
 logger = logging.getLogger(__name__)
@@ -73,36 +74,41 @@ def delete_target(target: Target) -> None:
     target_title = target.title
     logger.info("Deleting target pk=%s title=%s", target_pk, target_title)
 
-    # Collect media paths up front, while the DB rows still exist. Files are only
-    # removed *after* the database transaction commits, so a DB failure can't
-    # leave us with deleted files but live rows.
-    computed_set_files = _computed_set_media_files(target)
-    target_loader_dir = _target_loader_media_dir(target)
+    # Every file removed below is one the caller asked for, so keep it out of
+    # the media deletion watcher's log - a whole target can be thousands of files.
+    with deletions_expected(f"delete_target {target_title} (pk={target_pk})"):
+        # Collect media paths up front, while the DB rows still exist. Files are only
+        # removed *after* the database transaction commits, so a DB failure can't
+        # leave us with deleted files but live rows.
+        computed_set_files = _computed_set_media_files(target)
+        target_loader_dir = _target_loader_media_dir(target)
 
-    with transaction.atomic():
-        try:
-            target.delete()
-        except ProtectedError:
-            # A relation we don't yet handle is still protecting the target.
-            # Surface which objects blocked it so the missing relation can be
-            # added here, rather than failing opaquely.
-            logger.exception(
-                "ProtectedError deleting target pk=%s title=%s", target_pk, target_title
-            )
-            raise
+        with transaction.atomic():
+            try:
+                target.delete()
+            except ProtectedError:
+                # A relation we don't yet handle is still protecting the target.
+                # Surface which objects blocked it so the missing relation can be
+                # added here, rather than failing opaquely.
+                logger.exception(
+                    "ProtectedError deleting target pk=%s title=%s",
+                    target_pk,
+                    target_title,
+                )
+                raise
 
-    # DB rows are gone - now remove the media files.
-    if target_loader_dir is not None:
-        logger.info("Removing target loader directory %s", target_loader_dir)
-        shutil.rmtree(target_loader_dir, ignore_errors=True)
+        # DB rows are gone - now remove the media files.
+        if target_loader_dir is not None:
+            logger.info("Removing target loader directory %s", target_loader_dir)
+            shutil.rmtree(target_loader_dir, ignore_errors=True)
 
-    for file_path in computed_set_files:
-        try:
-            if file_path.is_file():
-                file_path.unlink()
-        except OSError:
-            # A missing or unremovable computed-set file shouldn't fail the whole
-            # deletion - the DB rows are already gone.
-            logger.warning("Could not remove computed set file %s", file_path)
+        for file_path in computed_set_files:
+            try:
+                if file_path.is_file():
+                    file_path.unlink()
+            except OSError:
+                # A missing or unremovable computed-set file shouldn't fail the whole
+                # deletion - the DB rows are already gone.
+                logger.warning("Could not remove computed set file %s", file_path)
 
     logger.info("Deleted target pk=%s title=%s", target_pk, target_title)
