@@ -1271,15 +1271,30 @@ class TargetLoader:
             if not doomed:
                 continue
 
-            relinked = self._relink_compound_references(
-                survivor, [c.pk for c in doomed]
-            )
+            # Captured before the delete: Model.delete() sets pk to None, so
+            # reading them afterwards yields a list of Nones - which is also why
+            # this used to log "merged compound(s) [None]".
+            doomed_pks = [c.pk for c in doomed]
+
+            relinked = self._relink_compound_references(survivor, doomed_pks)
             for compound in doomed:
                 compound.delete()
 
+            # process_compound ran before this, so compound_objects may still
+            # hold an instance of a row we have just deleted. Everything
+            # downstream reads its compound from there - the experiment.compounds
+            # link loop right after this, and process_site_observation later - so
+            # a stale instance is re-inserted as a reference to a compound that no
+            # longer exists, and Postgres only notices at COMMIT, reporting a bare
+            # foreign-key violation with nothing to tie it to the upload.
+            stale = set(doomed_pks)
+            for meta in compound_objects.values():
+                if getattr(meta.instance, "pk", None) in stale:
+                    meta.instance = survivor
+
             self.report.log(
                 logging.INFO,
-                f"Curation: merged compound(s) {[c.pk for c in doomed]} into "
+                f"Curation: merged compound(s) {doomed_pks} into "
                 f"{survivor.pk}, relinking {relinked} reference(s).",
             )
 
@@ -1995,12 +2010,19 @@ class TargetLoader:
         ligand_smiles = ligand_smiles_t[0]
         ligand_sdf = ligand_sdf_t[0]
 
+        # What identifies this observation: a crystal, a chain, a ligand, an
+        # altloc, at a version. NOT the compound - that is something the
+        # observation *has*, and curation exists precisely to correct it. While
+        # `cmpd` was part of this lookup, a curation decision that re-pointed an
+        # existing observation's compound made the row unfindable, so the loader
+        # created a second observation for the same physical thing and then
+        # validated its aligned files against the new bundle - which does not
+        # contain them, because they belong to the upload that carried it over.
         fields = {
             # Code for this protein (e.g. Mpro_Nterm-x0029_A_501_0)
             # "longcode": longcode,
             "version": version,
             "experiment": experiment,
-            "cmpd": compound,
             "xtalform_site": xtalform_site,
             "canon_site_conf": canon_site_conf,
             "seq_id": ligand,
@@ -2022,6 +2044,10 @@ class TargetLoader:
 
         defaults = {
             "longcode": longcode,
+            # Content, not identity: an existing observation is found without it
+            # and has it written on, so a curated compound reaches the rows that
+            # already exist instead of spawning duplicates of them.
+            "cmpd": compound,
             "bound_file": self._final_path_or_none(bound_file),
             "apo_solv_file": self._final_path_or_none(apo_solv_file),
             "apo_desolv_file": self._final_path_or_none(apo_desolv_file),

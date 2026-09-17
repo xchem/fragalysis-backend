@@ -16,13 +16,19 @@ import pytest
 from openpyxl import load_workbook
 
 from viewer.compound_curation import (
+    ResolvedAction,
     auto_merge_non_conflicting_compounds,
     build_curation_xlsx,
     needs_curation,
 )
 from viewer.compound_reconciliation import inchi_key_for_smiles, reconcile_compounds
 from viewer.models import Compound, Project, SiteObservation
-from viewer.target_loader import ProcessedObject, TargetLoader, _row_named_by_pk
+from viewer.target_loader import (
+    MetadataObject,
+    ProcessedObject,
+    TargetLoader,
+    _row_named_by_pk,
+)
 from viewer.tests.curation_sheet_helpers import (
     MERGE_ROW,
     edit_group_row,
@@ -397,3 +403,47 @@ def test_validation_chain_survives_an_uploader_that_sends_no_crystals():
             assert ws.cell(row[0].row, cols["crystal"]).value in (None, "")
             blanks += 1
     assert blanks  # rows were actually written
+
+
+@pytest.mark.django_db
+def test_supersession_repoints_cached_instances_at_the_survivor():
+    """A retired compound must not stay cached in compound_objects.
+
+    process_compound runs before the supersessions, so its output can hold an
+    instance of a row the curation then deletes. Everything downstream reads its
+    compound from that dict - the experiment.compounds link loop immediately
+    after, and process_site_observation later - so a stale instance is written
+    back as a reference to a compound that no longer exists. Postgres defers the
+    check, so it surfaces at COMMIT as a bare foreign-key violation with nothing
+    to tie it to the upload:
+
+        update or delete on table "viewer_compound" violates foreign key
+        constraint ... on table "viewer_experimentcompound"
+
+    Only reachable through MERGE or DELETE: CREATE retires nothing.
+    """
+    project = Project.objects.create(title="lb-1")
+    survivor = _existing(project, code="KEEP-ME")
+    doomed = _existing(project, code="RETIRE-ME")
+    doomed_pk = doomed.pk
+
+    tl = _loader(project)
+    tl._compound_supersede = {
+        "row-1": ResolvedAction(
+            index=0,
+            op="update",
+            existing_id=survivor.pk,
+            incoming={},
+            superseded_ids=[doomed_pk],
+        )
+    }
+    cached = MetadataObject(instance=doomed, key="k", versioned_key="k")
+    compound_objects = {("Xtal-1", "LIG"): cached}
+
+    tl._apply_compound_supersessions(compound_objects)
+
+    assert not Compound.objects.filter(pk=doomed_pk).exists()
+    assert cached.instance.pk == survivor.pk
+    # and the report names the row that went, not the None a deleted instance
+    # reports for its pk
+    assert str(doomed_pk) in " ".join(m for _lvl, m in tl.report.logs)
