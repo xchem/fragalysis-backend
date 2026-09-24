@@ -12,6 +12,7 @@ from django.core.serializers.json import DjangoJSONEncoder
 from django.core.validators import MinLengthValidator
 from django.db import IntegrityError, models, transaction
 from django.utils import timezone
+from django_cleanup import cleanup
 from pgvector.django import HalfVectorField, HnswIndex
 from shortuuid.django_fields import ShortUUIDField
 from simple_history.models import HistoricalRecords
@@ -307,7 +308,26 @@ class ExperimentStatusType(models.Model):
         ]
 
 
+@cleanup.ignore
 class Experiment(models.Model):
+    """A crystal, and the crystallographic files a target upload supplied for it.
+
+    ``@cleanup.ignore`` is load-bearing. django_cleanup deletes the file behind a
+    FileField as soon as the field's value is replaced, and a re-upload that re-supplies
+    a crystal rewrites ``pdb_info``/``mtz_info``/``cif_info`` from the earlier upload's
+    directory to its own - which silently destroyed the earlier upload's copy. The file
+    is still listed in that upload's ``meta_aligner.yaml``, so the bundle on disk stopped
+    matching its own metadata, and deleting the newer upload could not put the path back
+    to a file that still existed.
+
+    (``map_info`` escaped this only because an ArrayField of FileField is not something
+    django_cleanup tracks, which is why the event maps survived where the pdb did not.)
+
+    Removing these files is therefore the caller's job, and the callers do it:
+    ``viewer.target_delete`` removes the target's whole directory, and
+    ``viewer.upload_delete`` sweeps the directory of the upload it deletes.
+    """
+
     experiment_upload = models.ForeignKey(ExperimentUpload, on_delete=models.CASCADE)
     code = models.TextField(null=True)
     status = models.ForeignKey(
@@ -568,6 +588,14 @@ class Versionable(models.Model):
 
 
 class CanonSite(Versionable, models.Model):
+    #: Fields identifying "the same canon site, a different version". Shared with
+    #: ``viewer.target_loader`` so the loader and ``viewer.upload_delete`` cannot
+    #: drift apart about what supersedes what.
+    #: NB: unlike its siblings this deliberately includes ``version``, mirroring
+    #: the loader, which passes its whole ``fields`` dict. That is why CanonSite is
+    #: excluded from the ``superseded`` recomputation - see ``upload_delete``.
+    SUPERSEDE_FIELDS = ("name", "version")
+
     name = models.TextField()
     residues = models.JSONField(encoder=DjangoJSONEncoder)
     # TODO: missing in db, check if correct, (might be correct, but might not)
@@ -590,6 +618,9 @@ class CanonSite(Versionable, models.Model):
 
 
 class XtalformSite(Versionable, models.Model):
+    #: See :attr:`CanonSite.SUPERSEDE_FIELDS`.
+    SUPERSEDE_FIELDS = ("xtalform_site_id", "xtalform", "canon_site")
+
     xtalform = models.ForeignKey(Xtalform, on_delete=models.CASCADE)
     canon_site = models.ForeignKey(CanonSite, on_delete=models.CASCADE)
     lig_chain = models.CharField(max_length=1)
@@ -617,6 +648,9 @@ class XtalformSite(Versionable, models.Model):
 
 
 class CanonSiteConf(Versionable, models.Model):
+    #: See :attr:`CanonSite.SUPERSEDE_FIELDS`.
+    SUPERSEDE_FIELDS = ("name", "canon_site")
+
     canon_site = models.ForeignKey(CanonSite, on_delete=models.CASCADE)
     # TODO: name not present in metadata atm
     name = models.TextField(null=True)
@@ -661,6 +695,9 @@ class Pose(models.Model):
 
 
 class SiteObservation(Versionable, models.Model):
+    #: See :attr:`CanonSite.SUPERSEDE_FIELDS`.
+    SUPERSEDE_FIELDS = ("experiment", "cmpd", "seq_id", "chain_id", "altloc")
+
     SHORT_UUID_LENGTH: int = 4
 
     code = models.TextField(null=True)

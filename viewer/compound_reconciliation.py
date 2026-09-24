@@ -26,7 +26,7 @@ from enum import Enum
 from rdkit import Chem
 
 from viewer.compound_curation import CONTENT_FIELDS
-from viewer.models import Compound
+from viewer.models import Compound, ExperimentCompound
 
 logger = logging.getLogger(__name__)
 
@@ -65,6 +65,10 @@ def _present(value) -> bool:
 class ExistingCompound:
     id: int
     values: dict  # CONTENT_FIELDS -> stored value
+    # Crystals this compound was soaked into, for the curation sheet. Purely
+    # informational: it tells the curator where the row came from so they can go
+    # back to the source data, and is never parsed back or acted on.
+    crystals: list = field(default_factory=list)
 
 
 @dataclass
@@ -73,6 +77,10 @@ class CompoundMatch:
     incoming: dict  # CONTENT_FIELDS -> supplied value
     status: MatchStatus
     existing: list  # list[ExistingCompound]
+    # Crystals the incoming compound arrived on, for the curation sheet. Kept
+    # beside `incoming` rather than inside it so it cannot be mistaken for a
+    # content field - it is never merged, compared or written to a Compound.
+    crystals: list = field(default_factory=list)
     # field -> {"existing": ..., "incoming": ...}, only for a CONFLICT (1 match)
     conflicts: dict = field(default_factory=dict)
 
@@ -80,9 +88,14 @@ class CompoundMatch:
         return {
             "inchi_key": self.inchi_key,
             "status": self.status.value,
-            "incoming": self.incoming,
+            "incoming": {**self.incoming, "crystal": ", ".join(self.crystals)},
             "existing": [
-                {"id": e.id, "inchi_key": self.inchi_key, **e.values}
+                {
+                    "id": e.id,
+                    "inchi_key": self.inchi_key,
+                    "crystal": ", ".join(e.crystals),
+                    **e.values,
+                }
                 for e in self.existing
             ],
             "conflicts": self.conflicts,
@@ -128,6 +141,21 @@ def _field_conflicts(existing: Compound, incoming: dict) -> dict:
     return out
 
 
+def _crystals_of(incoming: dict) -> list:
+    """Crystal codes on an incoming compound, however the sender spelled them.
+
+    The uploader sends a list under ``crystals``; a comma-joined ``crystal``
+    string is accepted too so a sheet or payload round-tripped through the
+    spreadsheet still reads back.
+    """
+    value = incoming.get("crystals")
+    if value is None:
+        value = incoming.get("crystal")
+    if isinstance(value, str):
+        return sorted({part.strip() for part in value.split(",") if part.strip()})
+    return sorted({str(v) for v in (value or ()) if v})
+
+
 def reconcile_compounds(project, incoming_compounds) -> ReconciliationResult:
     """Classify each incoming compound against existing rows in ``project``.
 
@@ -147,12 +175,29 @@ def reconcile_compounds(project, incoming_compounds) -> ReconciliationResult:
         for cmpd in Compound.objects.filter(project=project, inchi_key__in=keys):
             existing_by_key.setdefault(cmpd.inchi_key, []).append(cmpd)
 
+    # Which crystals each candidate came from, in one query rather than per row.
+    # ExperimentCompound is the loader's own record of "this crystal contained
+    # this compound", so it answers the curator's question directly.
+    crystals_by_compound: dict = {}
+    candidate_ids = [c.pk for rows in existing_by_key.values() for c in rows]
+    if candidate_ids:
+        pairs = ExperimentCompound.objects.filter(
+            compound_id__in=candidate_ids
+        ).values_list("compound_id", "experiment__code")
+        for compound_id, code in pairs:
+            if code:
+                crystals_by_compound.setdefault(compound_id, set()).add(code)
+
     matches = []
     for inc, key in prepared:
         incoming_vals = {f: inc.get(f) for f in CONTENT_FIELDS}
         existing = existing_by_key.get(key, []) if key else []
         existing_recs = [
-            ExistingCompound(id=c.pk, values={f: getattr(c, f) for f in CONTENT_FIELDS})
+            ExistingCompound(
+                id=c.pk,
+                values={f: getattr(c, f) for f in CONTENT_FIELDS},
+                crystals=sorted(crystals_by_compound.get(c.pk, ())),
+            )
             for c in existing
         ]
 
@@ -172,6 +217,7 @@ def reconcile_compounds(project, incoming_compounds) -> ReconciliationResult:
                 status=status,
                 existing=existing_recs,
                 conflicts=conflicts,
+                crystals=_crystals_of(inc),
             )
         )
 

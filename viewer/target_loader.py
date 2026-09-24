@@ -8,6 +8,7 @@ import shutil
 import sqlite3
 import subprocess
 import time
+from collections import defaultdict
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from datetime import timedelta
@@ -26,7 +27,7 @@ from django.contrib.auth import get_user_model
 from django.contrib.postgres.aggregates import ArrayAgg
 from django.core.exceptions import MultipleObjectsReturned
 from django.db import IntegrityError, transaction
-from django.db.models import Count, Exists, F, Model, OuterRef, Value
+from django.db.models import Count, Exists, F, Max, Model, OuterRef, Value
 from django.db.models.base import ModelBase
 from django.db.models.functions import Left, Length, Reverse, StrIndex
 from django.utils import timezone
@@ -309,6 +310,24 @@ def _validate_bundle_against_mode(config_yaml: Dict[str, Any]) -> Optional[str]:
     return None
 
 
+def _supersede_values(model, fields, defaults) -> dict:
+    """Values for a model's supersede identity, wherever each field lives.
+
+    ``SUPERSEDE_FIELDS`` names what makes two rows "the same object, a later
+    version". That is not the same question as what identifies a row for lookup,
+    and the two can draw on different dicts: ``SiteObservation.cmpd`` is content
+    rather than identity - curation exists to correct it, and treating it as
+    identity made a curated compound spawn duplicate observations - yet two
+    versions of an observation still share it.
+
+    Looking in both dicts keeps the model's declaration the single source of
+    truth, so moving a field between identity and content cannot silently break
+    superseding. A name in neither is a genuine mistake and raises KeyError.
+    """
+    available = {**fields, **defaults}
+    return {name: available[name] for name in model.SUPERSEDE_FIELDS}
+
+
 def _row_named_by_pk(instance_data):
     """The row an explicit primary key in ``fields`` refers to, or None.
 
@@ -451,11 +470,35 @@ def create_objects(func=None, *, depth=math.inf):
                 created = created + 1
                 # check if old versions exist and mark them as superseded
                 if instance_data.supersede_fields:
-                    superseded = instance_data.model_class.objects.filter(
-                        **instance_data.supersede_fields,
-                    ).exclude(
-                        pk=obj.pk,
+                    # scoped like the existence check above: the four models
+                    # that declare supersede_fields (canon site, canon site
+                    # conf, xtalform site, site observation) all have a
+                    # by_target manager
+                    superseded = (
+                        instance_data.model_class.filter_manager.by_target(
+                            self.target,
+                        )
+                        .filter(
+                            **instance_data.supersede_fields,
+                        )
+                        .exclude(
+                            pk=obj.pk,
+                        )
                     )
+                    # Record the pairing before flagging the rows. This is the
+                    # only moment it is a fact: obj was just created and
+                    # supersede_fields is the model's own identity. Downstream
+                    # (_refresh_poses) it can only be guessed at, because the
+                    # fields it would match on are recomputed upstream between
+                    # uploads. Newest first, so this is the immediate
+                    # predecessor even when a chain is superseded at once.
+                    previous_pk = (
+                        superseded.order_by("-version", "-pk")
+                        .values_list("pk", flat=True)
+                        .first()
+                    )
+                    if previous_pk is not None:
+                        self.supersedes[instance_data.model_class][obj.pk] = previous_pk
                     updated += superseded.update(superseded=True)
 
             else:
@@ -647,6 +690,21 @@ class TargetLoader:
         # {row_id: (experiment_name, ligand_key)} recorded by process_compound so
         # a newly-created survivor can be found in its output.
         self._compound_keys: dict = {}
+        # Highest Compound pk at the moment the reconciliation gate ran. Rows
+        # above it were created by THIS load and are therefore invisible to the
+        # gate, which reconciled against the database as it was beforehand.
+        # process_compound uses it to reuse a compound this load already made
+        # instead of creating an identical second row.
+        self._compound_pk_watermark: int = 0
+
+        # {model_class: {new_pk: superseded_pk}} recorded by create_objects at
+        # the moment a new row supersedes an older one - the only point where
+        # that pairing is known rather than inferred. The fields it derives
+        # from (xtalform_site, canon_site_conf, ...) are recomputed upstream
+        # between uploads, so it cannot be reconstructed afterwards. Only the
+        # immediate predecessor is kept, and only for this upload - nothing
+        # from earlier ones is in here.
+        self.supersedes: dict[ModelBase, dict[int, int]] = defaultdict(dict)
 
         self.report = UploadReport(task=task, proposal_ref=self.proposal_ref)
 
@@ -1065,6 +1123,10 @@ class TargetLoader:
         authoritative reconciliation sees the same compounds. Deduplicates by
         the stable row id (same inchi-key basis) and skips ligands with no
         smiles (they cannot be keyed).
+
+        Each entry also carries the crystals it was found on. That is what the
+        curation sheet shows the curator so a flagged compound can be traced
+        back to its source data; it plays no part in reconciliation itself.
         """
         fields = (
             "smiles",
@@ -1076,8 +1138,8 @@ class TargetLoader:
             "soaked_smiles_canon",
         )
         compounds: list[dict] = []
-        seen: set = set()
-        for xtal in (crystals or {}).values():
+        by_key: dict = {}
+        for code, xtal in (crystals or {}).items():
             if not isinstance(xtal, dict):
                 continue
             ligands = (
@@ -1089,11 +1151,19 @@ class TargetLoader:
                 if not isinstance(ligand, dict) or not ligand.get("smiles"):
                     continue
                 entry = {f: ligand[f] for f in fields if ligand.get(f) is not None}
+                # Keyed on the compound fields alone, before the crystal is
+                # added, so collecting crystals cannot change what counts as a
+                # duplicate. The same compound soaked into several crystals
+                # stays one entry and gains a second crystal name.
                 key = tuple(sorted(entry.items()))
-                if key in seen:
+                if key in by_key:
+                    by_key[key]["crystals"].append(code)
                     continue
-                seen.add(key)
+                entry["crystals"] = [code]
+                by_key[key] = entry
                 compounds.append(entry)
+        for entry in compounds:
+            entry["crystals"] = sorted(set(entry["crystals"]))
         return compounds
 
     def _reconcile_compounds_gate(self, crystals: dict) -> None:
@@ -1103,6 +1173,13 @@ class TargetLoader:
         ``process_compound`` consults. Logs an ERROR (which triggers rollback of
         the whole load) for any conflict/ambiguity the user has not resolved.
         """
+        # Everything above this mark is created by this load (see
+        # _compound_pk_watermark). Taken before the early return so it is always
+        # meaningful, even when there is nothing to reconcile.
+        self._compound_pk_watermark = (
+            Compound.objects.aggregate(Max("pk"))["pk__max"] or 0
+        )
+
         incoming = self._extract_incoming_compounds(crystals)
         if not incoming:
             return
@@ -1246,15 +1323,30 @@ class TargetLoader:
             if not doomed:
                 continue
 
-            relinked = self._relink_compound_references(
-                survivor, [c.pk for c in doomed]
-            )
+            # Captured before the delete: Model.delete() sets pk to None, so
+            # reading them afterwards yields a list of Nones - which is also why
+            # this used to log "merged compound(s) [None]".
+            doomed_pks = [c.pk for c in doomed]
+
+            relinked = self._relink_compound_references(survivor, doomed_pks)
             for compound in doomed:
                 compound.delete()
 
+            # process_compound ran before this, so compound_objects may still
+            # hold an instance of a row we have just deleted. Everything
+            # downstream reads its compound from there - the experiment.compounds
+            # link loop right after this, and process_site_observation later - so
+            # a stale instance is re-inserted as a reference to a compound that no
+            # longer exists, and Postgres only notices at COMMIT, reporting a bare
+            # foreign-key violation with nothing to tie it to the upload.
+            stale = set(doomed_pks)
+            for meta in compound_objects.values():
+                if getattr(meta.instance, "pk", None) in stale:
+                    meta.instance = survivor
+
             self.report.log(
                 logging.INFO,
-                f"Curation: merged compound(s) {[c.pk for c in doomed]} into "
+                f"Curation: merged compound(s) {doomed_pks} into "
                 f"{survivor.pk}, relinking {relinked} reference(s).",
             )
 
@@ -1409,6 +1501,38 @@ class TargetLoader:
                     f"compound {action.existing_id}, which is no longer in project "
                     f"{self.project}; creating a new compound instead.",
                 )
+
+        # A compound this load has already created is invisible to the gate,
+        # which reconciled against the database as it stood before the load.
+        # Without this, the same molecule soaked into a second crystal gets a
+        # second, identical Compound row - and every later upload is then
+        # permanently ambiguous about which of the two to reuse, because
+        # reconciliation cannot choose between identical rows.
+        #
+        # Restricted to rows created since the gate ran, so cross-load behaviour
+        # is untouched: an ambiguity that predates this load is still the gate's
+        # to resolve. Keyed exactly as viewer.compound_dedup groups an exact
+        # duplicate - (project, inchi_key, smiles, compound_code) - so this
+        # collapses only rows that carry no information the other does not.
+        if not fields and inchi_key:
+            twin = (
+                Compound.objects.filter(
+                    project=self.project,
+                    inchi_key=inchi_key,
+                    smiles=smiles,
+                    compound_code=compound_code,
+                    pk__gt=self._compound_pk_watermark,
+                )
+                .order_by("pk")
+                .first()
+            )
+            if twin is not None:
+                logger.debug(
+                    "%s: reusing compound %s created earlier in this load",
+                    experiment_name,
+                    twin.pk,
+                )
+                fields = {"id": twin.pk}
 
         return ProcessedObject(
             model_class=Compound,
@@ -1640,7 +1764,7 @@ class TargetLoader:
             index_data=index_data,
             key=canon_site_id,
             versioned_key=v_canon_site_id,
-            supersede_fields=fields,
+            supersede_fields=_supersede_values(CanonSite, fields, defaults),
             defaults=defaults,
         )
 
@@ -1685,11 +1809,6 @@ class TargetLoader:
             "version": version,
         }
 
-        supersede_fields = {
-            "name": conf_site_name,
-            "canon_site": canon_site,
-        }
-
         defaults = {
             "residues": residues,
         }
@@ -1709,7 +1828,7 @@ class TargetLoader:
             index_data=index_fields,
             key=conf_site_name,
             versioned_key=v_conf_site_name,
-            supersede_fields=supersede_fields,
+            supersede_fields=_supersede_values(CanonSiteConf, fields, defaults),
             defaults=defaults,
         )
 
@@ -1761,12 +1880,6 @@ class TargetLoader:
             "version": version,
         }
 
-        supersede_fields = {
-            "xtalform_site_id": xtalform_site_name,
-            "xtalform": xtalform,
-            "canon_site": canon_site,
-        }
-
         defaults = {
             "lig_chain": lig_chain,
             "residues": residues,
@@ -1782,7 +1895,7 @@ class TargetLoader:
             defaults=defaults,
             key=xtalform_site_name,
             versioned_key=v_xtalform_site_name,
-            supersede_fields=supersede_fields,
+            supersede_fields=_supersede_values(XtalformSite, fields, defaults),
             index_data=index_data,
         )
 
@@ -1851,9 +1964,13 @@ class TargetLoader:
 
         experiment = experiments[experiment_id].instance
 
-        longcode = f"{experiment.code}_{chain}_{str(ligand)}_{altloc}_v{str(version)}"
         key = f"{experiment.code}/{chain}/{str(ligand)}/{altloc}"
         v_key = f"{experiment.code}/{chain}/{str(ligand)}/{altloc}/{version}"
+        # The longcode is the versioned key with '/' swapped for '_' and the
+        # version prefixed with 'v'. Derived rather than spelled out a second
+        # time so viewer.upload_delete, which reads the same meta_aligner.yaml
+        # path to find these rows again, cannot drift from it.
+        longcode = longcode_from_tag(v_key)
 
         smiles = extract(key="ligand_smiles_string")
         ligand_name = extract(key="ligand_name")
@@ -1938,22 +2055,21 @@ class TargetLoader:
         ligand_smiles = ligand_smiles_t[0]
         ligand_sdf = ligand_sdf_t[0]
 
+        # What identifies this observation: a crystal, a chain, a ligand, an
+        # altloc, at a version. NOT the compound - that is something the
+        # observation *has*, and curation exists precisely to correct it. While
+        # `cmpd` was part of this lookup, a curation decision that re-pointed an
+        # existing observation's compound made the row unfindable, so the loader
+        # created a second observation for the same physical thing and then
+        # validated its aligned files against the new bundle - which does not
+        # contain them, because they belong to the upload that carried it over.
         fields = {
             # Code for this protein (e.g. Mpro_Nterm-x0029_A_501_0)
             # "longcode": longcode,
             "version": version,
             "experiment": experiment,
-            "cmpd": compound,
             "xtalform_site": xtalform_site,
             "canon_site_conf": canon_site_conf,
-            "seq_id": ligand,
-            "chain_id": chain,
-            "altloc": altloc,
-        }
-
-        supersede_fields = {
-            "experiment": experiment,
-            "cmpd": compound,
             "seq_id": ligand,
             "chain_id": chain,
             "altloc": altloc,
@@ -1965,6 +2081,10 @@ class TargetLoader:
 
         defaults = {
             "longcode": longcode,
+            # Content, not identity: an existing observation is found without it
+            # and has it written on, so a curated compound reaches the rows that
+            # already exist instead of spawning duplicates of them.
+            "cmpd": compound,
             "bound_file": self._final_path_or_none(bound_file),
             "apo_solv_file": self._final_path_or_none(apo_solv_file),
             "apo_desolv_file": self._final_path_or_none(apo_desolv_file),
@@ -2008,7 +2128,7 @@ class TargetLoader:
             defaults=defaults,
             key=key,
             versioned_key=v_key,
-            supersede_fields=supersede_fields,
+            supersede_fields=_supersede_values(SiteObservation, fields, defaults),
             index_data={'mol': mol},
         )
 
@@ -2824,6 +2944,8 @@ class TargetLoader:
             canon_site_conf__canon_site__isnull=True,
         ).exclude(
             cmpd__isnull=True,
+        ).exclude(
+            superseded=True,
         ).values(
             *values
         ).order_by(
@@ -2880,31 +3002,7 @@ class TargetLoader:
                     continue
 
             # finally add observations to the (new or existing) pose
-            for obvs in pose_items:
-                obvs.pose = pose
-                obvs.save()
-
-            if pose.main_site_observation.superseded:
-                new_main = (
-                    SiteObservation.filter_manager.by_target(
-                        self.target,
-                    )
-                    .filter(
-                        experiment=pose.main_site_observation.experiment,
-                        cmpd=pose.main_site_observation.cmpd,
-                        xtalform_site=pose.main_site_observation.xtalform_site,
-                        canon_site_conf=pose.main_site_observation.canon_site_conf,
-                        seq_id=pose.main_site_observation.seq_id,
-                        chain_id=pose.main_site_observation.chain_id,
-                    )
-                    .order_by(
-                        "-version",
-                    )
-                    .first()
-                )
-
-                pose.main_site_observation = new_main
-                pose.save()
+            pose_items.update(pose=pose)
 
     def _refresh_poses(self, site_observation_objects):
         """Assign new main_observation if existing one has been superseded
@@ -2916,41 +3014,77 @@ class TargetLoader:
         """
 
         for val in site_observation_objects.values():  # pylint: disable=no-member
-            if val.new:
-                logger.debug(
-                    "processing poses for observation %s, %s, %s",
-                    val.instance.pk,
-                    val.instance.code,
-                    val.instance.longcode,
+            if not val.new:
+                continue
+
+            logger.debug(
+                "processing poses for observation %s, %s, %s",
+                val.instance.pk,
+                val.instance.code,
+                val.instance.longcode,
+            )
+
+            # superseded object's id is stored in TargetLoader instance
+            previous_pk = self.supersedes[SiteObservation].get(val.instance.pk)
+
+            # older version exists
+            if previous_pk is not None:
+                superseded = SiteObservation.objects.get(pk=previous_pk)
+
+                # Poses are anchored on the canon site, so a successor that
+                # landed on a different one cannot inherit its predecessor's
+                # pose - doing so leaves the old pose with a main that
+                # _generate_poses then moves to another pose. This should be
+                # unreachable now that the supersede lookup in create_objects
+                # is target-scoped; a canon site has no target of its own (it
+                # is only reachable through XtalformSite -> Experiment) and
+                # names are not unique across targets, so the unscoped lookup
+                # could pair rows belonging to different targets. Treat it as
+                # corruption and stop the upload rather than quietly writing a
+                # pose that points outside itself.
+                # NB: both canon_site_conf FKs are nullable (models.py:669), so
+                # a null compares unequal here and trips the same error.
+                superseded_conf = superseded.canon_site_conf
+                current_conf = val.instance.canon_site_conf
+                superseded_canon_site = (
+                    superseded_conf.canon_site_id if superseded_conf else None
                 )
-                # fmt: off
-                qs = SiteObservation.filter_manager.by_target(
-                    self.target,
-                ).filter(
-                    experiment=val.instance.experiment,
-                    cmpd=val.instance.cmpd,
-                    xtalform_site=val.instance.xtalform_site,
-                    canon_site_conf=val.instance.canon_site_conf,
-                    seq_id=val.instance.seq_id,
-                    chain_id=val.instance.chain_id,
-                    altloc=val.instance.altloc,
-                    superseded=True,
-                ).order_by(
-                    "-version",
+                current_canon_site = (
+                    current_conf.canon_site_id if current_conf else None
                 )
 
-                # fmt: on
-                # older version(s) exist
-                if qs.exists():
-                    previous_main = qs.first()
+                if superseded_canon_site != current_canon_site:
+                    msg = (
+                        f"Site observation {val.instance.code} "
+                        f"({val.instance.longcode}) supersedes "
+                        f"{superseded.code} ({superseded.longcode}) but sits "
+                        f"on a different canon site: "
+                        f"{current_conf.canon_site.name if current_conf else None}"
+                        f" vs "
+                        f"{superseded_conf.canon_site.name if superseded_conf else None}"
+                        f". Poses are "
+                        f"anchored on the canon site, so this cannot be "
+                        f"resolved automatically and the data needs checking."
+                    )
+                    self.report.log(logging.ERROR, msg)
+                    raise ValueError(msg)
 
-                    # assign pose to new instance
-                    val.instance.pose = previous_main.pose
-                    val.instance.save()
+                # assign pose to new instance
+                val.instance.pose = superseded.pose
+                val.instance.save()
 
-                    # and then set the pose's main
-                    previous_main.pose.main_site_observation = val.instance
-                    previous_main.pose.save()
+                # set the pose's main observation, if necessary
+                if superseded == superseded.pose.main_site_observation:
+                    superseded.pose.main_site_observation = val.instance
+                    superseded.pose.save()
+
+                # finally cut the superseded observation loose. It has handed
+                # over both its membership and its mainship, and a superseded
+                # observation has no business remaining in a pose - without
+                # this it stays in pose.site_observations and is served to the
+                # frontend as a member.
+                superseded.pose = None
+                superseded.save()
 
         # NB! this updates instances in the db but *not* in the
         # site_observation_objects dict. This means if another method

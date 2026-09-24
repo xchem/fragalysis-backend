@@ -7,16 +7,28 @@ exercised by the loader integration test; here we cover the gate's decisions
 supplied a completed curation spreadsheet).
 """
 
-# pylint: disable=protected-access,redefined-outer-name
+# pylint: disable=protected-access,redefined-outer-name,unused-argument
 
+import io
 import logging
 
 import pytest
+from openpyxl import load_workbook
 
-from viewer.compound_curation import build_curation_xlsx
+from viewer.compound_curation import (
+    ResolvedAction,
+    auto_merge_non_conflicting_compounds,
+    build_curation_xlsx,
+    needs_curation,
+)
 from viewer.compound_reconciliation import inchi_key_for_smiles, reconcile_compounds
 from viewer.models import Compound, Project, SiteObservation
-from viewer.target_loader import ProcessedObject, TargetLoader, _row_named_by_pk
+from viewer.target_loader import (
+    MetadataObject,
+    ProcessedObject,
+    TargetLoader,
+    _row_named_by_pk,
+)
 from viewer.tests.curation_sheet_helpers import (
     MERGE_ROW,
     edit_group_row,
@@ -54,6 +66,7 @@ def _loader(project, curation_file=None):
     tl._compound_resolution = {}
     tl._compound_supersede = {}
     tl._compound_keys = {}
+    tl._compound_pk_watermark = 0
     tl.target = None
     return tl
 
@@ -70,7 +83,38 @@ def _existing(project, code="OLD"):
 
 def test_extract_incoming_compounds_pure():
     assert TargetLoader._extract_incoming_compounds(CRYSTALS) == [
-        {"smiles": ETHANOL, "compound_code": "NEW"}
+        {"smiles": ETHANOL, "compound_code": "NEW", "crystals": ["Xtal-1"]}
+    ]
+
+
+def test_extract_incoming_compounds_collects_every_crystal():
+    """One compound in several crystals stays one entry and lists them all.
+
+    The crystals are what the curation sheet shows, so a curator can trace a
+    flagged compound back to its source data. Collecting them must not change
+    what counts as a duplicate: the dedup key is the compound fields alone.
+    """
+    crystals = {
+        "Xtal-2": CRYSTALS["Xtal-1"],
+        "Xtal-1": CRYSTALS["Xtal-1"],
+        "Xtal-3": {
+            "crystallographic_files": {
+                "ligand_cif": {
+                    "ligands": {"LIG": {"smiles": "CCN", "compound_code": "OTHER"}}
+                }
+            }
+        },
+    }
+
+    result = TargetLoader._extract_incoming_compounds(crystals)
+
+    assert result == [
+        {
+            "smiles": ETHANOL,
+            "compound_code": "NEW",
+            "crystals": ["Xtal-1", "Xtal-2"],
+        },
+        {"smiles": "CCN", "compound_code": "OTHER", "crystals": ["Xtal-3"]},
     ]
 
 
@@ -223,3 +267,183 @@ def test_pk_lookup_returns_none_when_the_row_really_is_gone():
     existing.delete()
 
     assert _row_named_by_pk(_processed({"id": missing})) is None
+
+
+# --------------------------------------------------------------------------- #
+# Within-load deduplication
+# --------------------------------------------------------------------------- #
+
+
+class _Meta:
+    """Stand-in for MetadataObject: process_compound only reads ``.new``."""
+
+    def __init__(self, new=True):
+        self.new = new
+
+
+def _process(tl, experiments, item):
+    """Call process_compound's undecorated body.
+
+    ``@create_objects`` wraps it into a whole-yaml-block driver; what is under
+    test is the single-item decision it returns.
+    """
+    # functools.wraps keeps the undecorated body here; pylint cannot see it.
+    inner = TargetLoader.process_compound.__wrapped__  # pylint: disable=no-member
+    return inner(tl, experiments=experiments, item_data=item)
+
+
+def _item(crystal, smiles, compound_code):
+    """An item_data tuple shaped as the create_objects flattener produces it."""
+    return (
+        crystal,
+        "crystallographic_files",
+        "ligand_cif",
+        "ligands",
+        "LIG",
+        {"smiles": smiles, "compound_code": compound_code},
+    )
+
+
+def test_same_compound_in_two_crystals_reuses_one_row(db, make_project):
+    """A second crystal carrying the same compound must not make a second row.
+
+    The gate reconciles against the database as it stood *before* the load, so a
+    compound this load has just created is invisible to it. Left alone, the same
+    molecule soaked into N crystals produced N identical Compound rows - and
+    every later upload was then permanently ambiguous, because reconciliation
+    cannot choose between identical rows. Measured on a real six-upload target:
+    one clean load of A71EV2A produced 37 duplicated InChI keys.
+    """
+    project = make_project("proposal")
+    tl = _loader(project)
+    experiments = {"Xtal-1": _Meta(), "Xtal-2": _Meta()}
+
+    first = _process(tl, experiments, _item("Xtal-1", ETHANOL, "CODE-1"))
+    # Nothing to reuse yet, so the loader is told to create.
+    assert first.fields == {}
+
+    # Stand in for create_objects having created that row.
+    created = Compound.objects.create(**first.defaults)
+
+    second = _process(tl, experiments, _item("Xtal-2", ETHANOL, "CODE-1"))
+    assert second.fields == {"id": created.pk}
+    assert _row_named_by_pk(second) == created
+
+
+def test_a_different_compound_code_is_left_for_curation(db, make_project):
+    """The same structure under another code is a curation decision, not a dupe.
+
+    ``viewer.compound_dedup`` groups exact duplicates by
+    (project, inchi_key, smiles, compound_code); anything short of that carries
+    information one row does not have, so the loader must not silently collapse
+    it.
+    """
+    project = make_project("proposal")
+    tl = _loader(project)
+    experiments = {"Xtal-1": _Meta(), "Xtal-2": _Meta()}
+
+    first = _process(tl, experiments, _item("Xtal-1", ETHANOL, "CODE-1"))
+    Compound.objects.create(**first.defaults)
+
+    second = _process(tl, experiments, _item("Xtal-2", ETHANOL, "CODE-2"))
+    assert second.fields == {}
+
+
+def test_compounds_from_earlier_loads_are_left_to_the_gate(db, make_project):
+    """Only rows created by THIS load are reused; older ones stay the gate's job.
+
+    An ambiguity that predates the load is exactly what the curation gate exists
+    to resolve, and quietly reusing one of the candidates here would pre-empt a
+    decision the user is supposed to make.
+    """
+    project = make_project("proposal")
+    tl = _loader(project)
+    experiments = {"Xtal-1": _Meta()}
+
+    probe = _process(tl, experiments, _item("Xtal-1", ETHANOL, "CODE-1"))
+    earlier = Compound.objects.create(**probe.defaults)
+    # The gate ran after that row existed.
+    tl._compound_pk_watermark = earlier.pk
+
+    again = _process(tl, experiments, _item("Xtal-1", ETHANOL, "CODE-1"))
+    assert again.fields == {}
+
+
+@pytest.mark.django_db
+def test_validation_chain_survives_an_uploader_that_sends_no_crystals():
+    """The exact sequence UploadTargetExperimentsValidate runs, on a legacy payload.
+
+    Fragalysis and XCA are released separately, so a backend carrying the
+    crystal column will be asked to reconcile payloads that predate it. The
+    whole chain - reconcile, auto-merge, filter, render - has to come through
+    with the column simply blank.
+    """
+    project = Project.objects.create(title="lb-1")
+    _existing(project)
+
+    # No "crystals" key: what an older uploader sends.
+    compounds = [{"smiles": ETHANOL, "compound_code": "NEW"}]
+
+    reconciliation = reconcile_compounds(project, compounds)
+    curation = reconciliation.curation_payload()
+    curation, _stats = auto_merge_non_conflicting_compounds(curation)
+    curation = needs_curation(curation)
+    assert curation, "this payload should still need a decision"
+
+    data = build_curation_xlsx(curation, target_name="Mpro")
+
+    ws = load_workbook(io.BytesIO(data))["Incoming compounds"]
+    cols = {}
+    blanks = 0
+    for row in ws.iter_rows():
+        if row[0].value == "id":
+            cols = {c.value: c.column for c in row if c.value}
+            continue
+        if row[0].value is not None:
+            assert ws.cell(row[0].row, cols["crystal"]).value in (None, "")
+            blanks += 1
+    assert blanks  # rows were actually written
+
+
+@pytest.mark.django_db
+def test_supersession_repoints_cached_instances_at_the_survivor():
+    """A retired compound must not stay cached in compound_objects.
+
+    process_compound runs before the supersessions, so its output can hold an
+    instance of a row the curation then deletes. Everything downstream reads its
+    compound from that dict - the experiment.compounds link loop immediately
+    after, and process_site_observation later - so a stale instance is written
+    back as a reference to a compound that no longer exists. Postgres defers the
+    check, so it surfaces at COMMIT as a bare foreign-key violation with nothing
+    to tie it to the upload:
+
+        update or delete on table "viewer_compound" violates foreign key
+        constraint ... on table "viewer_experimentcompound"
+
+    Only reachable through MERGE or DELETE: CREATE retires nothing.
+    """
+    project = Project.objects.create(title="lb-1")
+    survivor = _existing(project, code="KEEP-ME")
+    doomed = _existing(project, code="RETIRE-ME")
+    doomed_pk = doomed.pk
+
+    tl = _loader(project)
+    tl._compound_supersede = {
+        "row-1": ResolvedAction(
+            index=0,
+            op="update",
+            existing_id=survivor.pk,
+            incoming={},
+            superseded_ids=[doomed_pk],
+        )
+    }
+    cached = MetadataObject(instance=doomed, key="k", versioned_key="k")
+    compound_objects = {("Xtal-1", "LIG"): cached}
+
+    tl._apply_compound_supersessions(compound_objects)
+
+    assert not Compound.objects.filter(pk=doomed_pk).exists()
+    assert cached.instance.pk == survivor.pk
+    # and the report names the row that went, not the None a deleted instance
+    # reports for its pk
+    assert str(doomed_pk) in " ".join(m for _lvl, m in tl.report.logs)
