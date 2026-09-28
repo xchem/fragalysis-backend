@@ -11,7 +11,7 @@ set will arrive once a real target archive is committed and loaded via the
 # only - both are standard pytest patterns that pylint misreads.
 # pylint: disable=redefined-outer-name,unused-argument
 from contextlib import contextmanager
-from typing import Callable, Iterable
+from typing import Any, Callable, Iterable
 from unittest import mock
 
 import pytest
@@ -241,6 +241,25 @@ def mock_neo4j(monkeypatch) -> Callable[..., None]:
         )
 
     return _set
+
+
+@pytest.fixture
+def driver_calls(monkeypatch) -> list[tuple[tuple[Any, ...], dict[str, Any]]]:
+    """Record each neo4j ``GraphDatabase.driver`` call, returning a fake driver.
+
+    Unlike :func:`mock_neo4j` this leaves ``fragutils`` building the driver, so
+    tests can check the connection URI and auth handed to neo4j.
+    """
+    from neo4j import GraphDatabase
+
+    calls: list[tuple[tuple[Any, ...], dict[str, Any]]] = []
+
+    def _driver(*args, **kwargs):
+        calls.append((args, kwargs))
+        return _FakeNeo4jDriver(None)
+
+    monkeypatch.setattr(GraphDatabase, "driver", _driver)
+    return calls
 
 
 @pytest.fixture

@@ -3800,14 +3800,14 @@ test = ["coverage"]
 
 [[package]]
 name = "xchem-fragutils"
-version = "2.0.0"
+version = "2.1.0"
 description = "Library for fragment based analysis"
 optional = false
 python-versions = ">=3.11"
 groups = ["main"]
 files = [
-    {file = "xchem_fragutils-2.0.0-py3-none-any.whl", hash = "sha256:536d80c28a4c06392f3a07e32ce3b6af8f5acc08bbccd9e975965d37806f3de1"},
-    {file = "xchem_fragutils-2.0.0.tar.gz", hash = "sha256:1910cbba77edcf76c534db60d50b3a76eeebc8759a6a269b39c667eaeb384252"},
+    {file = "xchem_fragutils-2.1.0-py3-none-any.whl", hash = "sha256:2d158367a2b0fff687a2d2909bb6438d35f7f9f8a3f7b60105e9958fa1c3b178"},
+    {file = "xchem_fragutils-2.1.0.tar.gz", hash = "sha256:e28f3e11f53b66204c5d9c2e18b4636d28ac994b95b21be2dfe068449432cb18"},
 ]
 
 [package.dependencies]
@@ -3839,4 +3839,4 @@ requests = ">=2.32.4,<3"
 [metadata]
 lock-version = "2.1"
 python-versions = "^3.13.0"
-content-hash = "5ccd601060d8acae20a08fd13c73822d28a07445ea3457dfc20aee14189f205d"
+content-hash = "925f29a164f3f0a9a5bd015e0fab417199bf6f4f9f43a8c2b35ca0c994421a02"

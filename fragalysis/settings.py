@@ -631,8 +631,13 @@ NEOMODEL_NEO4J_BOLT_URL: str = os.environ.get(
 )
 
 # The graph (neo4j) database settings.
-# The query provides the graph endpoint, typically a service in a kubernetes namespace
-# like 'graph.graph-a.svc' and the 'auth' provides the graph username and password.
+# The query provides the graph endpoint, either a bare hostname,
+# typically a service in a kubernetes namespace like 'graph.graph-a.svc'
+# (connected to using plain 'bolt://<hostname>:7687'), or a complete URI,
+# which is used unchanged. Use a URI for a graph that requires an encrypted
+# connection, e.g. 'bolt+s://graph-x.xchem-dev.diamond.ac.uk:7687'
+# (a TLS certificate is issued for a hostname, so use the hostname, not an IP).
+# The 'auth' provides the graph username and password.
 NEO4J_QUERY: str = os.environ.get("NEO4J_QUERY", "neo4j")
 NEO4J_AUTH: str = os.environ.get("NEO4J_AUTH", "neo4j/neo4j")
 
