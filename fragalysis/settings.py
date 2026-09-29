@@ -166,6 +166,9 @@ LOGIN_REDIRECT_URL = "/viewer/react/landing"
 LOGOUT_REDIRECT_URL = "/viewer/react/landing"
 
 MIDDLEWARE = [
+    # First, so every response (including errors) gets the header.
+    # The frontend's Moorhen viewer requires cross-origin isolation.
+    "fragalysis.middleware.CrossOriginEmbedderPolicyMiddleware",
     "django_prometheus.middleware.PrometheusBeforeMiddleware",
     "django.middleware.security.SecurityMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
