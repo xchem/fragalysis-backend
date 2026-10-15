@@ -32,8 +32,17 @@ contacts a real service.
 # pylint: disable=unused-argument
 
 import pytest
+import ta_auth_connector
 
 _TAS = "lb12345-1"
+
+
+def _unnamed(*logins: str) -> list[dict]:
+    """The response entries for users the authenticator has no names for."""
+    return [
+        {"preferred_username": login, "given_name": None, "family_name": None}
+        for login in logins
+    ]
 
 
 @pytest.fixture(name="no_ta_service")
@@ -64,7 +73,7 @@ def test_authenticated_user_sees_the_users_of_the_tas(
     body = response.json()
     assert body["tas"] == _TAS
     # Sorted, so the response is stable for the caller (the source is a set).
-    assert body["users"] == ["abc12345", "xyz98765"]
+    assert body["users"] == _unnamed("abc12345", "xyz98765")
     # The whole contract, so the shape cannot drift away from /api/user/'s.
     assert sorted(body.keys()) == ["authenticator", "ping", "tas", "users"]
 
@@ -84,7 +93,7 @@ def test_non_member_may_query_any_tas(
     response = authenticated_client.get(f"/api/tas/?tas={_TAS}")
 
     assert response.status_code == 200
-    assert response.json()["users"] == ["someone-else"]
+    assert response.json()["users"] == _unnamed("someone-else")
 
 
 def test_tas_unknown_to_fragalysis_is_still_queried(
@@ -102,7 +111,7 @@ def test_tas_unknown_to_fragalysis_is_still_queried(
     assert response.status_code == 200
     body = response.json()
     assert body["tas"] == "lb99999-9"
-    assert body["users"] == ["abc12345"]
+    assert body["users"] == _unnamed("abc12345")
 
 
 def test_response_names_the_authenticator_that_answered(
@@ -192,7 +201,7 @@ def test_always_returns_json(
 
     assert response.status_code == 200
     assert response["Content-Type"].startswith("application/json")
-    assert response.json()["users"] == ["abc12345"]
+    assert response.json()["users"] == _unnamed("abc12345")
 
 
 @pytest.mark.parametrize("accept", ["application/json", "text/html"])
@@ -282,8 +291,6 @@ def test_malformed_tas_is_not_passed_to_the_authenticator(
     as a bare error string - indistinguishable from an outage, and returned to
     the caller as a misleading 503.
     """
-    import ta_auth_connector
-
     asked: list[str] = []
 
     def _record(tas: str):
@@ -302,8 +309,6 @@ def test_authenticator_is_asked_for_the_tas_the_caller_named(
     authenticated_client, monkeypatch, no_ta_service
 ):
     """The path segment reaches the connector unaltered."""
-    import ta_auth_connector
-
     asked: list[str] = []
 
     def _record(tas: str):
@@ -316,3 +321,78 @@ def test_authenticator_is_asked_for_the_tas_the_caller_named(
 
     assert response.status_code == 200
     assert asked == [_TAS]
+
+
+def test_users_carry_their_names(authenticated_client, mock_tas_users, no_ta_service):
+    """Each user comes with the names the authenticator holds (issue 2355).
+
+    The keys are the OIDC claim names the frontend already uses for the
+    logged-in user. There is deliberately no email - ISPyB does not give one.
+    """
+    mock_tas_users(
+        members=[ta_auth_connector.TasAuthMember("abc12345", "Dave", "Lister")]
+    )
+
+    response = authenticated_client.get(f"/api/tas/?tas={_TAS}")
+
+    assert response.status_code == 200
+    assert response.json()["users"] == [
+        {
+            "preferred_username": "abc12345",
+            "given_name": "Dave",
+            "family_name": "Lister",
+        }
+    ]
+
+
+def test_users_are_sorted_by_family_then_given_name(
+    authenticated_client, mock_tas_users, no_ta_service
+):
+    """The frontend lists users alphabetically by surname, so we sort them so.
+
+    The comparison ignores case, and the login separates identical names.
+    """
+    mock_tas_users(
+        members=[
+            ta_auth_connector.TasAuthMember("aaa1", "Dave", "lister"),
+            ta_auth_connector.TasAuthMember("bbb2", "Arnold", "Rimmer"),
+            ta_auth_connector.TasAuthMember("ccc3", "Kristine", "Kochanski"),
+            ta_auth_connector.TasAuthMember("ddd4", "Ace", "Rimmer"),
+            ta_auth_connector.TasAuthMember("aaa0", "Dave", "Lister"),
+        ]
+    )
+
+    response = authenticated_client.get(f"/api/tas/?tas={_TAS}")
+
+    assert [user["preferred_username"] for user in response.json()["users"]] == [
+        "ccc3",
+        "aaa0",
+        "aaa1",
+        "ddd4",
+        "bbb2",
+    ]
+
+
+def test_users_without_a_family_name_are_listed_last(
+    authenticated_client, mock_tas_users, no_ta_service
+):
+    """A user with no family name cannot be placed alphabetically, so goes last.
+
+    Among themselves the same applies to the given name - those with one come
+    first - and then the login.
+    """
+    mock_tas_users(
+        members=[
+            ta_auth_connector.TasAuthMember("zzz9"),
+            ta_auth_connector.TasAuthMember("bbb2", "Arnold", "Rimmer"),
+            ta_auth_connector.TasAuthMember("aaa1", "Cat", None),
+        ]
+    )
+
+    response = authenticated_client.get(f"/api/tas/?tas={_TAS}")
+
+    assert [user["preferred_username"] for user in response.json()["users"]] == [
+        "bbb2",
+        "aaa1",
+        "zzz9",
+    ]
