@@ -32,7 +32,6 @@ router.register("compound-sets", viewer_views.ComputedSetView)
 # )
 
 # Get the derived data
-router.register("molimg", viewer_views.MolImageView, "molimg")
 router.register("vector", viewer_views.VectorsView, "vector")
 router.register("graph", viewer_views.GraphView, "graph")
 router.register("cmpdimg", viewer_views.CompoundImageView, "cmpdimg")

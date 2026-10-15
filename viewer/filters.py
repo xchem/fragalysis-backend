@@ -218,12 +218,6 @@ class MolpropsFilter(TargetFilterMixin):
         fields = ("target", "smiles", "inchi")
 
 
-class MolImgFilter(TargetFilterMixin):
-    class Meta:
-        model = SiteObservation
-        fields = ("target", "cmpd", "smiles", "site_observation_groups")
-
-
 class CmpdImgFilter(TargetFilterMixin):
     class Meta:
         model = Compound
