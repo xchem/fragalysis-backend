@@ -3823,14 +3823,14 @@ test = ["coverage"]
 
 [[package]]
 name = "xchem-ta-auth-client"
-version = "1.1.0"
+version = "1.2.0"
 description = "The ISPyB Target Access Authenticator Client"
 optional = false
 python-versions = ">=3.13"
 groups = ["main"]
 files = [
-    {file = "xchem_ta_auth_client-1.1.0-py3-none-any.whl", hash = "sha256:f9164f2fc410d113ddfca9358ff722bd758e3e3021dca494ae2172e515f78d61"},
-    {file = "xchem_ta_auth_client-1.1.0.tar.gz", hash = "sha256:fe805c05242eccc824bba88b6681ccfffbf6418c5d9f659f72499011e39031d0"},
+    {file = "xchem_ta_auth_client-1.2.0-py3-none-any.whl", hash = "sha256:475c5c9dde601f0b0854fdf51f7f5ba5ea2475f01e4e6e7d09ba1c9c894ad0c0"},
+    {file = "xchem_ta_auth_client-1.2.0.tar.gz", hash = "sha256:92d06ffdd921221ea9c7f595911201d6a699fb5772d9cf55d5d09d10b5f2049e"},
 ]
 
 [package.dependencies]
@@ -3839,4 +3839,4 @@ requests = ">=2.32.4,<3"
 [metadata]
 lock-version = "2.1"
 python-versions = "^3.13.0"
-content-hash = "925f29a164f3f0a9a5bd015e0fab417199bf6f4f9f43a8c2b35ca0c994421a02"
+content-hash = "6d19dbb59c44de48691779f57671fbd201d1d0f89fa82807a6f073a6a4af229b"
