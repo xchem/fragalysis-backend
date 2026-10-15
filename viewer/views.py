@@ -3816,7 +3816,14 @@ class TASUsersView(viewsets.ViewSet):
          "authenticator": {"kind": ..., "name": ..., "version": ...,
                            "location": ...},
          "ping": "OK",
-         "users": ["abc12345", "def12345"]}
+         "users": [{"preferred_username": "abc12345",
+                    "given_name": "Dave",
+                    "family_name": "Lister"}, ...]}
+
+    Each user carries the names the authenticator holds for them (TA-Auth
+    1.6.0 or later, otherwise they are null), using the OIDC claim names the
+    frontend already knows. Users are sorted by family name, then given name
+    (ignoring case), then login - a missing name sorts after any name.
 
     Being authenticated is the only requirement - the caller does not have to
     be a member of the TAS they are asking about, and the TAS need not
@@ -3896,6 +3903,7 @@ class TASUsersView(viewsets.ViewSet):
         auth_version = ta_auth_connector.get_auth_version()
         ping = ta_auth_connector.get_auth_ping()
 
+        members = sorted(users_response.members, key=_tas_member_sort_key)
         return JsonResponse(
             {
                 "tas": target_access_string,
@@ -3906,10 +3914,31 @@ class TASUsersView(viewsets.ViewSet):
                     "location": auth_version.location,
                 },
                 "ping": ping.ping,
-                # Sorted so the caller gets a stable order (source is a set).
-                "users": sorted(users_response.users),
+                "users": [
+                    {
+                        "preferred_username": member.login,
+                        "given_name": member.given_name,
+                        "family_name": member.family_name,
+                    }
+                    for member in members
+                ],
             }
         )
+
+
+def _tas_member_sort_key(
+    member: ta_auth_connector.TasAuthMember,
+) -> tuple[bool, str, bool, str, str]:
+    """Orders members alphabetically by family name, then given name (ignoring
+    case), then login. A missing name sorts after any name.
+    """
+    return (
+        member.family_name is None,
+        (member.family_name or "").casefold(),
+        member.given_name is None,
+        (member.given_name or "").casefold(),
+        member.login,
+    )
 
 
 class ComputedInspirationView(ISPyBSafeQuerySet):
