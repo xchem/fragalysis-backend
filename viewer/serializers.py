@@ -427,26 +427,6 @@ class ProjectSerializer(serializers.ModelSerializer):
         }
 
 
-class MolImageSerializer(serializers.ModelSerializer):
-    mol_image = serializers.SerializerMethodField()
-
-    def get_mol_image(self, obj):
-        request = self.context["request"]
-        params = request.query_params
-        if params:
-            return draw_mol(
-                obj.smiles,
-                height=int(float(params["height"])),
-                width=int(float(params["width"])),
-            )
-        else:
-            return draw_mol(obj.smiles, height=125, width=125)
-
-    class Meta:
-        model = models.SiteObservation
-        fields = ("id", "mol_image")
-
-
 class CmpdImageSerializer(serializers.ModelSerializer):
     cmpd_image = serializers.SerializerMethodField()
 

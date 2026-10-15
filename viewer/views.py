@@ -283,15 +283,6 @@ class GraphView(ISPyBSafeQuerySet):
     filter_permissions = "experiment__experiment_upload__target__project"
 
 
-class MolImageView(ISPyBSafeQuerySet):
-    """Molecule images (api/molimg)"""
-
-    queryset = models.SiteObservation.objects.filter()
-    serializer_class = serializers.MolImageSerializer
-    filterset_class = filters.MolImgFilter
-    filter_permissions = "experiment__experiment_upload__target__project"
-
-
 class CompoundImageView(ISPyBSafeQuerySet):
     """Compound images (api/cmpdimg)"""
 
