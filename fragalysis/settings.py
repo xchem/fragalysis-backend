@@ -727,6 +727,30 @@ if os.environ.get("SQUONK2_REFRESH_SHOULD_RETRIEVE_RESULTS") == "Yes":
 
 TARGET_LOADER_MEDIA_DIRECTORY: str = "target_loader_data"
 
+# Limits on the image accepted for a target's blog card (viewer.models.TargetBlog).
+# Uploads over either limit are rejected with a 400. The blog's own full-size
+# images are currently 1500x1000, so the pixel limit allows twice that on
+# either side.
+TARGET_BLOG_IMAGE_MAX_BYTES: int = 10 * 1024 * 1024
+TARGET_BLOG_IMAGE_MAX_SIDE_PX: int = 3000
+# Instead of uploading the blog card's image, a user can give its URL
+# ('image_url') and the backend downloads it. Only URLs on these hosts
+# (comma-separated) are fetched. Any member of a target's proposal can set the
+# URL, so this allow-list is what stops the backend being made to fetch from
+# the cluster's internal network. An empty value disables 'image_url'.
+TARGET_BLOG_IMAGE_URL_ALLOWED_HOSTS: str = os.environ.get(
+    "TARGET_BLOG_IMAGE_URL_ALLOWED_HOSTS", "openbind.uk"
+)
+TARGET_BLOG_IMAGE_URL_ALLOWED_HOSTS_LIST: List[str] = [
+    host.strip().lower()
+    for host in TARGET_BLOG_IMAGE_URL_ALLOWED_HOSTS.split(",")
+    if host.strip()
+]
+# How long (in seconds) to wait for the image server before giving up.
+TARGET_BLOG_IMAGE_URL_TIMEOUT_S: int = int(
+    os.environ.get("TARGET_BLOG_IMAGE_URL_TIMEOUT_S", "10")
+)
+
 # A warning messages issued by the f/e.
 # Used, if set, to populate the 'target_warning_message' context variable
 TARGET_WARNING_MESSAGE: str = os.environ.get("TARGET_WARNING_MESSAGE", "")

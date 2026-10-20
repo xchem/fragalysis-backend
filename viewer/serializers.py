@@ -7,8 +7,11 @@ import yaml
 from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import User
+from django.core.exceptions import ValidationError as DjangoValidationError
+from django.core.files.images import get_image_dimensions
 from django.db import IntegrityError, transaction
 from django.db.models import Count
+from django.urls import reverse
 from django.utils import timezone
 from fragutils.network.decorate import get_3d_vects_for_mol, get_vect_indices_for_mol
 from fragutils.network.query import get_full_graph
@@ -22,6 +25,8 @@ from api.utils import draw_mol, validate_tas
 from viewer import models
 
 # from viewer.cset_upload import EMPTY_VALUES
+from viewer.permissions import authorise_target_write
+from viewer.target_blog import ImageFetchError, fetch_image
 from viewer.target_loader import XTALFORMS_FILE
 from viewer.target_set_upload import sanitize_mol
 from viewer.utils import get_https_host
@@ -126,6 +131,104 @@ class CompoundIdentifierSerializer(ValidateProjectMixin, serializers.ModelSerial
     class Meta:
         model = models.CompoundIdentifier
         fields = '__all__'
+
+
+class TargetBlogSerializer(serializers.ModelSerializer):
+    """A target's blog card. ``image`` is written as an image upload and
+    read back as the URL of its media route (or ``None``). Instead of
+    uploading it, the image can be given as ``image_url`` for the backend to
+    download (see viewer.target_blog).
+    """
+
+    image_url = serializers.URLField(write_only=True, required=False)
+
+    def get_fields(self):
+        fields = super().get_fields()
+        # A card belongs to the target it was created for.
+        if self.instance is not None:
+            fields["target"].read_only = True
+        return fields
+
+    def validate_target(self, target):
+        # Checked here, not in the view, so it happens before validate() can
+        # fetch an image_url. Updates are checked by TargetBlogView.
+        authorise_target_write(self.context["request"], target)
+        return target
+
+    def validate_image(self, image):
+        if not image:
+            return image
+        if image.size > settings.TARGET_BLOG_IMAGE_MAX_BYTES:
+            raise serializers.ValidationError(
+                f"The image is larger than {settings.TARGET_BLOG_IMAGE_MAX_BYTES} bytes"
+            )
+        width, height = get_image_dimensions(image)
+        max_side = settings.TARGET_BLOG_IMAGE_MAX_SIDE_PX
+        if width > max_side or height > max_side:
+            raise serializers.ValidationError(
+                f"The image is {width}x{height} pixels,"
+                f" neither side may be more than {max_side}"
+            )
+        return image
+
+    def validate(self, attrs):
+        image_url = attrs.pop("image_url", None)
+        if image_url and attrs.get("image"):
+            raise serializers.ValidationError(
+                {"image_url": "Give either an image or an image_url, not both"}
+            )
+        image_field = "image_url" if image_url else "image"
+
+        target = attrs.get("target") or getattr(self.instance, "target", None)
+        if (
+            (image_url or attrs.get("image"))
+            and target is not None
+            and not str(target.zip_archive or "").strip()
+        ):
+            # The image is stored in the target's media directory.
+            raise serializers.ValidationError(
+                {image_field: "The target has no media directory to store it in"}
+            )
+
+        if image_url:
+            # Fetched only now, after validate_target() has passed, so only
+            # members of the target's proposal can make the backend fetch.
+            try:
+                fetched = fetch_image(image_url)
+                attrs["image"] = self.validate_image(
+                    self.fields["image"].run_validation(fetched)
+                )
+            except ImageFetchError as exc:
+                raise serializers.ValidationError({"image_url": str(exc)}) from exc
+            except serializers.ValidationError as exc:
+                raise serializers.ValidationError({"image_url": exc.detail}) from exc
+            except DjangoValidationError as exc:
+                # The image check itself raises Django's flavour.
+                raise serializers.ValidationError({"image_url": exc.messages}) from exc
+        return attrs
+
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+        data["image"] = None
+        if instance.image:
+            data["image"] = urljoin(
+                get_https_host(self.context["request"]),
+                reverse("get_target_blog_image", args=[instance.pk]),
+            )
+        return data
+
+    class Meta:
+        model = models.TargetBlog
+        fields = (
+            "id",
+            "target",
+            "title",
+            "published",
+            "overview",
+            "image",
+            "image_url",
+            "url",
+        )
 
 
 class TargetSerializer(serializers.ModelSerializer):

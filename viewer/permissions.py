@@ -1,9 +1,9 @@
 import logging
 
 from rest_framework import permissions
-from rest_framework.exceptions import PermissionDenied
+from rest_framework.exceptions import NotAuthenticated, PermissionDenied
 
-from api.security import ISPyBSafeQuerySet
+from api.security import ISPyBSafeQuerySet, check_upload_tas_authorisation
 
 _ISPYB_SAFE_QUERY_SET = ISPyBSafeQuerySet()
 
@@ -72,3 +72,20 @@ class IsObjectProposalMember(permissions.BasePermission):
             )
         # User is a member of at least one of the object's proposals...
         return True
+
+
+def authorise_target_write(request, target) -> None:
+    """Raise unless ``request`` may write data to ``target``.
+
+    The same rule as the target upload (``check_upload_tas_authorisation``),
+    so it honours AUTHENTICATE_UPLOAD and the service account - except that
+    the Loader role, which exists for automated uploads, grants nothing here.
+    """
+    failure = check_upload_tas_authorisation(
+        request, target.project.title, allow_loader_role=False
+    )
+    if failure is None:
+        return
+    if failure.login_required:
+        raise NotAuthenticated()
+    raise PermissionDenied(detail=failure.error_body)

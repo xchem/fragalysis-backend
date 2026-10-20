@@ -1,7 +1,11 @@
 import logging
+import mimetypes
+from pathlib import PurePosixPath
 
-from api.security import ISPyBSafeStaticFiles, ISPyBSafeStaticFiles2
-from viewer.models import SiteObservation, Target
+from django.http import Http404, HttpResponse
+
+from api.security import ISPyBSafeQuerySet, ISPyBSafeStaticFiles, ISPyBSafeStaticFiles2
+from viewer.models import SiteObservation, Target, TargetBlog
 
 logger = logging.getLogger(__name__)
 
@@ -161,3 +165,31 @@ def archive_download(request, file_path):
     ispy_b_static.input_string = file_path
     ispy_b_static.file_format = 'raw'
     return ispy_b_static.get_response()
+
+
+def target_blog_image(request, blog_id):
+    """
+    Serve a target blog card's image by nginx redirect, to anyone who can
+    see the target. Unlike tld_download it sends an image content type and
+    'inline', so the image can be used in an <img>.
+    :param request: the initial request
+    :param blog_id: the TargetBlog's id
+    :return: the response (a redirect to nginx internal)
+    """
+    query = ISPyBSafeQuerySet()
+    query.request = request
+    query.filter_permissions = "target__project"
+    query.queryset = TargetBlog.objects.filter()
+    blog = query.get_queryset().filter(pk=blog_id).first()
+    if blog is None or not blog.image:
+        raise Http404
+
+    file_name = blog.image.name
+    content_type, _ = mimetypes.guess_type(file_name)
+    response = HttpResponse()
+    response["Content-Type"] = content_type or "application/octet-stream"
+    response["X-Accel-Redirect"] = f"/{file_name}"
+    response[
+        "Content-Disposition"
+    ] = f'inline; filename="{PurePosixPath(file_name).name}"'
+    return response
