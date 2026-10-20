@@ -73,6 +73,16 @@ Key relationships to know before touching models:
 referencing a `Compound` and its inspiration `SiteObservation`s, with scores in
 `ScoreDescription`/`NumericalScoreValues`/`TextScoreValues`.
 
+**`TargetBlog`** is the blog card shown next to a target (title, date, overview,
+image, post URL), entered by hand through `/api/target-blogs/` by members of the
+target's proposal. It is one-to-one with `Target` for now. The image lives in the
+target's own `target_loader_data/<zip_archive>/blog/` directory, so target deletion
+removes it, and is served by `media/target_blog/<id>/` rather than the generic
+`target_loader_data` route (which sends a non-image content type). Instead of
+uploading the image, a client can send `image_url` and the backend downloads it
+(`viewer/target_blog.py`). This works only for hosts on
+`TARGET_BLOG_IMAGE_URL_ALLOWED_HOSTS`, because any proposal member can set it.
+
 **Sessions/snapshots** (`SessionProject`, `Snapshot`, `SessionActions`) persist a
 user's view state of a target page. **Tags** (`Tag` subclasses in `viewer/tags.py`)
 group observations and sessions.

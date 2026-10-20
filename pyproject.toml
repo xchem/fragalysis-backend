@@ -43,6 +43,8 @@ djangorestframework = "^3.16.1"
 legacy-cgi = "^2.6.3"   # required by djangorestframwork
 django-prometheus = "^2.4"
 python-ipware = "^3.0.0"
+requests = "^2.32"   # viewer.target_blog image_url fetch
+pillow = "^12.2"   # TargetBlog.image (ImageField)
 
 
 # Specific (critical dependency) packages...

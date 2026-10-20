@@ -12,6 +12,7 @@ router = DefaultRouter()
 # Register the basic data
 router.register("compounds", viewer_views.CompoundView, "compounds")
 router.register("targets", viewer_views.TargetView, "targets")
+router.register("target-blogs", viewer_views.TargetBlogView, "target-blogs")
 router.register("projects", viewer_views.ProjectView)
 router.register("session-projects", viewer_views.SessionProjectView)
 router.register("snapshots", viewer_views.SnapshotView)

@@ -31,7 +31,7 @@ from python_ipware import IpWare
 from rest_framework import generics, mixins, permissions, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.negotiation import DefaultContentNegotiation
-from rest_framework.parsers import BaseParser
+from rest_framework.parsers import BaseParser, FormParser, JSONParser, MultiPartParser
 from rest_framework.renderers import JSONRenderer
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -61,7 +61,7 @@ from viewer.compound_curation import (
     resolve_curation,
 )
 from viewer.compound_reconciliation import reconcile_compounds
-from viewer.permissions import IsObjectProposalMember
+from viewer.permissions import IsObjectProposalMember, authorise_target_write
 from viewer.squonk2_agent import (
     AccessParams,
     CommonParams,
@@ -392,6 +392,30 @@ class TargetView(mixins.UpdateModelMixin, mixins.DestroyModelMixin, ISPyBSafeQue
 
         delete_target(target)
         return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class TargetBlogView(
+    mixins.CreateModelMixin,
+    mixins.UpdateModelMixin,
+    mixins.DestroyModelMixin,
+    ISPyBSafeQuerySet,
+):
+    """A target's blog card (api/target-blogs). Readable by anyone who can see
+    the target, writable by whoever may upload to it (see
+    viewer.permissions.authorise_target_write).
+    """
+
+    queryset = models.TargetBlog.objects.filter()
+    serializer_class = serializers.TargetBlogSerializer
+    filter_permissions = "target__project"
+    filterset_fields = ("target",)
+    parser_classes = [MultiPartParser, FormParser, JSONParser]
+
+    def check_object_permissions(self, request, obj):
+        # Only update/delete reach here with a write; create is authorised in
+        # the serializer. Reads are already filtered by get_queryset().
+        if request.method not in permissions.SAFE_METHODS:
+            authorise_target_write(request, obj.target)
 
 
 class CompoundView(mixins.UpdateModelMixin, ISPyBSafeQuerySet):

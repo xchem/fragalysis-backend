@@ -180,6 +180,54 @@ class Target(models.Model):
         ]
 
 
+def _target_blog_upload_to(instance: "TargetBlog", filename: str) -> str:
+    """Store a blog image in its target's own ``target_loader_data/``
+    subdirectory, so deleting the target (which removes that directory)
+    takes the image with it.
+    """
+    subdir = str(instance.target.zip_archive or "").strip()
+    if not subdir:
+        # Never fall back to writing straight into target_loader_data/.
+        raise ValueError(
+            f"Target pk={instance.target.pk} has no media directory (zip_archive)"
+        )
+    return f"{settings.TARGET_LOADER_MEDIA_DIRECTORY}/{subdir}/blog/{filename}"
+
+
+class TargetBlog(models.Model):
+    """The blog card shown next to a target, entered by hand.
+
+    One per target for now. Allowing several would mean turning ``target``
+    into a ForeignKey.
+
+    The image file is managed by django_cleanup: replacing the image or
+    deleting the row removes the old file.
+    """
+
+    target = models.OneToOneField(Target, on_delete=models.CASCADE, related_name="blog")
+    title = models.TextField(help_text="The blog post's title")
+    published = models.DateField(
+        null=True, blank=True, help_text="The date the blog post was published"
+    )
+    overview = models.TextField(
+        blank=True, default="", help_text="A short summary of the blog post"
+    )
+    image = models.ImageField(
+        upload_to=_target_blog_upload_to,
+        null=True,
+        blank=True,
+        max_length=255,
+        help_text="An image shown on the blog card",
+    )
+    url = models.URLField(max_length=2000, help_text="The blog post's URL")
+
+    def __str__(self) -> str:
+        return f"{self.title}"
+
+    def __repr__(self) -> str:
+        return "<TargetBlog %r %r %r>" % (self.id, self.target_id, self.title)
+
+
 class ExperimentUpload(models.Model):
     LOADING = "LOADING"
     LOADED = "LOADED"
