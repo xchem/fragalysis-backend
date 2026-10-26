@@ -6,4 +6,5 @@ class ViewerConfig(AppConfig):
     name = 'viewer'
 
     def ready(self):
+        import viewer.checks  # pylint: disable=unused-import
         import viewer.signals  # pylint: disable=unused-import
