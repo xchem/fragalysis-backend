@@ -68,7 +68,7 @@ import os
 import sys
 from datetime import timedelta
 from pathlib import Path
-from typing import List, Optional
+from typing import Any, Dict, List, Optional
 
 # --------------------------------------------------------------------------------------
 # DJANGO SETTINGS
@@ -628,6 +628,47 @@ INFECTIONS: str = os.environ.get("INFECTIONS", "").lower()
 # If set, it's typically something like "https://fragalysis.diamond.ac.uk".
 # It can be blank, indicating there is no legacy service.
 LEGACY_URL: str = os.environ.get("LEGACY_URL", "")
+
+# Where the backend stores its media files (uploads, downloads and target data).
+# One of "FILESYSTEM" (files go under MEDIA_ROOT) or "S3" (files go to an S3,
+# or S3-compatible, bucket - see the MEDIA_S3_* variables below).
+# A start-up (system) check reports any other value, see "viewer/checks.py".
+# Gotcha: changing this after deployment does NOT move the existing files.
+MEDIA_STORAGE: str = os.environ.get("MEDIA_STORAGE", "FILESYSTEM").upper()
+# The S3 bucket settings, used only when MEDIA_STORAGE is "S3".
+# The bucket name is required, and the start-up check confirms that the bucket
+# exists. MEDIA_S3_LOCATION is an optional key prefix in the bucket (i.e. "media").
+# Leave MEDIA_S3_ENDPOINT_URL blank for AWS, or set it for an S3-compatible store
+# (i.e. "https://s3.example.com"). Blank region and credential values are left to
+# boto3, which then uses its normal sources (i.e. the AWS_* environment variables).
+# MEDIA_S3_URL_EXPIRY_S is the life (seconds) of the presigned file URLs.
+MEDIA_S3_BUCKET_NAME: str = os.environ.get("MEDIA_S3_BUCKET_NAME", "")
+MEDIA_S3_LOCATION: str = os.environ.get("MEDIA_S3_LOCATION", "")
+MEDIA_S3_ENDPOINT_URL: str = os.environ.get("MEDIA_S3_ENDPOINT_URL", "")
+MEDIA_S3_REGION_NAME: str = os.environ.get("MEDIA_S3_REGION_NAME", "")
+MEDIA_S3_ACCESS_KEY_ID: str = os.environ.get("MEDIA_S3_ACCESS_KEY_ID", "")
+MEDIA_S3_SECRET_ACCESS_KEY: str = os.environ.get("MEDIA_S3_SECRET_ACCESS_KEY", "")
+MEDIA_S3_URL_EXPIRY_S: int = int(os.environ.get("MEDIA_S3_URL_EXPIRY_S", "3600"))
+
+# Django's file storages, built from MEDIA_STORAGE.
+# Static files always use the local filesystem.
+STORAGES: Dict[str, Dict[str, Any]] = {
+    "default": {"BACKEND": "django.core.files.storage.FileSystemStorage"},
+    "staticfiles": {"BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage"},
+}
+if MEDIA_STORAGE == "S3":
+    STORAGES["default"] = {
+        "BACKEND": "frag_s3_storage.S3Storage",
+        "OPTIONS": {
+            "bucket_name": MEDIA_S3_BUCKET_NAME,
+            "location": MEDIA_S3_LOCATION,
+            "endpoint_url": MEDIA_S3_ENDPOINT_URL or None,
+            "region_name": MEDIA_S3_REGION_NAME or None,
+            "access_key_id": MEDIA_S3_ACCESS_KEY_ID or None,
+            "secret_access_key": MEDIA_S3_SECRET_ACCESS_KEY or None,
+            "url_expiry": MEDIA_S3_URL_EXPIRY_S,
+        },
+    }
 
 NEOMODEL_NEO4J_BOLT_URL: str = os.environ.get(
     "NEO4J_BOLT_URL", "bolt://neo4j:test@neo4j:7687"
