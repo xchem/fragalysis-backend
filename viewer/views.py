@@ -805,7 +805,7 @@ class ValidateTaskView(View):
 
             if not validated:
                 # set pandas options to display all column data
-                pd.set_option('display.max_colwidth', -1)
+                pd.set_option('display.max_colwidth', None)
 
                 table = pd.DataFrame.from_dict(validate_dict)
                 html_table = table.to_html()
@@ -950,7 +950,7 @@ class UploadTaskView(View):
                     process_messages = results[2]
                     # set pandas options to display all column data
                     if len(next(iter(process_messages.values()))) > 0:
-                        pd.set_option('display.max_colwidth', -1)
+                        pd.set_option('display.max_colwidth', None)
                         table = pd.DataFrame.from_dict(process_messages)
                         html_table = '''<p> Your data was uploaded with warnings</p>'''
                         html_table += table.to_html()
