@@ -1,10 +1,12 @@
 import ast
 import datetime
 import logging
+import math
 import os
 import re
 import uuid
 import zipfile
+from functools import partial
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
@@ -93,36 +95,72 @@ def dataType(a_str: str) -> str:
     except (ValueError, SyntaxError):
         return "text"
     else:
-        if type(t) in [int, int, float, bool]:
-            # this doesn't work, does it? or am I missing something? seems ureachable
-            if t in [
-                True,
-                False,
-                "TRUE",
-                "FALSE",
-                "true",
-                "false",
-                "yes",
-                "no",
-                "YES",
-                "NO",
-                "Yes",
-                "No",
-                "Y",
-                "N",
-                "y",
-                "n",
-            ]:
-                return "boolean"
-            if type(t) is int or type(t) is int:
-                return "INT"
-            if type(t) is float:
-                return "float"
+        if type(t) is bool:
+            return "boolean"
+        if type(t) is int:
+            return "integer"
+        if type(t) is float:
+            return "float"
+        return "text"
 
-            # Can't get here?
-            assert False
-        else:
-            return "text"
+
+def value_data_type(value: Any) -> str:
+    """Data type of a single score value as read from the SDF"""
+    # RDKit has already turned numeric-looking values into int or float
+    if isinstance(value, bool):
+        return "boolean"
+    if isinstance(value, int):
+        return "integer"
+    if isinstance(value, float):
+        return "float"
+    return dataType(str(value))
+
+
+def column_data_type(values) -> Optional[str]:
+    """Data type of a whole score column, or None if it has no values"""
+    types = {value_data_type(v) for v in values}
+    if not types:
+        return None
+    if types == {"integer"}:
+        return "integer"
+    if types <= {"integer", "float"}:
+        return "float"
+    if types == {"boolean"}:
+        return "boolean"
+    return "text"
+
+
+def _fits(stored: str, new: str) -> bool:
+    """Can values of type new go into a property of type stored?"""
+    if stored == "float":
+        return new in ("float", "integer")
+    if stored == "integer":
+        return new == "integer"
+    # everything else is stored as text
+    return True
+
+
+def _preference(new: Optional[str], result_property: ResultProperty) -> int:
+    """Rank a property for values of type new, lowest first"""
+    stored = result_property.data_type.data_type
+    if stored == new:
+        return 0
+    if new is None:
+        # no values, any will do
+        return 1
+    if stored == "float" and new == "integer":
+        return 1
+    if _fits(stored, new):
+        # as text
+        return 2
+    return 3
+
+
+def is_missing(value: Any) -> bool:
+    """True for a score value that isn't there: blank, None or nan"""
+    if isinstance(value, float):
+        return math.isnan(value)
+    return value is None or str(value).strip().lower() in ("", "nan", "none")
 
 
 class PdbOps:
@@ -385,32 +423,78 @@ class MolOps:
 
         return cpd
 
+    def set_result_properties(self, mols, score_descriptions, target) -> None:
+        """Find or create one ResultProperty per score for this upload.
+
+        The type is decided from all of the column's values, so a
+        missing value or an integer among floats doesn't split the
+        score into properties of different types.
+        """
+        mol_props = [m.GetPropsAsDict() for m in mols]
+        for name, description in score_descriptions.items():
+            if name in HEADER_MOL_FIELDS:
+                # set_props stores the description for these
+                values = [description]
+            else:
+                values = [props.get(name) for props in mol_props]
+            data_type = column_data_type(v for v in values if not is_missing(v))
+
+            # targets split by earlier uploads have more than one,
+            # prefer the one of the same type, then one the values fit
+            existing = list(
+                ResultProperty.objects.filter(
+                    result_property=name,
+                    unit__isnull=True,
+                    target=target,
+                )
+                .select_related("data_type")
+                .order_by("pk")
+            )
+            existing.sort(key=partial(_preference, data_type))
+            result_property = existing[0] if existing else None
+
+            if result_property is None:
+                result_property = ResultProperty.objects.create(
+                    result_property=name,
+                    unit=None,
+                    target=target,
+                    data_type=self.data_type_dict[data_type or "text"],
+                )
+            elif data_type and not _fits(
+                result_property.data_type.data_type, data_type
+            ):
+                msg = (
+                    f"Score '{name}' has {data_type} values, but earlier"
+                    + " uploads to this target stored it as"
+                    + f" {result_property.data_type.data_type}"
+                )
+                logger.error(msg)
+                raise IntegrityError(msg)
+
+            self.result_properties[name] = result_property
+
     def set_props(self, cpd, props, score_descriptions, computed_set) -> None:
         for property_name, val in score_descriptions.items():
-            # logger.debug("score_descriptions: %s", score_descriptions)
-            # logger.debug("property_name: %s", property_name)
-            # logger.debug("props: %s", props)
-            # logger.debug("sd.name, val: %s: %s", sd.name, val)
-
-            data_type = self.data_type_dict.get(
-                dataType(str(props[property_name])),
-                self.data_type_dict['text'],
-            )
-
-            try:
-                result_property = self.result_properties[property_name]
-            except KeyError:
-                result_property, _ = ResultProperty.objects.get_or_create(
-                    result_property=property_name,
-                    unit=None,
-                    target=computed_set.target,
-                    data_type=data_type,
-                )
-
             if property_name in HEADER_MOL_FIELDS:
                 value = val
             else:
-                value = props[property_name]
+                value = props.get(property_name)
+
+            if is_missing(value):
+                continue
+
+            if isinstance(value, float) and math.isinf(value):
+                # can't be returned as JSON
+                self.messages = add_warning(
+                    molecule_name=cpd.virtual_molecule_name,
+                    field=property_name,
+                    warning_string=f"Infinite value for {property_name} ignored.",
+                    validate_dict=self.messages,
+                )
+                continue
+
+            result_property = self.result_properties[property_name]
+            data_type = result_property.data_type.data_type
 
             result = Result(
                 raw_value=value,
@@ -419,11 +503,10 @@ class MolOps:
                 computed_set=computed_set,
             )
 
-            if data_type.data_type == 'float':
+            if data_type == 'float':
                 result.float_value = value
-            elif data_type.data_type == 'integer':
+            elif data_type == 'integer':
                 result.int_value = value
-
             else:
                 result.text_value = value
 
@@ -879,12 +962,6 @@ class MolOps:
                         + f"{get_column_letter(new_ordinal)}"
                     )
 
-                    # cache properties for later
-                    self.result_properties = {
-                        k.result_property: k
-                        for k in ResultProperty.objects.filter(target=target)
-                    }
-
                     # now that I have a name, I can check whether this
                     # target already has this set
                     try:
@@ -930,6 +1007,9 @@ class MolOps:
                 sdf_filename = str(self.sdf_filename)
                 mols_to_process, score_descriptions = self.set_descriptions(
                     filename=sdf_filename, computed_set=computed_set
+                )
+                self.set_result_properties(
+                    mols_to_process, score_descriptions, computed_set.target
                 )
 
                 # Process the molecules
