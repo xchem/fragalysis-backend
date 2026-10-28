@@ -462,9 +462,25 @@ class UploadComputedSetView(generics.ListCreateAPIView):
 
         form = CSetForm()
         existing_sets = models.ComputedSet.objects.all()
+
+        # Proposal/Target suggestions for the type-ahead inputs,
+        # limited to what the POST handler will accept from this user.
+        targets = models.Target.objects.all()
+        if settings.AUTHENTICATE_UPLOAD:
+            targets = targets.filter(
+                project__title__in=_ISPYB_SAFE_QUERY_SET.get_proposals_for_user(user)
+            )
+        target_choices = [
+            {'project': t['project__title'], 'target': t['title']}
+            for t in targets.values('title', 'project__title').order_by(
+                'project__title', 'title'
+            )
+        ]
+
         context = {
             'form': form,
             'sets': existing_sets,
+            'target_choices': target_choices,
             _SESSION_ERROR: session_error,
             _SESSION_MESSAGE: session_message,
         }
