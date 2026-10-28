@@ -44,6 +44,58 @@
                       </div>
                     <button type="submit">Submit</button>
                 </form>
+                {% if form %}
+                <datalist id="proposal-options"></datalist>
+                <datalist id="target-options"></datalist>
+                {{ target_choices|json_script:"target-choices" }}
+                <script>
+                  // Type-ahead suggestions: the Target list narrows to the chosen Proposal
+                  (function() {
+                    var choices = JSON.parse(document.getElementById('target-choices').textContent) || [];
+                    var proposalInput = document.getElementById('id_proposal_ref');
+                    var targetInput = document.getElementById('id_target_name');
+                    var proposalList = document.getElementById('proposal-options');
+                    var targetList = document.getElementById('target-options');
+
+                    function fill(list, items) {
+                      list.innerHTML = '';
+                      items.forEach(function(item) {
+                        var option = document.createElement('option');
+                        option.value = item.value;
+                        if (item.label) { option.label = item.label; }
+                        list.appendChild(option);
+                      });
+                    }
+
+                    function fillTargets() {
+                      var proposal = proposalInput.value;
+                      var known = choices.some(function(c) { return c.project === proposal; });
+                      var items = choices
+                        .filter(function(c) { return !known || c.project === proposal; })
+                        .map(function(c) { return {value: c.target, label: known ? '' : c.project}; });
+                      fill(targetList, items);
+                    }
+
+                    var proposals = [];
+                    choices.forEach(function(c) {
+                      if (proposals.indexOf(c.project) < 0) { proposals.push(c.project); }
+                    });
+                    fill(proposalList, proposals.map(function(p) { return {value: p}; }));
+                    fillTargets();
+
+                    proposalInput.addEventListener('input', fillTargets);
+                    targetInput.addEventListener('input', function() {
+                      // Starting from the Target? Fill in its Proposal if unambiguous.
+                      if (proposalInput.value) { return; }
+                      var owners = choices.filter(function(c) { return c.target === targetInput.value; });
+                      if (owners.length === 1) {
+                        proposalInput.value = owners[0].project;
+                        fillTargets();
+                      }
+                    });
+                  })();
+                </script>
+                {% endif %}
 
                 {# We may have been given an error from the previous attmept #}
                 {# For example the user may have selected 'DELETE' but not selected a prior set #}

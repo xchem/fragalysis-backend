@@ -15,8 +15,21 @@ TSET_CHOICES = [
 class CSetForm(forms.Form):
     """Used for uploading Computed sets at viewer/upload_cset"""
 
-    proposal_ref = forms.CharField(required=False, label='Proposal', max_length=200)
-    target_name = forms.CharField(label='Target', max_length=100, required=False)
+    # Free text, with type-ahead suggestions from <datalist>s in upload-cset.html
+    proposal_ref = forms.CharField(
+        required=False,
+        label='Proposal',
+        max_length=200,
+        widget=forms.TextInput(
+            attrs={'list': 'proposal-options', 'autocomplete': 'off'}
+        ),
+    )
+    target_name = forms.CharField(
+        label='Target',
+        max_length=100,
+        required=False,
+        widget=forms.TextInput(attrs={'list': 'target-options', 'autocomplete': 'off'}),
+    )
     sdf_file = forms.FileField(label='All compounds sdf (.sdf)', required=False)
     pdb_zip = forms.FileField(label='PDB files (.zip)', required=False)
     submit_choice = forms.CharField(widget=forms.RadioSelect(choices=CSET_CHOICES))
