@@ -334,62 +334,34 @@ class MolOps:
                     pdb_fn,
                 )
 
-        # pdb was not included, try to find the matching site observation
-        name = pdb_fn
-        site_obvs = None
-        try:
-            site_obvs = SiteObservation.objects.get(
-                code__contains=name,
-                experiment__experiment_upload__target__pk=target,
-                superseded=False,
-            )
-        except SiteObservation.DoesNotExist:
-            # Initial SiteObservation lookup failed.
-            logger.warning(
-                "Failed to get SiteObservation object (target=%s name=%s)",
-                compound_set.target.title,
-                name,
-            )
-            # Try alternatives.
-            # If all else fails then the site_obvs will be 'None'
-            qs = SiteObservation.objects.filter(
-                code__contains=name,
-                experiment__experiment_upload__target__pk=target,
-            )
-            if qs.exists():
-                logger.info(
-                    "Found SiteObservation containing name=%s qs=%s",
-                    name,
-                    qs,
+        # pdb was not included, find the one current site observation
+        # it names: exact code, then exact longcode, then a code
+        # containing the name. Anything else is reported, not guessed.
+        name = pdb_fn.removesuffix(".pdb")
+        current = SiteObservation.objects.filter(
+            experiment__experiment_upload__target__pk=target,
+            superseded=False,
+        )
+        for lookup in ("code", "longcode", "code__contains"):
+            matches = list(current.filter(**{lookup: name}).order_by("code"))
+            if len(matches) == 1:
+                return matches[0]
+            if matches:
+                codes = ", ".join(so.code for so in matches)
+                msg = (
+                    f'Molecule "{mol.GetProp("_Name")}": {property_name} "{name}"'
+                    + f" matches more than one observation ({codes})"
                 )
-            else:
-                alt_name = name.split(":")[0].split("_")[0]
-                qs = SiteObservation.objects.filter(
-                    code__contains=alt_name,
-                    experiment__experiment_upload__target__pk=target,
-                )
-                if qs.exists():
-                    logger.info(
-                        "Found SiteObservation containing alternative name=%s qs=%s",
-                        alt_name,
-                        qs,
-                    )
-            if qs.count() > 0:
-                logger.debug(
-                    "Found alternative (target=%s name=%s)",
-                    compound_set.target.title,
-                    name,
-                )
-                site_obvs = qs[0]
+                logger.error(msg)
+                raise IntegrityError(msg)
 
-        if not site_obvs:
-            logger.warning(
-                "No SiteObservation found (target=%s pdb_fn=%s)",
-                compound_set.target.title,
-                pdb_fn,
-            )
-
-        return site_obvs
+        msg = (
+            f'Molecule "{mol.GetProp("_Name")}": {property_name} "{name}"'
+            + f" matches no current observation of target {compound_set.target.title}"
+            + " and is not in the uploaded PDB files"
+        )
+        logger.error(msg)
+        raise IntegrityError(msg)
 
     def create_mol(self, inchi, target, name=None) -> Compound:
         # check for an existing compound, returning a Compound
@@ -593,13 +565,11 @@ class MolOps:
             zfile_hashvals=zfile_hashvals,
         )
         if not ref_so:
-            logger.warning(
-                "Failed to get a Reference SiteObservation (%s) for %s, %s, %s",
-                ref_property,
-                mol,
-                target,
-                compound_set,
-            )
+            # without one the molecule would have no protein, crystal
+            # form site or conformer site
+            msg = f'Molecule "{molecule_name}": no reference for {ref_property}'
+            logger.error(msg)
+            raise IntegrityError(msg)
 
         # Need a ComputedMolecule before saving.
         # Check if anything exists already...
