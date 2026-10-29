@@ -144,10 +144,79 @@ def _assert_nothing_uploaded():
 
 
 @pytest.mark.django_db
+def test_exact_code_wins_over_a_longer_code_containing_it(ref_target, upload_ref_pdb):
+    ref_target.observation("x0001a")
+    ref_target.observation("x0001a1")
+
+    computed_set = upload_ref_pdb("x0001a")
+
+    assert _virtual_pdbs(computed_set) == ["crystallographic_files/x0001.pdb"]
+
+
+@pytest.mark.django_db
+def test_longcode_resolves(ref_target, upload_ref_pdb):
+    ref_target.observation("x0002a", longcode="RefPdb-x0002_A_301_1")
+
+    computed_set = upload_ref_pdb("RefPdb-x0002_A_301_1")
+
+    assert _virtual_pdbs(computed_set) == ["crystallographic_files/x0002.pdb"]
+
+
+@pytest.mark.django_db
+def test_pdb_suffix_is_ignored(ref_target, upload_ref_pdb):
+    ref_target.observation("x0003a")
+
+    computed_set = upload_ref_pdb("x0003a.pdb")
+
+    assert _virtual_pdbs(computed_set) == ["crystallographic_files/x0003.pdb"]
+
+
+@pytest.mark.django_db
+def test_unique_partial_code_resolves(ref_target, upload_ref_pdb):
+    ref_target.observation("x0004a")
+
+    computed_set = upload_ref_pdb("x0004")
+
+    assert _virtual_pdbs(computed_set) == ["crystallographic_files/x0004.pdb"]
+
+
+@pytest.mark.django_db
+def test_superseded_observation_is_never_used(ref_target, upload_ref_pdb):
+    ref_target.observation("x0005a", superseded=True)
+
+    with pytest.raises(ValueError, match="x0005a"):
+        upload_ref_pdb("x0005a")
+
+    _assert_nothing_uploaded()
+
+
+@pytest.mark.django_db
+def test_ambiguous_name_fails_the_upload(ref_target, upload_ref_pdb):
+    ref_target.observation("x0006a")
+    ref_target.observation("x0006b")
+
+    with pytest.raises(ValueError, match="x0006a, x0006b"):
+        upload_ref_pdb("x0006")
+
+    _assert_nothing_uploaded()
+
+
+@pytest.mark.django_db
 def test_unresolved_name_fails_the_whole_upload(ref_target, upload_ref_pdb):
     ref_target.observation("x0007a")
 
-    with pytest.raises(ValueError, match="mol_1"):
+    with pytest.raises(ValueError, match="mol_1.*nosuch"):
         upload_ref_pdb("x0007a", "nosuch")
+
+    _assert_nothing_uploaded()
+
+
+@pytest.mark.django_db
+def test_name_prefix_is_not_guessed(ref_target, upload_ref_pdb):
+    # the old last-resort lookup matched on name.split(":")[0].split("_")[0]
+    ref_target.observation("x0008a")
+
+    with pytest.raises(ValueError, match="x0008a_extra"):
+        upload_ref_pdb("x0008a_extra")
 
     _assert_nothing_uploaded()
