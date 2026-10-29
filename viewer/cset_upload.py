@@ -4,10 +4,12 @@ import logging
 import math
 import os
 import re
+import shutil
 import uuid
 import zipfile
 from functools import partial
 from pathlib import Path
+from tempfile import TemporaryDirectory
 from typing import Any, Dict, List, Optional, Tuple
 
 import numpy as np
@@ -242,6 +244,10 @@ class MolOps:
 
         self.result_properties = {}
 
+        # Media files are written here during task() and only moved
+        # into MEDIA_ROOT once its transaction has committed
+        self.staging_root: Optional[Path] = None
+
         # This is now the third time the target is resolved. a bit
         # stupid. fix
         try:
@@ -287,7 +293,7 @@ class MolOps:
         pdb_fn = "_".join([zfile[pdb_code].split("/")[-1], uuid.uuid4().hex])
         pdb_field = Path(settings.COMPUTED_SET_MEDIA_DIRECTORY).joinpath(pdb_fn)
 
-        new_filename = Path(settings.MEDIA_ROOT).joinpath(pdb_field)
+        new_filename = self._staged_path(pdb_field)
         old_filename = Path(settings.MEDIA_ROOT).joinpath(pdb_fp)
 
         # there may be a case where 2 or more molfiles reference the
@@ -298,6 +304,39 @@ class MolOps:
             os.chmod(new_filename, 0o755)
 
         return str(pdb_field)
+
+    def _staged_path(self, relative) -> Path:
+        """Where a media file is written until the upload commits."""
+        assert self.staging_root, "media files are only written within task()"
+        path = self.staging_root.joinpath(relative)
+        path.parent.mkdir(parents=True, exist_ok=True)
+        return path
+
+    def _media_file(self, relative) -> Path:
+        """A media file, which may be one this upload has only staged so far."""
+        if self.staging_root:
+            staged = self.staging_root.joinpath(relative)
+            if staged.exists():
+                return staged
+        return Path(settings.MEDIA_ROOT).joinpath(relative)
+
+    def _publish_staged_files(self) -> None:
+        """Move the staged files into MEDIA_ROOT, at the same relative paths."""
+        assert self.staging_root
+        media_root = Path(settings.MEDIA_ROOT)
+        for staged in sorted(self.staging_root.rglob("*")):
+            if staged.is_file():
+                final = media_root.joinpath(staged.relative_to(self.staging_root))
+                final.parent.mkdir(parents=True, exist_ok=True)
+                shutil.move(staged, final)
+
+        # adjust permissions for any files created
+        set_directory_permissions(media_root.joinpath(self.virtual_root), 0o755)
+
+    def _remove_zip_files(self) -> None:
+        """Delete the PDBs PdbOps extracted that process_pdb did not move away."""
+        for path in (self.zfile or {}).values():
+            Path(settings.MEDIA_ROOT).joinpath(path).unlink(missing_ok=True)
 
     # use zfile object for pdb files uploaded in zip
     def get_site_observation(
@@ -666,7 +705,7 @@ class MolOps:
         )
 
         new_so_mol = Chem.MolToMolBlock(mol)
-        sdf_filename = Path(settings.MEDIA_ROOT).joinpath(filename)
+        sdf_filename = self._staged_path(filename)
         with open(sdf_filename, "w", encoding='utf-8') as f:
             f.write(new_so_mol)
 
@@ -684,7 +723,7 @@ class MolOps:
 
         # existing_computed_molecules = []
         for so in qs:
-            filepath = Path(settings.MEDIA_ROOT).joinpath(str(so.virtual_ligand_mol))
+            filepath = self._media_file(str(so.virtual_ligand_mol))
             so_mol = Chem.MolFromMolFile(str(filepath))
             if so_mol:
                 # find distances between corresponding atoms of the
@@ -892,6 +931,10 @@ class MolOps:
     def task(self) -> tuple[ComputedSet, dict]:
         # Truncate submitted method (lower-case)?
         # truncated_submitter_method: str = "unspecified"
+        staging_parent = Path(settings.MEDIA_ROOT).joinpath("tmp")
+        staging_parent.mkdir(parents=True, exist_ok=True)
+        staging = TemporaryDirectory(dir=staging_parent)
+        self.staging_root = Path(staging.name)
         try:
             with transaction.atomic():
                 submitter_method: str = self.submitter_method
@@ -1008,24 +1051,17 @@ class MolOps:
                     new_observation_tag=f"{computed_set.name} {datestr}",
                 )
 
-                # adjust permissions for any files created
-                set_directory_permissions(
-                    Path(settings.MEDIA_ROOT).joinpath(self.virtual_root),
-                    0o755,
-                )
+            # committed, so the files can go into place
+            self._publish_staged_files()
 
         except IntegrityError as exc:
-            # clean up previously written files. this is not ideal,
-            # they should be written to a tempdir or something, like
-            # in target loader. TODO for later
-            try:
-                for p in self.zfile.values():
-                    Path(p).unlink()
-            except AttributeError:
-                # zfile is None, nothing to do
-                pass
-
             raise ValueError(exc.args[0]) from exc
+
+        finally:
+            # whatever went wrong, nothing written is left behind
+            staging.cleanup()
+            self.staging_root = None
+            self._remove_zip_files()
 
         # assuming no errors, write the files
 
