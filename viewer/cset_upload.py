@@ -593,13 +593,11 @@ class MolOps:
             zfile_hashvals=zfile_hashvals,
         )
         if not ref_so:
-            logger.warning(
-                "Failed to get a Reference SiteObservation (%s) for %s, %s, %s",
-                ref_property,
-                mol,
-                target,
-                compound_set,
-            )
+            # without one the molecule would have no protein, crystal
+            # form site or conformer site
+            msg = f'Molecule "{molecule_name}": no reference for {ref_property}'
+            logger.error(msg)
+            raise IntegrityError(msg)
 
         # Need a ComputedMolecule before saving.
         # Check if anything exists already...
