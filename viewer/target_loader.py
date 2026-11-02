@@ -244,6 +244,20 @@ def _get_xca_tag(yaml_content: dict[str, Any]) -> tuple[list[str], str]:
     return tag_parts, xca_version_tag
 
 
+def _read_xca_version(yaml_content: dict[str, Any]) -> Optional[str]:
+    """The XCA version tag (``xca_git_info->tag``) the bundle was made with.
+
+    Unlike _get_xca_tag this does no validation - the bundle has
+    already been validated against the deployment mode, and outside
+    PRODUCTION a bundle may legitimately be dirty or lack a tag.
+    """
+    xca_git_info = yaml_content.get("xca_git_info") or {}
+    if not isinstance(xca_git_info, dict):
+        return None
+    tag = xca_git_info.get("tag")
+    return None if tag is None else str(tag)
+
+
 def _check_xca_tag(
     yaml_content: dict[str, Any],
     min_xca_tag: str,
@@ -2256,6 +2270,7 @@ class TargetLoader:
         self.previous_version_dirs = meta["previous_version_dirs"]
         prefix_tooltips = meta.get("code_prefix_tooltips", {})
         data_format_version = str(meta["data_format_version"])
+        xca_version = _read_xca_version(meta)
 
         try:
             major, minor = split_version(data_format_version)
@@ -2359,6 +2374,7 @@ class TargetLoader:
         self.experiment_upload.upload_version = self.version_number
         self.experiment_upload.data_version_major = major
         self.experiment_upload.data_version_minor = minor
+        self.experiment_upload.xca_version = xca_version
         self.experiment_upload.save()
 
         (  # pylint: disable=unbalanced-tuple-unpacking
