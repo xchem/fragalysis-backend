@@ -112,7 +112,6 @@ from .tasks import (
     process_job_file_transfer,
     task_create_download,
     task_load_target,
-    validate_compound_set,
 )
 
 logger = logging.getLogger(__name__)
@@ -428,9 +427,9 @@ class CompoundView(mixins.UpdateModelMixin, ISPyBSafeQuerySet):
 
 
 class UploadComputedSetView(generics.ListCreateAPIView):
-    """Render and control viewer/upload-cset.html - a page allowing upload of computed sets. Validation and
-    upload tasks are defined in `viewer.compound_set_upload`, `viewer.sdf_check` and `viewer.tasks` and the task
-    response handling is done by `viewer.views.ValidateTaskView` and `viewer.views.UploadTaskView`
+    """Render and control viewer/upload-cset.html - a page allowing upload of computed sets. The
+    upload task is defined in `viewer.cset_upload` and `viewer.tasks` and the task
+    response handling is done by `viewer.views.UploadTaskView`
     """
 
     def get(self, request):
@@ -496,7 +495,7 @@ class UploadComputedSetView(generics.ListCreateAPIView):
         if form.is_valid():
             # Get all the variables needed from the form.
             # The fields we use will be based on the 'submit_choice',
-            # expected to be one of V (validate), U (upload) or D delete
+            # expected to be one of U (upload) or D delete
             choice = request.POST['submit_choice']
             # The 'sdf_file' and 'target_name' are only required for upload/update
             sdf_file = request.FILES.get('sdf_file')
@@ -527,14 +526,11 @@ class UploadComputedSetView(generics.ListCreateAPIView):
                     )
                     return redirect('viewer:upload_cset')
 
-            # If validating or uploading we need a Target, and SDF file.
-            # If updating or deleting we need an update set (that's not 'None')
-            if choice in ['V', 'U']:
+            # If uploading we need a Target, and SDF file.
+            # If deleting we need an update set (that's not 'None')
+            if choice == 'U':
                 if sdf_file is None or target_name is None or not proposal_ref:
-                    err_msg = (
-                        'To Validate or Upload'
-                        + ' you must provide a Target, Proposal ref. and SDF file'
-                    )
+                    err_msg = 'To Upload you must provide a Target, Proposal ref. and SDF file'
                     request.session[_SESSION_ERROR] = err_msg
                     logger.warning(
                         '- UploadComputedSetView POST error_msg="%s"',
@@ -621,8 +617,8 @@ class UploadComputedSetView(generics.ListCreateAPIView):
             if sdf_file:
                 tmp_sdf_file = save_tmp_file(sdf_file)
 
-            if choice == 'V':
-                # Validate
+            if choice == 'U':
+                # Upload
                 # Start celery task
                 task_params = {
                     'user_id': user.id,
@@ -633,41 +629,7 @@ class UploadComputedSetView(generics.ListCreateAPIView):
                     task_params['zfile'] = tmp_pdb_file
                 if update_set:
                     task_params['update'] = update_set
-                task_validate = validate_compound_set.delay(task_params)
-
-                task_id = task_validate.id
-                task_status = task_validate.status
-                logger.info(
-                    '+ UploadComputedSetView POST "Validate" task underway'
-                    ' (validate_task_id=%s (%s) validate_task_status=%s)',
-                    task_id,
-                    type(task_id),
-                    task_status,
-                )
-
-                # Update client side with task id and status
-                context = {
-                    'validate_task_id': task_id,
-                    'validate_task_status': task_status,
-                }
-                return render(request, 'viewer/upload-cset.html', context)
-
-            elif choice == 'U':
-                # Upload
-                # Start chained celery tasks. NB first function passes tuple
-                # to second function - see tasks.py
-                task_params = {
-                    'user_id': user.id,
-                    'sdf_file': tmp_sdf_file,
-                    'target': target.pk,
-                }
-                if tmp_pdb_file:
-                    task_params['zfile'] = tmp_pdb_file
-                if update_set:
-                    task_params['update'] = update_set
-                task_upload = (
-                    validate_compound_set.s(task_params) | process_compound_set.s()
-                ).apply_async()
+                task_upload = process_compound_set.delay(task_params)
 
                 task_id = task_upload.id
                 task_status = task_upload.status
@@ -738,103 +700,6 @@ class UploadComputedSetView(generics.ListCreateAPIView):
         return render(request, 'viewer/upload-cset.html', context)
 
 
-class ValidateTaskView(View):
-    """View to handle dynamic loading of validation results from `viewer.tasks.validate`.
-    The validation of files uploaded to viewer/upload_cset.
-    """
-
-    def get(self, request, validate_task_id):
-        """Get method for `ValidateTaskView`. Takes a validate task id, checks its
-        status and returns the status, and result if the task is complete
-
-        Returns
-        -------
-        response_data: JSON
-            response data (dict) in JSON format:
-                - if status = 'RUNNING':
-                    - validate_task_status (str): task.status
-                    - validate_task_id (str): task.id
-                - if status = 'FAILURE':
-                    - validate_task_status (str): task.status
-                    - validate_task_id (str): task.id
-                    - validate_traceback (str): task.traceback
-                - if status = 'SUCCESS':
-                    - validate_task_status (str): task.status
-                    - validate_task_id (str): task.id
-                    - html (str): html of task outcome - success message or html table of errors & fail message
-
-        """
-        logger.info('+ ValidateTaskView.get')
-        validate_task_id_str = str(validate_task_id)
-
-        task = AsyncResult(validate_task_id_str)
-        response_data = {
-            'validate_task_status': task.status,
-            'validate_task_id': task.id,
-        }
-
-        if task.status == 'FAILURE':
-            logger.info('+ ValidateTaskView.get.FAILURE')
-            result = task.traceback
-            response_data['validate_traceback'] = str(result)
-
-            return JsonResponse(response_data)
-
-        # Check if results ready
-        if task.status == "SUCCESS":
-            logger.info('+ ValidateTaskView.get.SUCCESS')
-            results = task.get()
-            # Response from validation is a tuple
-            validate_dict = results[1]
-            validated = results[2]
-            # [3] comes from task in tasks.py, 4th element in task payload tuple
-            task_data = results[3]
-
-            if isinstance(task_data, dict) and 'proposal_ref' in task_data.keys():
-                project_name = task_data['proposal_ref']
-                try:
-                    project = models.Project.objects.get(title=project_name)
-
-                except models.Project.DoesNotExist:
-                    logger.error('Project %s not found', project_name)
-                    return Response(
-                        {'error': f'Project {project_name} not found'},
-                        status=status.HTTP_403_FORBIDDEN,
-                    )
-
-                if project.title not in _ISPYB_SAFE_QUERY_SET.get_proposals_for_user(
-                    request.user
-                ):
-                    return Response(
-                        {
-                            'error': f"You are not a member of the proposal {project_name}"
-                        },
-                        status=status.HTTP_403_FORBIDDEN,
-                    )
-
-            if validated:
-                response_data[
-                    'html'
-                ] = 'Your data was validated. \n It can now be uploaded using the upload option.'
-                response_data['validated'] = 'Validated'
-                return JsonResponse(response_data)
-
-            if not validated:
-                # set pandas options to display all column data
-                pd.set_option('display.max_colwidth', None)
-
-                table = pd.DataFrame.from_dict(validate_dict)
-                html_table = table.to_html()
-                html_table += '''<p> Your data was <b>not</b> validated. The table above shows errors</p>'''
-
-                response_data["html"] = html_table
-                response_data['validated'] = 'Not validated'
-
-                return JsonResponse(response_data)
-
-        return JsonResponse(response_data)
-
-
 class UpdateTaskView(View):
     def get(self, request, update_task_id):
         # Unused arguments
@@ -881,11 +746,7 @@ class UploadTaskView(View):
                 - if status = 'SUCCESS':
                     - upload_task_status (str): task.status
                     - upload_task_id (str): task.id
-                    - if results are a list (data was processed - validated or uploaded):
-                        if this was a validation process
-                        - validated (str): 'Not validated'
-                        - html (str): html table of validation errors
-                        if results are a validation/upload process:
+                    - if results are a list (data was uploaded):
                         - validated (str): 'Validated'
                         - results (dict): results
                         - results['cset_download_url'] (str): download url for computed set sdf file
@@ -914,24 +775,9 @@ class UploadTaskView(View):
                 type(results),
             )
 
-            # Was the task about validation or processing (an actual upload)?
-            # We receive a list with the first value being 'validate' or 'process'
+            # We receive a list with the first value being 'process'
             if isinstance(results, list):
-                if results[0] == 'validate':
-                    # Get dictionary results
-                    validate_dict = results[1]
-
-                    # set pandas options to display all column data
-                    pd.set_option('display.max_colwidth', None)
-                    table = pd.DataFrame.from_dict(validate_dict)
-                    html_table = table.to_html()
-                    html_table += '''<p> Your data was <b>not</b> validated. The table above shows errors</p>'''
-                    response_data['validated'] = 'Not validated'
-                    response_data['html'] = html_table
-
-                    return JsonResponse(response_data)
-
-                elif results[0] == 'process':
+                if results[0] == 'process':
                     # section added to pass warnings to user after successful processing
                     logger.debug('processed warnings: %s', results[2])
                     # Upload/Update output tasks send back a tuple

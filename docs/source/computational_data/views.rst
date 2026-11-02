@@ -20,8 +20,8 @@ a version of the standard DRF (see :ref:`RESTful API (Views) <api-intro>`) :code
   :code:`viewer.views.img_from_smiles`. The scores for each molecule are displayed on the respective molecule card.
 
 - :code:`viewer.views.UploadCSet`: This view is used to generate the form found at :code:`<root>/viewer/upload_cset`, and
-  to pass the values to the celery tasks controlled through :code:`viewer.views.ValidateTaskView` and
-  :code:`viewer.views.UploadTaskView` that validate and process the uploaded data, saving it into the relevant models
+  to pass the values to the celery task controlled through :code:`viewer.views.UploadTaskView` that processes the
+  uploaded data, saving it into the relevant models
   (see :ref:`Computational data (Models) <comp-models>`)so that the data can be displayed on the RHS of a target specific
   page.
 
@@ -53,9 +53,6 @@ View details
     :members:
 
 .. autoclass:: viewer.views.UploadTSet
-    :members:
-
-.. autoclass:: viewer.views.ValidateTaskView
     :members:
 
 .. autoclass:: viewer.views.UploadTaskView

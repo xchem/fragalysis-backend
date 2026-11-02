@@ -1,7 +1,6 @@
 from django import forms
 
 CSET_CHOICES = [
-    ('V', 'Validate'),
     ('U', 'Upload'),
     ('D', 'Delete'),
 ]

@@ -99,8 +99,8 @@ def _post_computed_set(
 ) -> str:
     """POST the SDF and return the upload task's status URL.
 
-    ``submit_choice=U`` chains validate + process, which is the whole upload in
-    one request. ``pdb_zip`` is optional and deliberately not sent - the SDF's
+    ``submit_choice=U`` starts ``process_compound_set``, which is the whole
+    upload in one request. ``pdb_zip`` is optional and deliberately not sent - the SDF's
     ``ref_pdb`` values are site-observation codes resolved against the LHS load.
     """
     filename = upload["file"]
@@ -207,11 +207,9 @@ def test_upload_cset_poll_then_get(tmp_path):
         assert result["upload_task_status"] == "SUCCESS", result.get(
             "upload_traceback", result
         )
-        # 'Not validated' carries an HTML table of the validation errors; put it
-        # in the message so a failing CI run says *why* the SDF was rejected.
         assert (
             result.get("validated") == "Validated"
-        ), f"computed set was not validated: {result.get('html', result)}"
+        ), f"computed set was not uploaded: {result.get('html', result)}"
 
         expected_molecules = expect.get("computed_molecules")
         observed_growth = (
