@@ -1,7 +1,7 @@
 """Tests for the media-download authorisation barrier (issue #984, phase 2).
 
-``api.security.ISPyBSafeStaticFiles`` (used by the ``/metadata/``, ``/bound/``,
-``/maps/`` and ``/targets/`` downloads) is the access-control gate for static
+``api.security.ISPyBSafeStaticFiles`` (used by the ``/metadata/``, ``/bound/``
+and ``/maps/`` downloads) is the access-control gate for static
 file serving: ``get_response`` only resolves a file the requesting user is
 allowed to see, otherwise it raises ``Http404``. A bug here leaks files, so the
 member / non-member / public / anonymous paths are pinned here.
@@ -23,6 +23,7 @@ import pytest
 from django.contrib.auth.models import AnonymousUser
 from django.http import Http404
 from django.test import RequestFactory
+from django.urls import Resolver404, resolve
 
 from api.security import ISPyBSafeStaticFiles, ISPyBSafeStaticFiles2
 from viewer.models import Target
@@ -152,3 +153,13 @@ def test_static_files2_builds_nginx_redirect_path():
     )
     assert response["Content-Type"] == "application/x-pilot"
     assert handler.input_string in response["Content-Disposition"]
+
+
+def test_the_target_archive_route_is_removed():
+    """``/media/targets/`` is gone (issue 1038).
+
+    ``Target.zip_archive`` holds the target's ``target_loader_data/``
+    directory name, not an archive, so the route had no file to serve.
+    """
+    with pytest.raises(Resolver404):
+        resolve("/media/targets/Mpro.zip/")

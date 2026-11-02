@@ -149,25 +149,6 @@ def metadata_download(request, file_path):
     return ispy_b_static.get_response()
 
 
-def archive_download(request, file_path):
-    """
-    Download a protein by nginx redirect
-    :param request: the initial request
-    :param file_path: the file path we're getting from the static
-    :return: the response (a redirect to nginx internal)
-    """
-    ispy_b_static = ISPyBSafeStaticFiles()
-    ispy_b_static.model = Target
-    ispy_b_static.request = request
-    ispy_b_static.permission_string = "project"
-    ispy_b_static.field_name = "zip_archive"
-    ispy_b_static.content_type = "application/zip"
-    ispy_b_static.prefix = "/targets/"
-    ispy_b_static.input_string = file_path
-    ispy_b_static.file_format = 'raw'
-    return ispy_b_static.get_response()
-
-
 def target_blog_image(request, blog_id):
     """
     Serve a target blog card's image by nginx redirect, to anyone who can

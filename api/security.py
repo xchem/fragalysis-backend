@@ -4,13 +4,12 @@ import os
 import posixpath
 from dataclasses import dataclass
 from typing import Any, Dict, Optional
-from wsgiref.util import FileWrapper
 
 import ta_auth_connector
 from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.db.models import Q
-from django.http import Http404, HttpResponse
+from django.http import Http404
 from rest_framework import viewsets
 
 from viewer.media_storage import media_response
@@ -360,27 +359,12 @@ class ISPyBSafeStaticFiles:
 
             logger.debug("instance: %r", instance)
 
-            if hasattr(self, 'file_format'):
-                if self.file_format == 'raw':
-                    file_field = getattr(object, self.field_name)
-                    filepath = file_field.path
-                    zip_file = open(filepath, 'rb')
-                    response = HttpResponse(
-                        FileWrapper(zip_file), content_type='application/zip'
-                    )
-                    response['Content-Disposition'] = (
-                        'attachment; filename="%s"' % file_name
-                    )
-
-            else:
-                response = media_response(
-                    self.request,
-                    str(getattr(instance, self.field_name)),
-                    content_type=self.content_type,
-                    content_disposition="attachment;filename=" + file_name,
-                )
-
-            return response
+            return media_response(
+                self.request,
+                str(getattr(instance, self.field_name)),
+                content_type=self.content_type,
+                content_disposition="attachment;filename=" + file_name,
+            )
         except Exception as exc:
             logger.error(exc, exc_info=True)
             raise Http404 from exc
