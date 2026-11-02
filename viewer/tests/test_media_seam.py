@@ -34,7 +34,6 @@ _PATTERNS = (
 
 # The remaining uses, as {file: count}. Lower these as the work is done.
 _ALLOWED = {
-    "viewer/cset_upload.py": 10,
     "viewer/download_restore.py": 2,
     "viewer/download_structures.py": 19,
     "viewer/management/commands/cleanup_media.py": 3,
@@ -50,8 +49,8 @@ _ALLOWED = {
     "viewer/target_loader.py": 3,
     "viewer/target_set_upload.py": 1,
     "viewer/upload_delete.py": 4,
-    "viewer/utils.py": 8,
-    "viewer/views.py": 3,
+    "viewer/utils.py": 5,
+    "viewer/views.py": 1,
 }
 
 

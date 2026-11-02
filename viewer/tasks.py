@@ -27,6 +27,7 @@ from fragalysis.celery import app as celery_app
 from viewer.models import Compound, DesignSet
 from viewer.target_loader import load_target
 
+from . import media_storage
 from .cache import clear_view_cache
 from .cset_upload import MolOps, PdbOps, blank_mol_vals
 from .download_structures import create_download
@@ -117,7 +118,8 @@ def process_compound_set(validate_output):
         return process_stage, validate_dict, validated
 
     computed_set_id = params.get('update', None)
-    submitter_name, submitter_method, blank_version = blank_mol_vals(params['sdf'])
+    with media_storage.local_copy(params['sdf']) as local_sdf:
+        submitter_name, submitter_method, blank_version = blank_mol_vals(str(local_sdf))
     zfile, zfile_hashvals = PdbOps().run(params)
 
     # We expect a User ID, but it may be None.
@@ -156,8 +158,8 @@ def validate_compound_set(task_params):
     ----------
     user_id: The record ID of the user initiating the task.
     sdf_file: str
-        filepath of the uploaded sdf file, which is saved to temporary storage
-        by `viewer.views.UploadCSet`
+        storage name of the uploaded sdf file, which is saved to temporary storage
+        by `viewer.views.UploadCSet` (see viewer.media_storage)
     target: str
         name of the target (`viewer.models.Target.title`) to add add the computed set to
     zfile: dict
@@ -232,7 +234,7 @@ def validate_compound_set(task_params):
             outbound_params,
         )
         return 'validate', validate_dict, validated, outbound_params
-    elif not os.path.isfile(sdf_file):
+    elif not media_storage.exists(sdf_file):
         validated = False
         logger.info(
             'validate_compound_set() EXIT (missing file) validated=%s outbound_params=%s',
@@ -241,9 +243,12 @@ def validate_compound_set(task_params):
         )
         return 'validate', validate_dict, validated, outbound_params
 
-    with capture_rdkit_logs() as log_buffer:
-        suppl = Chem.SDMolSupplier(sdf_file)
-        blank_mol = suppl[0]
+    # sdf_file is a storage name. RDKit reads a (scratch) copy of it.
+    with media_storage.local_copy(sdf_file) as local_sdf:
+        suppl = Chem.SDMolSupplier(str(local_sdf))
+        with capture_rdkit_logs() as log_buffer:
+            blank_mol = suppl[0]
+        mols = [suppl[i] for i in range(len(suppl))]
 
     if blank_mol is None:
         logs = log_buffer.getvalue()
@@ -276,7 +281,7 @@ def validate_compound_set(task_params):
     else:
         validate_dict = check_compound_set(blank_mol, validate_dict, update=update)
 
-    other_mols = [suppl[i] for i in range(1, len(suppl))]
+    other_mols = mols[1:]
 
     # all mol checks
     # Check if all mols can be read by rdkit
@@ -284,7 +289,7 @@ def validate_compound_set(task_params):
     all_props = []
     # Use index and check_mol to see if any sdf entries are None type mol objects
     index = 1
-    for mol in suppl:
+    for mol in mols:
         if not mol:
             add_warning(
                 molecule_name='Unknown',
@@ -298,7 +303,7 @@ def validate_compound_set(task_params):
         index += 1
     unique_props = list(set(all_props))
 
-    for mol in suppl:
+    for mol in mols:
         if mol:
             props = [key for key in list(mol.GetPropsAsDict().keys())]
             diff_list = np.setdiff1d(props, unique_props)

@@ -1366,6 +1366,8 @@ class ComputedSet(models.Model):
         upload_to='computed_set_data/',
         help_text="The original SDF containing the ComputedSet",
     )
+    # A storage name (i.e. "computed_set_data/x.sdf", see viewer.media_storage),
+    # not an absolute path. Migration 0174 changed the old absolute values.
     written_sdf_filename = models.TextField(
         null=True,
         help_text="The written ComputedSet filename",

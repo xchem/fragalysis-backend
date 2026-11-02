@@ -16,8 +16,6 @@ from urllib.parse import urlparse
 import pandas as pd
 from django.conf import settings
 from django.contrib.auth.models import User
-from django.core.files.base import ContentFile
-from django.core.files.storage import default_storage
 from django.core.mail import send_mail
 from django.db import IntegrityError, transaction
 from django.db.models import F
@@ -26,6 +24,7 @@ from rdkit import Chem
 
 from scoring.models import SiteObservationGroup, SiteObvsSiteObservationGroup
 
+from . import media_storage
 from .models import (
     Compound,
     ExperimentUpload,
@@ -458,11 +457,12 @@ def alphanumerator(
 
 
 def save_tmp_file(myfile):
-    """Save file in temporary location for validation/upload processing"""
+    """Stores an uploaded file for validation/upload processing.
 
-    name = myfile.name
-    path = default_storage.save('tmp/' + name, ContentFile(myfile.read()))
-    return str(os.path.join(settings.MEDIA_ROOT, path))
+    Returns its storage name (tmp/cset/<uuid>/<file>), not a local path,
+    because the Celery tasks that use it can run on any worker.
+    """
+    return media_storage.store_upload(myfile, "tmp/cset")
 
 
 def create_csv_from_dict(input_dict, title=None, filename=None):
