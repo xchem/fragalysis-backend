@@ -684,7 +684,7 @@ def test_image_route_redirects_to_nginx_as_inline_image(
     response = api_client.get(f"/media/target_blog/{blog_id}/")
 
     assert response.status_code == 200
-    assert response["X-Accel-Redirect"] == f"/{blog.image.name}"
+    assert response["X-Accel-Redirect"] == f"/media-local/{blog.image.name}"
     assert response["Content-Type"] == "image/png"
     assert response["Content-Disposition"].startswith("inline")
 

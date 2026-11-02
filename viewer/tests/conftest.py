@@ -11,15 +11,67 @@ set will arrive once a real target archive is committed and loaded via the
 # only - both are standard pytest patterns that pylint misreads.
 # pylint: disable=redefined-outer-name,unused-argument
 from contextlib import contextmanager
-from typing import Any, Callable, Iterable
+from typing import Any, Callable, Iterable, Iterator
 from unittest import mock
 
+import boto3
 import pytest
 import ta_auth_connector
 from django.contrib.auth.models import User
+from django.core.files.storage import storages
 from rest_framework.test import APIClient
 
 from viewer.models import Project, Target
+
+# The moto bucket that the "s3" media backend uses.
+MEDIA_TEST_BUCKET = "frag-media-test"
+MEDIA_TEST_REGION = "eu-west-2"
+
+
+@pytest.fixture(params=["filesystem", "s3"])
+def media_backend(request, settings, tmp_path, monkeypatch) -> Iterator[str]:
+    """Runs the test once for each media storage: the filesystem and S3.
+
+    The "filesystem" run uses a temporary MEDIA_ROOT. The "s3" run uses a
+    moto bucket, with fake credentials so that nothing can reach real AWS.
+    The test gets the storage name and uses Django's default storage.
+    """
+    if request.param == "filesystem":
+        settings.MEDIA_STORAGE = "FILESYSTEM"
+        settings.MEDIA_ROOT = str(tmp_path / "media")
+        settings.STORAGES = {
+            **settings.STORAGES,
+            "default": {"BACKEND": "django.core.files.storage.FileSystemStorage"},
+        }
+        yield request.param
+        return
+
+    # moto is a 'test' dependency. Import it here, not at the top, because the
+    # integration tests load this conftest in the backend image, without moto.
+    from moto import mock_aws  # pylint: disable=import-outside-toplevel
+
+    monkeypatch.setenv("AWS_ACCESS_KEY_ID", "testing")
+    monkeypatch.setenv("AWS_SECRET_ACCESS_KEY", "testing")
+    monkeypatch.delenv("AWS_PROFILE", raising=False)
+    with mock_aws():
+        boto3.client("s3", region_name=MEDIA_TEST_REGION).create_bucket(
+            Bucket=MEDIA_TEST_BUCKET,
+            CreateBucketConfiguration={"LocationConstraint": MEDIA_TEST_REGION},
+        )
+        settings.MEDIA_STORAGE = "S3"
+        settings.STORAGES = {
+            **settings.STORAGES,
+            "default": {
+                "BACKEND": "frag_s3_storage.S3Storage",
+                "OPTIONS": {
+                    "bucket_name": MEDIA_TEST_BUCKET,
+                    "region_name": MEDIA_TEST_REGION,
+                },
+            },
+        }
+        # Make sure that the storage is built inside the moto context.
+        assert storages["default"].bucket_name == MEDIA_TEST_BUCKET
+        yield request.param
 
 
 @pytest.fixture

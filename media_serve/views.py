@@ -2,9 +2,10 @@ import logging
 import mimetypes
 from pathlib import PurePosixPath
 
-from django.http import Http404, HttpResponse
+from django.http import Http404
 
 from api.security import ISPyBSafeQuerySet, ISPyBSafeStaticFiles, ISPyBSafeStaticFiles2
+from viewer.media_storage import media_response
 from viewer.models import SiteObservation, Target, TargetBlog
 
 logger = logging.getLogger(__name__)
@@ -186,10 +187,9 @@ def target_blog_image(request, blog_id):
 
     file_name = blog.image.name
     content_type, _ = mimetypes.guess_type(file_name)
-    response = HttpResponse()
-    response["Content-Type"] = content_type or "application/octet-stream"
-    response["X-Accel-Redirect"] = f"/{file_name}"
-    response[
-        "Content-Disposition"
-    ] = f'inline; filename="{PurePosixPath(file_name).name}"'
-    return response
+    return media_response(
+        request,
+        file_name,
+        content_type=content_type or "application/octet-stream",
+        content_disposition=f'inline; filename="{PurePosixPath(file_name).name}"',
+    )
