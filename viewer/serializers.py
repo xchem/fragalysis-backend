@@ -305,11 +305,12 @@ class TargetSerializer(serializers.ModelSerializer):
         return None
 
     def get_zip_archive(self, obj):
-        # The if-check is because the filefield in target has null=True.
-        # Note that this link will not work on local
+        # zip_archive holds the name of the target's directory under
+        # TARGET_LOADER_MEDIA_DIRECTORY, not an archive (see target_loader.py),
+        # so it is not a file URL (issue 1061).
         if hasattr(obj, 'zip_archive') and obj.zip_archive.name:
-            return urljoin(get_https_host(self.context["request"]), obj.zip_archive.url)
-        return
+            return obj.zip_archive.name
+        return None
 
     def get_metadata(self, obj):
         if hasattr(obj, 'metadata') and obj.metadata.name:

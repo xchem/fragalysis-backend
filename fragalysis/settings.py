@@ -642,6 +642,7 @@ MEDIA_STORAGE: str = os.environ.get("MEDIA_STORAGE", "FILESYSTEM").upper()
 # (i.e. "https://s3.example.com"). Blank region and credential values are left to
 # boto3, which then uses its normal sources (i.e. the AWS_* environment variables).
 # MEDIA_S3_URL_EXPIRY_S is the life (seconds) of the presigned file URLs.
+# nginx uses a presigned URL immediately, so the life can be short.
 MEDIA_S3_BUCKET_NAME: str = os.environ.get("MEDIA_S3_BUCKET_NAME", "")
 MEDIA_S3_LOCATION: str = os.environ.get("MEDIA_S3_LOCATION", "")
 MEDIA_S3_ENDPOINT_URL: str = os.environ.get("MEDIA_S3_ENDPOINT_URL", "")
@@ -667,6 +668,10 @@ if MEDIA_STORAGE == "S3":
             "access_key_id": MEDIA_S3_ACCESS_KEY_ID or None,
             "secret_access_key": MEDIA_S3_SECRET_ACCESS_KEY or None,
             "url_expiry": MEDIA_S3_URL_EXPIRY_S,
+            # File URLs are MEDIA_URL URLs, as for the filesystem. Django checks
+            # access and nginx serves the file (see viewer/media_storage.py).
+            # Only nginx gets a presigned S3 URL.
+            "url_base": MEDIA_URL,
         },
     }
 

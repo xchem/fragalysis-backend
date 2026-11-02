@@ -6,7 +6,11 @@ entry, for example::
     STORAGES = {
         "default": {
             "BACKEND": "frag_s3_storage.S3Storage",
-            "OPTIONS": {"bucket_name": "fragalysis-media", "location": "media"},
+            "OPTIONS": {
+                "bucket_name": "fragalysis-media",
+                "location": "media",
+                "url_base": "/media/",
+            },
         },
     }
 
@@ -22,6 +26,7 @@ import mimetypes
 import posixpath
 import tempfile
 from typing import IO, Any
+from urllib.parse import urljoin
 
 import boto3
 from botocore.config import Config
@@ -32,6 +37,7 @@ from django.core.files.base import File
 from django.core.files.storage import Storage
 from django.utils import timezone
 from django.utils.deconstruct import deconstructible
+from django.utils.encoding import filepath_to_uri
 
 # The S3 error codes for an object that does not exist.
 # head_object() reports "404", get_object() reports "NoSuchKey".
@@ -62,12 +68,14 @@ class S3Storage(Storage):
         access_key_id: str | None = None,
         secret_access_key: str | None = None,
         url_expiry: int = 3600,
+        url_base: str | None = None,
     ) -> None:
         if not bucket_name:
             raise ImproperlyConfigured("S3Storage needs a 'bucket_name' option")
         self.bucket_name = bucket_name
         self.location = location.strip("/")
         self.url_expiry = url_expiry
+        self.url_base = url_base
         self._client_kwargs = {
             "endpoint_url": endpoint_url,
             "region_name": region_name,
@@ -179,6 +187,19 @@ class S3Storage(Storage):
         return directories, files
 
     def url(self, name: str) -> str:
+        """Returns the URL of a file.
+
+        With a ``url_base`` (i.e. "/media/") the URL is the base and the quoted
+        name, the same as Django's FileSystemStorage. Use this when the files
+        are served by your own site, not by S3. Without a ``url_base``,
+        the URL is the presigned URL (see ``presigned_url()``).
+        """
+        if self.url_base is None:
+            return self.presigned_url(name)
+        self._key(name)  # Rejects names outside the storage location
+        return urljoin(self.url_base, filepath_to_uri(name).lstrip("/"))
+
+    def presigned_url(self, name: str) -> str:
         """Returns a presigned GET URL that expires after ``url_expiry`` seconds."""
         return self.client.generate_presigned_url(
             "get_object",
