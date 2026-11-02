@@ -9,7 +9,7 @@ import shutil
 import string
 import tempfile
 import uuid
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 from typing import Dict, Generator, Iterable, Optional, Tuple
 from urllib.parse import urlparse
 
@@ -20,6 +20,7 @@ from django.core.mail import send_mail
 from django.db import IntegrityError, transaction
 from django.db.models import F
 from django.http import JsonResponse
+from django.utils.text import get_valid_filename
 from rdkit import Chem
 
 from scoring.models import SiteObservationGroup, SiteObvsSiteObservationGroup
@@ -49,7 +50,8 @@ SDF_RECORD_SEPARATOR = '$$$$\n'
 # The directory must not contain anything but dicttocsv-generated files.
 # It certainly must not be the root of the media directory or any other directory in it.
 # Introduced during 1247 security review.
-CSV_TO_DICT_DOWNLOAD_ROOT = os.path.join(settings.MEDIA_ROOT, 'downloads', 'dicttocsv')
+# A storage name prefix (see viewer.media_storage).
+CSV_TO_DICT_DOWNLOAD_ROOT = 'downloads/dicttocsv'
 
 
 def is_url(url: Optional[str]) -> bool:
@@ -460,31 +462,19 @@ def save_tmp_file(myfile):
 
 
 def create_csv_from_dict(input_dict, title=None, filename=None):
-    """Write a CSV file containing data from an input dictionary and return a full
-    to the file (in the media directory).
+    """Store a CSV file containing data from an input dictionary, and return its
+    storage name (downloads/dicttocsv/<uuid>/<filename>).
     """
-    if not filename:
-        filename = 'download'
+    # Only the file name: the file must stay in its own directory
+    filename = get_valid_filename(PurePosixPath(filename or '').name) or 'download'
 
-    unique_dir = str(uuid.uuid4())
-    download_path = os.path.join(CSV_TO_DICT_DOWNLOAD_ROOT, unique_dir)
-    os.makedirs(download_path, exist_ok=True)
-
-    download_file = os.path.join(download_path, filename)
-
-    # Remove file if it already exists
-    if os.path.isfile(download_file):
-        os.remove(download_file)
-
-    with open(download_file, "w", newline='', encoding='utf-8') as csvfile:
-        if title:
-            csvfile.write(title)
-            csvfile.write("\n")
-
-    df = pd.DataFrame.from_dict(input_dict)
-    df.to_csv(download_file, mode='a', header=True, index=False)
-
-    return download_file
+    content = f'{title}\n' if title else ''
+    content += pd.DataFrame.from_dict(input_dict).to_csv(
+        header=True, index=False, lineterminator='\n'
+    )
+    return media_storage.store_bytes(
+        f'{CSV_TO_DICT_DOWNLOAD_ROOT}/{uuid.uuid4()}/{filename}', content
+    )
 
 
 def email_task_completion(

@@ -2,7 +2,7 @@ import contextlib
 import logging
 import uuid
 from dataclasses import dataclass
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 
 from django.conf import settings
 from django.contrib.auth.models import User
@@ -308,6 +308,29 @@ class ExperimentUpload(models.Model):
 
     def get_upload_path(self):
         return Path(settings.MEDIA_ROOT).joinpath(self.upload_prefix())
+
+    def bundle_name(self) -> str | None:
+        """The storage name of this upload's bundle, or None if it is not stored.
+
+        The loader stores the bundle in the target's directory, as its file
+        name or, when a bundle with that name is already there, as
+        <stem>_<upload_data_dir><suffix> (see target_loader.store_upload_files()).
+        """
+        file_name = PurePosixPath(str(self.file or '')).name
+        if not file_name or not self.target.zip_archive:
+            return None
+        target_dir = (
+            f'{settings.TARGET_LOADER_MEDIA_DIRECTORY}/{self.target.zip_archive.name}'
+        )
+        file_path = PurePosixPath(file_name)
+        candidates = [f'{target_dir}/{file_name}']
+        if self.upload_data_dir:
+            # The renamed bundle is this upload's for certain, so try it first
+            candidates.insert(
+                0,
+                f'{target_dir}/{file_path.stem}_{self.upload_data_dir}{file_path.suffix}',
+            )
+        return next((c for c in candidates if media_storage.exists(c)), None)
 
     def get_download_path(self):
         """The path to the original uploaded file, used during downloads"""

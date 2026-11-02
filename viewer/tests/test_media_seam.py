@@ -46,7 +46,7 @@ _ALLOWED = {
     "viewer/target_delete.py": 1,
     "viewer/target_set_upload.py": 1,
     "viewer/upload_delete.py": 4,
-    "viewer/utils.py": 5,
+    "viewer/utils.py": 4,
 }
 
 
