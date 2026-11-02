@@ -1,5 +1,5 @@
-import shutil
 import sys
+import uuid
 from pathlib import Path
 
 from django.conf import settings
@@ -7,6 +7,7 @@ from django.contrib.auth import get_user_model
 from django.core.management.base import BaseCommand
 from django.db import IntegrityError
 
+from viewer import media_storage
 from viewer.target_loader import load_target
 
 
@@ -50,19 +51,18 @@ class Command(BaseCommand):
                 self.stdout.write(self.style.ERROR(msg))
                 sys.exit()
 
-        # upload view uploads the tarball to /code/media/tmp/.
-        # the user may not
+        # Store the tarball where the upload view stores an upload
+        # (tmp/uploads/<uuid>/<file>), then remove the local file.
         tarball_path = Path(kwargs['tarball'])
-        temp_path = Path(settings.MEDIA_ROOT).joinpath('tmp')
-        temp_path.mkdir(exist_ok=True)
-
-        # shutil instead of path.rename because doesn't work in local
-        # deployment with mounted volume
-        shutil.move(str(tarball_path), str(temp_path.joinpath(tarball_path.name)))
+        bundle_name = media_storage.to_name(
+            f'tmp/uploads/{uuid.uuid4().hex}/{tarball_path.name}'
+        )
+        media_storage.store_file(tarball_path, bundle_name)
+        tarball_path.unlink()
 
         try:
             load_target(
-                str(temp_path.joinpath(tarball_path.name)),
+                bundle_name,
                 proposal_ref=kwargs['proposal_ref'],
                 user_id=user_id,
             )

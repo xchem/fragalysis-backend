@@ -37,7 +37,6 @@ _ALLOWED = {
     "viewer/download_restore.py": 2,
     "viewer/download_structures.py": 19,
     "viewer/management/commands/cleanup_media.py": 3,
-    "viewer/management/commands/load_target.py": 1,
     "viewer/management/commands/restore_download_links.py": 2,
     "viewer/management/commands/restore_v3_files_from_v2_archive.py": 3,
     "viewer/management/commands/tags_from_sites.py": 1,
@@ -46,11 +45,9 @@ _ALLOWED = {
     "viewer/models.py": 5,
     "viewer/squonk_job_file_transfer.py": 1,
     "viewer/target_delete.py": 1,
-    "viewer/target_loader.py": 3,
     "viewer/target_set_upload.py": 1,
     "viewer/upload_delete.py": 4,
     "viewer/utils.py": 5,
-    "viewer/views.py": 1,
 }
 
 

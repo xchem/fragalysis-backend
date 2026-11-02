@@ -1,6 +1,7 @@
 import base64
 import binascii
 import copy
+import hashlib
 import json
 import logging
 import os
@@ -80,10 +81,8 @@ from viewer.target_loader import (
 )
 from viewer.utils import (
     CSV_TO_DICT_DOWNLOAD_ROOT,
-    calculate_sha256,
     create_csv_from_dict,
     create_squonk_job_request_url,
-    handle_uploaded_file,
     save_tmp_file,
 )
 
@@ -1907,6 +1906,15 @@ def _upload_tas_authorisation_response(request, target_access_string):
     return Response(failure.error_body, status=status.HTTP_403_FORBIDDEN)
 
 
+def _sha256_of_upload(upload) -> str:
+    """The SHA-256 (hex) of an uploaded file's content."""
+    sha256_hash = hashlib.sha256()
+    for chunk in upload.chunks():
+        sha256_hash.update(chunk)
+    upload.seek(0)
+    return sha256_hash.hexdigest()
+
+
 class UploadExperimentUploadView(viewsets.ViewSet):
     http_method_names = ('post',)
     serializer_class = serializers.TargetExperimentWriteSerializer
@@ -1939,24 +1947,10 @@ class UploadExperimentUploadView(viewsets.ViewSet):
         if auth_response is not None:
             return auth_response
 
-        filename = serializer.validated_data['file']
-
-        # memo to self: cannot use TemporaryDirectory here because task
-        temp_path = Path(settings.MEDIA_ROOT).joinpath('tmp')
-        temp_path.mkdir(exist_ok=True)
-        target_file = temp_path.joinpath(filename.name)
-        handle_uploaded_file(target_file, filename)
-
-        # optional completed compound-curation spreadsheet; persist it alongside
-        # the bundle so the loader can apply the user's decisions.
-        curation_path = None
-        if curation_upload := serializer.validated_data.get('curation_file'):
-            curation_file = temp_path.joinpath(curation_upload.name)
-            handle_uploaded_file(curation_file, curation_upload)
-            curation_path = str(curation_file)
+        upload = serializer.validated_data['file']
 
         if file_hash := serializer.validated_data.get('sha256checksum', None):
-            checksum = calculate_sha256(str(target_file))
+            checksum = _sha256_of_upload(upload)
             if checksum != file_hash:
                 return Response(
                     {
@@ -1967,6 +1961,16 @@ class UploadExperimentUploadView(viewsets.ViewSet):
                     },
                     status=status.HTTP_400_BAD_REQUEST,
                 )
+
+        # The task can run on any worker, so it gets storage names
+        # (tmp/uploads/<uuid>/<file>), not local paths.
+        bundle_name = media_storage.store_upload(upload, 'tmp/uploads')
+
+        # optional completed compound-curation spreadsheet; store it alongside
+        # the bundle so the loader can apply the user's decisions.
+        curation_name = None
+        if curation_upload := serializer.validated_data.get('curation_file'):
+            curation_name = media_storage.store_upload(curation_upload, 'tmp/uploads')
 
         celery_app = Celery("fragalysis")
         celery_app.config_from_object("django.conf:settings", namespace="CELERY")
@@ -1979,10 +1983,10 @@ class UploadExperimentUploadView(viewsets.ViewSet):
             logger.warning('Celery not running!')
 
         task = task_load_target.delay(
-            data_bundle=str(target_file),
+            data_bundle=bundle_name,
             proposal_ref=target_access_string,
             user_id=request.user.pk,
-            curation_file=curation_path,
+            curation_file=curation_name,
         )
         logger.info("+ UploadTargetExperiments.create got Celery id %s", task.task_id)
 

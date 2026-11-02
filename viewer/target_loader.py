@@ -4,7 +4,6 @@ import logging
 import math
 import os
 import re
-import shutil
 import sqlite3
 import subprocess
 import time
@@ -13,7 +12,7 @@ from collections.abc import Callable
 from dataclasses import dataclass, field
 from datetime import timedelta
 from enum import Enum
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 from tempfile import TemporaryDirectory
 from typing import Any, Dict, Iterable, List, Optional, Tuple, TypeVar
 
@@ -35,6 +34,7 @@ from rdkit import Chem
 
 from api.utils import deployment_mode_is_production
 from fragalysis.settings import TARGET_LOADER_MEDIA_DIRECTORY
+from viewer import media_storage
 from viewer.cache import clear_view_cache
 from viewer.compound_curation import (
     CONTENT_FIELDS,
@@ -73,7 +73,6 @@ from viewer.utils import (
     flatten_dict,
     longcode_from_tag,
     sanitize_directory_name,
-    set_directory_permissions,
     strip_exp_code,
     strip_version,
 )
@@ -667,10 +666,20 @@ class TargetLoader:
         user_id=None,
         task: Task | None = None,
         curation_file: str | None = None,
+        stored_bundle: str | None = None,
     ):
+        """data_bundle is the local (scratch) copy of the bundle. stored_bundle
+        is its storage name (tmp/uploads/...), moved next to the upload's files
+        when the upload succeeds. curation_file is a storage name.
+        """
         self.data_bundle = Path(data_bundle).name
         self.bundle_name = Path(data_bundle).stem
         self.bundle_path = data_bundle
+        self.stored_bundle = stored_bundle
+        # The storage names of this upload's files and its moved bundle,
+        # set when they are stored (see store_upload_files())
+        self.stored_prefix: str | None = None
+        self.final_bundle: str | None = None
         self.proposal_ref = proposal_ref
         self.tempdir = tempdir
         self.raw_data = Path(self.tempdir).joinpath(self.bundle_name)
@@ -729,13 +738,9 @@ class TargetLoader:
         if task:
             self.experiment_upload.task_id = task.request.id
 
-        # figure out absolute and relative paths to final
-        # location. relative path is added to db field, this will be
-        # used in url requests to retrieve the file. absolute path is
-        # for moving the file to the final location
+        # The final location, as a storage name (see viewer.media_storage).
+        # It is added to db fields, and used in url requests to retrieve the file.
         self._final_path = path
-        self._abs_final_path = Path(settings.MEDIA_ROOT).joinpath(path)
-        # but don't create now, this comes later
 
         # to be used in logging messages, if no task, means invoked
         # directly, likely from management command
@@ -759,9 +764,16 @@ class TargetLoader:
     def final_path(self) -> Path:
         return self._final_path
 
-    @property
-    def abs_final_path(self) -> Path:
-        return self._abs_final_path
+    def read_ligand_mol(self, ligand_mol: str) -> Chem.Mol | None:
+        """Reads a ligand .mol file (a path relative to the target's directory).
+
+        The file is in this upload (the extracted bundle) or, for upload 2+,
+        in an earlier upload (the media storage). None if it is missing.
+        """
+        local = self.raw_data.joinpath(ligand_mol)
+        if local.exists():
+            return Chem.MolFromMolFile(str(local))
+        return read_stored_mol(str(self._final_path.joinpath(ligand_mol)))
 
     def validate_map_files(
         self,
@@ -1202,7 +1214,9 @@ class TargetLoader:
         parsed = None
         if self.curation_file:
             try:
-                parsed = parse_curation_xlsx(Path(self.curation_file).read_bytes())
+                parsed = parse_curation_xlsx(
+                    media_storage.read_bytes(self.curation_file)
+                )
             except (CurationFormatError, OSError, ValueError, KeyError) as exc:
                 self.report.log(
                     logging.ERROR,
@@ -2103,18 +2117,8 @@ class TargetLoader:
 
         mol = None
         if ligand_mol:
-            molpath = Path(settings.MEDIA_ROOT).joinpath(
-                self.raw_data,
-                Path(ligand_mol),
-            )
-            if not molpath.exists():
-                # upload 2+ and mol came from previous upload
-                molpath = self._abs_final_path.joinpath(
-                    Path(ligand_mol),
-                )
-
             # potentially check db as well
-            mol = Chem.MolFromMolFile(str(molpath))
+            mol = self.read_ligand_mol(ligand_mol)
 
         if mol is None:
             msg = f'No ligand in observation {longcode}'
@@ -2227,7 +2231,9 @@ class TargetLoader:
         if target_created:
             target_dir = f"{self.target_name}_{self.proposal_ref}"
             # mypy thinks target and target_name are None
-            target_dir = sanitize_directory_name(target_dir, self.abs_final_path)  # type: ignore [arg-type]
+            target_dir = sanitize_directory_name(
+                target_dir, existing=media_storage.list_dirs(str(self._final_path))
+            )
             self.target.zip_archive = target_dir  # type: ignore [attr-defined]
             self.target.display_name = self.target_name  # type: ignore [attr-defined]
             self.target.short_name = self.target_name  # type: ignore [attr-defined]
@@ -2242,7 +2248,6 @@ class TargetLoader:
             self.excluded_crystals = meta.get("excluded_crystals", [])
 
         self._final_path = self._final_path.joinpath(target_dir)
-        self._abs_final_path = self._abs_final_path.joinpath(target_dir)
 
         try:
             committer = get_user_model().objects.get(pk=self.user_id)
@@ -2306,7 +2311,8 @@ class TargetLoader:
         # TODO: is it here where I can figure out if this has already been uploaded?
         if self._is_already_uploaded(target_created, project_created):
             # remove uploaded file
-            Path(self.bundle_path).unlink()
+            if self.stored_bundle:
+                media_storage.delete(self.stored_bundle)
             msg = f"{self.bundle_name} already uploaded"
             self.report.log(logging.ERROR, msg)
             raise FileExistsError(msg)
@@ -3180,9 +3186,8 @@ class TargetLoader:
 
             logger.debug('new observation: %s', val.instance)
 
-            # NB! files have not been moved yet, need the tempdir location
-            molpath = Path(settings.MEDIA_ROOT).joinpath(
-                self.raw_data,
+            # NB! files have not been stored yet, need the tempdir location
+            molpath = self.raw_data.joinpath(
                 *Path(val.instance.ligand_mol.name).parts[2:],
             )
             if not molpath.exists():
@@ -3216,12 +3221,9 @@ class TargetLoader:
                 # Chem.RemoveStereochemistry(cmol)
 
                 # Same bad join as download_structures had - see #1025.
-                cmol_path = compmol.virtual_ligand_mol_path
+                cmol_path = compmol.virtual_ligand_mol_name
                 logger.debug('cmol_path: %s', cmol_path)
-                cmol = None
-                if cmol_path is not None and cmol_path.is_file():
-                    # MolFromMolFile raises OSError for a missing file.
-                    cmol = Chem.MolFromMolFile(str(cmol_path))
+                cmol = read_stored_mol(cmol_path)
                 logger.debug('compmol_obj: %s', cmol)
 
                 rmsd = None
@@ -3982,20 +3984,33 @@ def load_target(
     task=None,
     curation_file=None,
 ):
-    # A temporary working directory for decompressing the uploaded bundle.
-    # This lives within the Pod (the default location, an emptyDir mounted at
-    # /tmp), not the (potentially slow) shared MEDIA_ROOT volume. The extracted
-    # data is moved to its final MEDIA_ROOT location with shutil.move(), which
-    # copes with a cross-filesystem move. See ticket #935.
-    with TemporaryDirectory() as tempdir:
+    """Loads a target bundle. data_bundle and curation_file are storage names.
+
+    The bundle is copied to, and extracted in, a temporary directory in the
+    Pod (an emptyDir mounted at /tmp), not the media storage. See ticket #935.
+    The upload's files are stored (see store_upload_files()) as the last step
+    of the transaction, so a failed upload stores nothing.
+    """
+    # The bundle copy has its own directory: the extracted data goes to
+    # <tempdir>/<bundle stem>, which could otherwise be the same directory.
+    with TemporaryDirectory() as tempdir, TemporaryDirectory() as bundle_dir:
+        local_bundle = Path(bundle_dir, PurePosixPath(data_bundle).name)
+        missing = media_storage.fetch([(data_bundle, local_bundle)])
         target_loader = TargetLoader(
-            data_bundle,
+            str(local_bundle),
             proposal_ref,
             tempdir,
             user_id=user_id,
             task=task,
             curation_file=curation_file,
+            stored_bundle=data_bundle,
         )
+        if missing:
+            target_loader.report.final(
+                f"The uploaded file '{target_loader.data_bundle}' is missing",
+                success=False,
+            )
+            return
 
         # Decompression can take some time, so we want to report progress
         bundle_filename = os.path.basename(data_bundle)
@@ -4057,44 +4072,72 @@ def load_target(
                 # those models. Inside the atomic block so we only invalidate
                 # when the writes are actually going to commit.
                 clear_view_cache("tag", "pose", "site-observation")
+                # The last step, so that the rows are committed only
+                # when their files are stored.
+                store_upload_files(target_loader)
         except Exception as exc:
             # Handle _any_ underlying problem.
             # These are errors processing the data, which we handle gracefully.
             # The task should _always_ end successfully.
             # Any problem with the underlying data is transmitted in the report.
             logger.error(exc, exc_info=True)
+            delete_stored_upload_files(target_loader)
             target_loader.report.final(
                 f"Failed to process '{target_loader.data_bundle}'", success=False
             )
             return
         else:
-            _move_and_save_target_experiment(target_loader)
+            _save_target_experiment(target_loader)
 
 
-def _move_and_save_target_experiment(target_loader):
-    # Move the uploaded file to its final location
-    try:
-        target_loader.abs_final_path.mkdir(parents=True)
-    except FileExistsError:
-        # subsequent upload, directory already exists
-        pass
+def store_upload_files(target_loader) -> None:
+    """Stores the upload's extracted files and moves the bundle next to them.
 
-    shutil.move(
-        str(target_loader.raw_data.joinpath(target_loader.version_dir)),
-        str(target_loader.abs_final_path),
+    The files go to <final path>/<version dir>/ (in parallel), and the bundle
+    to <final path>/<bundle>. If a bundle with that name exists (the user
+    used the same name again), it is not replaced: this one gets the version
+    in its name.
+    """
+    final_path = PurePosixPath(target_loader.final_path)
+    target_loader.stored_prefix = str(final_path / target_loader.version_dir)
+    media_storage.store_tree(
+        target_loader.raw_data.joinpath(target_loader.version_dir),
+        target_loader.stored_prefix,
     )
-    final_bundle_path = target_loader.abs_final_path.joinpath(target_loader.data_bundle)
-    if final_bundle_path.exists():
-        # don't overwrite if user uses the same name
-        final_bundle_path = Path(
-            *final_bundle_path.parts[:-1],
-            f'{final_bundle_path.stem}_{target_loader.version_dir}{final_bundle_path.suffix}',
+
+    bundle = PurePosixPath(target_loader.data_bundle)
+    final_bundle = final_path / bundle.name
+    if media_storage.exists(str(final_bundle)):
+        final_bundle = (
+            final_path / f"{bundle.stem}_{target_loader.version_dir}{bundle.suffix}"
         )
+    media_storage.move(target_loader.stored_bundle, str(final_bundle))
+    target_loader.final_bundle = str(final_bundle)
 
-    Path(target_loader.bundle_path).rename(final_bundle_path)
 
-    set_directory_permissions(target_loader.abs_final_path, 0o755)
+def delete_stored_upload_files(target_loader) -> None:
+    """Deletes the files that store_upload_files() stored, after a failure.
 
+    It deletes nothing if the files were not stored. The version directory
+    is new for each upload, so other uploads' files are not touched.
+    """
+    if target_loader.stored_prefix:
+        media_storage.delete_prefix(target_loader.stored_prefix)
+    if target_loader.final_bundle:
+        media_storage.delete(target_loader.final_bundle)
+
+
+def read_stored_mol(name: str | None) -> Chem.Mol | None:
+    """Reads a .mol file from the media storage. None if there is no file."""
+    if not name:
+        return None
+    try:
+        return Chem.MolFromMolBlock(media_storage.read_text(name))
+    except FileNotFoundError:
+        return None
+
+
+def _save_target_experiment(target_loader):
     target_loader.report.final(f"{target_loader.data_bundle} uploaded successfully")
     target_loader.experiment_upload.message = target_loader.report.json()
     target_loader.experiment_upload.save()
