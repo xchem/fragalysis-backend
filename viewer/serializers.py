@@ -22,7 +22,7 @@ from rest_framework.exceptions import PermissionDenied
 
 from api.security import ISPyBSafeQuerySet
 from api.utils import draw_mol, validate_tas
-from viewer import models
+from viewer import media_storage, models
 
 # from viewer.cset_upload import EMPTY_VALUES
 from viewer.permissions import authorise_target_write
@@ -238,52 +238,42 @@ class TargetSerializer(serializers.ModelSerializer):
     project_title = serializers.CharField(source="project.title", read_only=True)
 
     def get_template_protein_path(self, experiment_upload) -> Path | None:
-        yaml_path = experiment_upload.get_upload_path()
-
-        # and the file itself
-        yaml_path = yaml_path.joinpath(XTALFORMS_FILE)
-        logger.debug("assemblies path: %s", yaml_path)
-        if yaml_path.is_file():
-            with open(yaml_path, "r", encoding="utf-8") as file:
-                contents = yaml.safe_load(file)
-                try:
-                    assemblies = contents["assemblies"]
-                except KeyError:
-                    logger.error("No 'assemblies' section in '%s'", XTALFORMS_FILE)
-                    return None
-
-                try:
-                    first = list(assemblies.values())[0]
-                except IndexError:
-                    logger.error("No assemblies in 'assemblies' section")
-                    return None
-
-                try:
-                    reference = first["reference"]
-                except KeyError:
-                    logger.error("No assemblies in 'assemblies' section")
-                    return None
-
-                ref_path = (
-                    Path(settings.TARGET_LOADER_MEDIA_DIRECTORY)
-                    .joinpath(experiment_upload.target.zip_archive.name)
-                    .joinpath(experiment_upload.upload_data_dir)
-                    .joinpath("crystallographic_files")
-                    .joinpath(reference)
-                    .joinpath(f"{reference}.pdb")
-                )
-                logger.debug('ref_path: %s', ref_path)
-                media_ref_path: Path = Path(settings.MEDIA_ROOT).joinpath(ref_path)
-                if media_ref_path.is_file():
-                    return ref_path
-                else:
-                    logger.debug(
-                        "Reference pdb file doesn't exist (%s)", media_ref_path
-                    )
-                    return None
-        else:
+        """The storage name (as a Path) of the upload's reference PDB, or None."""
+        prefix = experiment_upload.upload_prefix()
+        yaml_name = f"{prefix}/{XTALFORMS_FILE}"
+        logger.debug("assemblies file: %s", yaml_name)
+        try:
+            contents = yaml.safe_load(media_storage.read_text(yaml_name))
+        except FileNotFoundError:
             logger.error("'%s' missing", XTALFORMS_FILE)
             return None
+
+        try:
+            assemblies = contents["assemblies"]
+        except (KeyError, TypeError):
+            logger.error("No 'assemblies' section in '%s'", XTALFORMS_FILE)
+            return None
+
+        try:
+            first = list(assemblies.values())[0]
+        except IndexError:
+            logger.error("No assemblies in 'assemblies' section")
+            return None
+
+        try:
+            reference = first["reference"]
+        except KeyError:
+            logger.error("No assemblies in 'assemblies' section")
+            return None
+
+        ref_path = Path(prefix).joinpath(
+            "crystallographic_files", reference, f"{reference}.pdb"
+        )
+        logger.debug('ref_path: %s', ref_path)
+        if media_storage.exists(str(ref_path)):
+            return ref_path
+        logger.debug("Reference pdb file doesn't exist (%s)", ref_path)
+        return None
 
     def get_template_protein(self, obj):
         # loop through exp uploads from latest to earliest, and try to
@@ -553,7 +543,7 @@ class ProtMapInfoSerializer(serializers.ModelSerializer):
         # description in the spec, it seems this is equivalent to
         # event_file in site_observation, but it's binary and not read
         if obj.event_file:
-            return open(obj.event_file.path, encoding='utf-8').read()
+            return media_storage.read_text(obj.event_file.name)
         else:
             return None
 
@@ -566,7 +556,7 @@ class ProtPDBInfoSerializer(serializers.ModelSerializer):
     pdb_data = serializers.SerializerMethodField()
 
     def get_pdb_data(self, obj):
-        return open(obj.experiment.pdb_info.path, encoding='utf-8').read()
+        return media_storage.read_text(obj.experiment.pdb_info.name)
 
     class Meta:
         model = models.SiteObservation
@@ -579,7 +569,7 @@ class ProtPDBBoundInfoSerializer(serializers.ModelSerializer):
 
     def get_bound_pdb_data(self, obj):
         if obj.bound_file:
-            return open(obj.bound_file.path, encoding='utf-8').read()
+            return media_storage.read_text(obj.bound_file.name)
         else:
             return None
 
