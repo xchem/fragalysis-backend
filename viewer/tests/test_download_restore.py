@@ -21,6 +21,7 @@ from pathlib import Path
 
 import pytest
 
+from viewer import media_storage
 from viewer.download_restore import (
     DOWNLOADS_SUBDIR,
     read_original_search,
@@ -214,7 +215,8 @@ def test_restore_rebuilds_the_record_the_lookup_needs(
     assert link.file_url == "Mpro.tar.gz"
     assert link.static_link is True
     assert link.target == target
-    assert link.get_file_url() == str(archive)
+    # get_file_url() gives the storage name of the archive (issue 1038)
+    assert link.get_file_url() == media_storage.to_name(archive)
     assert link.original_search == _search()
     # Derived through the view's own serializer, so the flags match.
     assert link.protein_params["bound_file"] is True
