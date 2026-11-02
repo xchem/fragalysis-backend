@@ -66,6 +66,7 @@ def media_backend(request, settings, tmp_path, monkeypatch) -> Iterator[str]:
                 "OPTIONS": {
                     "bucket_name": MEDIA_TEST_BUCKET,
                     "region_name": MEDIA_TEST_REGION,
+                    "url_base": settings.MEDIA_URL,
                 },
             },
         }

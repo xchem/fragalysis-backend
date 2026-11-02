@@ -102,6 +102,7 @@ def test_s3_storage_takes_its_options_from_the_environment(monkeypatch):
             "access_key_id": "key-id",
             "secret_access_key": "secret",
             "url_expiry": 600,
+            "url_base": "/media/",
         },
     }
 

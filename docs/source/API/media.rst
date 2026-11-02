@@ -58,6 +58,11 @@ one for each media storage (the :code:`MEDIA_STORAGE` setting):
 :code:`<name>` is the storage name of the file (the :code:`name` of its :code:`FileField`).
 A new media endpoint does not need a new nginx location.
 
+The API gives the browser the same :code:`/media/<name>` URLs for both media storages
+(:code:`FieldFile.url`). In S3 mode, the storage's :code:`url_base` option (set to :code:`MEDIA_URL`)
+makes :code:`url()` return these URLs. Only :code:`media_response()` uses a presigned S3 URL
+(:code:`presigned_url()`), and only nginx sees it.
+
 Django answers a :code:`HEAD` request itself, with the file size in :code:`Content-Length`,
 because a URL presigned for :code:`GET` does not work for :code:`HEAD`.
 

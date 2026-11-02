@@ -74,7 +74,7 @@ def media_response(
     quoted_name = quote(name)
     if isinstance(storage, S3Storage):
         response["X-Accel-Redirect"] = _S3_LOCATION + quoted_name
-        response["X-Media-Url"] = storage.url(name)
+        response["X-Media-Url"] = storage.presigned_url(name)
     else:
         response["X-Accel-Redirect"] = _LOCAL_LOCATION + quoted_name
     return response

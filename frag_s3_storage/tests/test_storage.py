@@ -124,6 +124,47 @@ def test_url_expiry_is_configurable(s3_client):  # pylint: disable=unused-argume
     assert "X-Amz-Expires=60" in storage.url("a.txt")
 
 
+def test_url_with_a_url_base_is_the_base_and_the_quoted_name(s3_client):
+    # pylint: disable=unused-argument
+    storage = S3Storage(bucket_name=BUCKET, region_name=REGION, url_base="/media/")
+
+    assert storage.url("dir/a b#1.txt") == "/media/dir/a%20b%231.txt"
+
+
+def test_url_with_a_url_base_does_not_include_the_location(s3_client):
+    # pylint: disable=unused-argument
+    storage = S3Storage(
+        bucket_name=BUCKET, region_name=REGION, location="media", url_base="/media/"
+    )
+
+    assert storage.url("a.txt") == "/media/a.txt"
+
+
+def test_url_with_a_url_base_rejects_names_outside_the_location(s3_client):
+    # pylint: disable=unused-argument
+    storage = S3Storage(bucket_name=BUCKET, region_name=REGION, url_base="/media/")
+
+    with pytest.raises(SuspiciousFileOperation):
+        storage.url("../a.txt")
+
+
+def test_presigned_url_ignores_the_url_base(s3_client):
+    # pylint: disable=unused-argument
+    storage = S3Storage(
+        bucket_name=BUCKET,
+        region_name=REGION,
+        location="media",
+        url_base="/media/",
+        url_expiry=60,
+    )
+
+    url = storage.presigned_url("dir/a.txt")
+
+    assert BUCKET in url
+    assert "media/dir/a.txt" in url
+    assert "X-Amz-Expires=60" in url
+
+
 def test_path_is_not_supported(storage):
     with pytest.raises(NotImplementedError):
         storage.path("a.txt")
@@ -147,13 +188,13 @@ def test_names_outside_the_location_are_rejected(storage, name):
 
 
 def test_deconstruct_supports_migrations():
-    storage = S3Storage(bucket_name=BUCKET, location="media")
+    storage = S3Storage(bucket_name=BUCKET, location="media", url_base="/media/")
 
     path, args, kwargs = storage.deconstruct()
 
     assert path == "frag_s3_storage.S3Storage"
     assert not args
-    assert kwargs == {"bucket_name": BUCKET, "location": "media"}
+    assert kwargs == {"bucket_name": BUCKET, "location": "media", "url_base": "/media/"}
 
 
 def test_configured_through_the_storages_setting(settings, s3_client):
