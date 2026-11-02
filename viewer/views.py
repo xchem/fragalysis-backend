@@ -63,6 +63,7 @@ from viewer.compound_curation import (
     resolve_curation,
 )
 from viewer.compound_reconciliation import reconcile_compounds
+from viewer.media_storage import media_response
 from viewer.permissions import IsObjectProposalMember, authorise_target_write
 from viewer.squonk2_agent import (
     AccessParams,
@@ -1603,15 +1604,14 @@ class DownloadStructuresView(
                 logger.info('Got DownloadLinks record for %s', file_url)
                 full_path = record.get_file_url()
                 assert full_path is not None
-                assert os.path.isfile(full_path)
 
-                wrapper = FileWrapper(open(full_path, 'rb'))
-                response = FileResponse(wrapper, content_type='application/zip')
-                response['Content-Disposition'] = (
-                    'attachment; filename="%s"' % file_name
+                # nginx serves a GET, Django answers a HEAD (the file size)
+                return media_response(
+                    request,
+                    full_path,
+                    content_type='application/zip',
+                    content_disposition='attachment; filename="%s"' % file_name,
                 )
-                response['Content-Length'] = os.path.getsize(full_path)
-                return response
             else:
                 content = {'message': 'file_url is not found'}
                 return Response(content, status=status.HTTP_404_NOT_FOUND)
@@ -1688,7 +1688,7 @@ class DownloadStructuresView(
                 full_path = existing_link.get_file_url()
                 logger.info('Existing static link found for file_url "%s"', full_path)
                 assert full_path is not None
-                assert os.path.isfile(full_path)
+                assert media_storage.exists(full_path)
                 return Response(
                     {"file_url": full_path},
                     status=status.HTTP_200_OK,

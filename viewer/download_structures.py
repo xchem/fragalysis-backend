@@ -9,7 +9,7 @@ import csv
 import json
 import logging
 import os
-import shutil
+import posixpath
 import subprocess
 import time
 import zipfile
@@ -17,7 +17,7 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from enum import Enum
 from io import BytesIO, StringIO
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 from tempfile import TemporaryDirectory
 from typing import Any, Dict
 
@@ -27,6 +27,7 @@ import pandoc
 import requests
 from celery.result import AsyncResult
 from django.conf import settings
+from django.core.exceptions import SuspiciousFileOperation
 from django.db.models import Exists, F, OuterRef, Value
 from django.db.models.fields import CharField
 from django.db.models.functions import Concat
@@ -34,6 +35,7 @@ from rdkit import Chem
 
 from api.infections import INFECTION_STRUCTURE_DOWNLOAD_TASK, have_infection
 from fragalysis.celery import app as celery_app
+from viewer import media_storage
 from viewer.models import DownloadLinks, SiteObservation
 from viewer.utils import clean_filename
 
@@ -90,9 +92,19 @@ _SCRIPTS = {
 
 @dataclass(frozen=True, eq=True)
 class ArchiveFile:
-    path: str
+    name: str  # The file's storage name (or a legacy absolute path)
     archive_path: str
     site_observation: SiteObservation | None = None
+
+
+@dataclass(frozen=True)
+class _QueuedPatch:
+    """A MOL/SDF file to add with its molecule name set (see fetch_queued())."""
+
+    name: str  # The storage name
+    destination: Path  # The file in the archive directory
+    molecule_name: Any
+    append: bool = False  # Append to the destination (the combined SDF)
 
 
 class ProcessState(str, Enum):
@@ -217,6 +229,21 @@ class DownloadStructures:
             f'{target.title}_combined.sdf'
         )
         self._error_file = self._temp_path.joinpath(_ERROR_FILE)
+
+        # Media files are not copied one at a time (each S3 request is slow).
+        # They are queued, then fetch_queued() gets them all in parallel.
+        # Files to copy, as (storage name, archive path)
+        self._copies: list[tuple[str, str]] = []
+        # MOL/SDF files to add with their molecule name set
+        self._patches: list[_QueuedPatch] = []
+        # The storage prefix of the target's files, and (when needed) their names
+        self._target_prefix = (
+            f'{settings.TARGET_LOADER_MEDIA_DIRECTORY}/{target.zip_archive.name}'
+            if target.zip_archive
+            else None
+        )
+        self._target_names: set[str] | None = None
+
         # A custom logging adapter to refine the standard logger
         # by adding lightweight context to the messages we log.
         # We don't add Target, TAS, or Username.
@@ -316,7 +343,7 @@ class DownloadStructures:
                                 archive_path = str(apath.joinpath(Path(f).parts[-1]))
                             else:
                                 archive_path = str(apath.joinpath(param))
-                            afile.append(ArchiveFile(path=f, archive_path=archive_path))
+                            afile.append(ArchiveFile(name=f, archive_path=archive_path))
 
                         # changed in [can't find the ticket
                         # number]. previously zip_contents was updated
@@ -365,7 +392,7 @@ class DownloadStructures:
 
                         afile = [
                             ArchiveFile(
-                                path=model_attr.name,
+                                name=model_attr.name,
                                 archive_path=archive_path,
                             )
                         ]
@@ -395,7 +422,7 @@ class DownloadStructures:
 
                             afile = [
                                 ArchiveFile(
-                                    path=str(path),
+                                    name=str(path),
                                     archive_path=archive_path,
                                 )
                             ]
@@ -417,20 +444,13 @@ class DownloadStructures:
                         .joinpath(so.code)
                         .joinpath(f'{so.code}.sdf')
                     )
-                    file_path = str(
-                        Path(settings.MEDIA_ROOT).joinpath(so.ligand_sdf.name)
-                    )
-                    # mypy, you make me do stupid things..
-                    if Path(file_path).exists():
-                        # expects str
-                        file_path = str(file_path)
-                    else:
-                        file_path = ''
+                    # The storage name, or '' if the file is not stored
+                    file_path = self._stored_name(so.ligand_sdf.name) or ''
                     # path is ignored when writing sdfs but mandatory field
                     zip_contents['molecules']['sdf_files'].update(
                         {
                             ArchiveFile(
-                                path=file_path,
+                                name=file_path,
                                 archive_path=archive_path,
                                 site_observation=so,
                             ): so.code
@@ -501,10 +521,6 @@ class DownloadStructures:
         self._logger.debug('zip_contents=%s', zip_contents)
         self.update_task(ProcessState.PROCESSING, 'Creating tarball...')
 
-        download_path = os.path.dirname(file_url)
-        self._logger.info('Creating download path (%s)', download_path)
-        os.makedirs(download_path, exist_ok=True)
-
         error_filename = str(self.error_file)
         error_file = open(error_filename, "w", encoding="utf-8")
         error_file.write("Param,Code,File not found when assembling download\n")
@@ -571,6 +587,10 @@ class DownloadStructures:
 
         error_file.close()
 
+        # Get the queued media files (in parallel)
+        self.update_task(ProcessState.PROCESSING, 'Collecting files...')
+        self.fetch_queued()
+
         # memo to self: this function includes the file list in
         # the result, so needs to come last
         if zip_contents['readme']:
@@ -580,7 +600,7 @@ class DownloadStructures:
         import timeit
 
         t_0 = timeit.default_timer()
-        self.compress_directory(self.temp_path, file_url)
+        self.compress_and_store(file_url)
         t_end = timeit.default_timer()
         self._logger.debug('timings, compression time: %s', t_end - t_0)
 
@@ -593,10 +613,88 @@ class DownloadStructures:
             },
         )
 
-    def write_symlink(self, path, archive_name):
-        archive_path = self.temp_path.joinpath(archive_name)
-        archive_path.parent.mkdir(parents=True, exist_ok=True)
-        archive_path.symlink_to(Path(path))
+    def _target_files(self) -> set[str]:
+        """The storage names of all the target's files (one listing)."""
+        if self._target_names is None:
+            self._target_names = (
+                {o.name for o in media_storage.list_prefix(self._target_prefix)}
+                if self._target_prefix
+                else set()
+            )
+        return self._target_names
+
+    def _stored_name(self, value) -> str | None:
+        """The storage name of a file value (a name or a legacy absolute path),
+        or None if the file is not stored.
+
+        The target's files are found in one listing, not one request each.
+        """
+        if not value or str(value) == 'None':
+            return None
+        try:
+            name = media_storage.to_name(value)
+        except SuspiciousFileOperation:
+            return None
+        if self._target_prefix and name.startswith(f'{self._target_prefix}/'):
+            return name if name in self._target_files() else None
+        return name if media_storage.exists(name) else None
+
+    def queue_copy(self, name, archive_name):
+        """Queues a stored file to copy into the archive (see fetch_queued())."""
+        self._copies.append((media_storage.to_name(name), str(archive_name)))
+
+    def _queue_patch(self, name, destination, molecule_name, append=False):
+        self._patches.append(
+            _QueuedPatch(
+                media_storage.to_name(name), Path(destination), molecule_name, append
+            )
+        )
+
+    def fetch_queued(self) -> None:
+        """Gets the queued files into the archive directory, in parallel.
+
+        A file that is now missing is added as an empty
+        "<name>_FILE_NOT_IN_UPLOAD" file (or, for the combined SDF, left out).
+        """
+        missing = set(
+            media_storage.fetch(
+                (name, self.temp_path.joinpath(archive_name))
+                for name, archive_name in self._copies
+            )
+        )
+        for name, archive_name in self._copies:
+            if name in missing:
+                self._logger.warning('File %s is missing', name)
+                self._add_empty_file(archive_name)
+
+        with TemporaryDirectory() as scratch:
+            sources = [
+                Path(scratch, str(index), PurePosixPath(patch.name).name)
+                for index, patch in enumerate(self._patches)
+            ]
+            missing = set(
+                media_storage.fetch(
+                    (patch.name, source)
+                    for patch, source in zip(self._patches, sources)
+                )
+            )
+            for patch, source in zip(self._patches, sources):
+                if patch.name in missing:
+                    self._logger.warning('File %s is missing', patch.name)
+                    if not patch.append:
+                        self._add_empty_file(
+                            patch.destination.relative_to(self.temp_path)
+                        )
+                    continue
+                content = _read_and_patch_molecule_name(
+                    str(source), molecule_name=patch.molecule_name
+                )
+                patch.destination.parent.mkdir(parents=True, exist_ok=True)
+                with open(patch.destination, 'a', encoding='utf-8') as f_out:
+                    f_out.write(content)
+
+        self._copies.clear()
+        self._patches.clear()
 
     def write_file(self, contents, archive_name):
         archive_path = self.temp_path.joinpath(archive_name)
@@ -655,37 +753,27 @@ class DownloadStructures:
             self._logger.debug('No archive_file')
             return True
 
-        # calling str on archive_file.path because could be None
-        filepath = str(Path(settings.MEDIA_ROOT).joinpath(str(archive_file.path)))
         self._logger.debug(
             'value and type of archive path: %s, %s',
-            archive_file.path,
-            type(archive_file.path),
+            archive_file.name,
+            type(archive_file.name),
         )
-        if archive_file.path:
-            if Path(filepath).is_file():
-                if _is_mol_or_sdf(filepath):
-                    # It's a MOL or SD file.
-                    # Read and (potentially) adjust the file
-                    # and add to the archive as a string.
-                    content = _read_and_patch_molecule_name(
-                        filepath, molecule_name=code
-                    )
-                    self.write_file(content, archive_file.archive_path)
-                else:
-                    # Copy the file without modification
-                    self.write_symlink(filepath, archive_file.archive_path)
-                return True
-            elif archive_file.site_observation:
-                self.write_file(
-                    _read_and_patch_molecule_name(
-                        filepath, archive_file.site_observation
-                    ),
-                    archive_file.archive_path,
+        # NB: this used to read a missing file when the archive file had a
+        # site observation (and the download failed). It is now "missing".
+        if name := self._stored_name(archive_file.name):
+            if _is_mol_or_sdf(name):
+                # It's a MOL or SD file.
+                # Read and (potentially) adjust the file
+                # and add to the archive as a string.
+                self._queue_patch(
+                    name, self.temp_path.joinpath(archive_file.archive_path), code
                 )
-                return True
+            else:
+                # Copy the file without modification
+                self.queue_copy(name, archive_file.archive_path)
+            return True
 
-        self._logger.debug('filepath "%s" is not a file', filepath)
+        self._logger.debug('filepath "%s" is not a file', archive_file.name)
         self._add_empty_file(archive_file.archive_path)
 
         return False
@@ -700,20 +788,22 @@ class DownloadStructures:
         Returns:
             [boolean]: [True of record added]
         """
-        if not archive_file.path:
+        if not archive_file.name:
             # Odd - assume success
-            self._logger.debug('No archive_file.path value')
+            self._logger.debug('No archive_file.name value')
             return True
 
-        if archive_file.path and archive_file.path != 'None':
-            with open(combined_sdf_file, 'a', encoding='utf-8') as f_out:
-                patched_sdf_content = _read_and_patch_molecule_name(
-                    archive_file.path, archive_file.site_observation
-                )
-                f_out.write(patched_sdf_content)
+        if archive_file.name and archive_file.name != 'None':
+            # Appended (in this order) by fetch_queued()
+            self._queue_patch(
+                archive_file.name,
+                combined_sdf_file,
+                archive_file.site_observation,
+                append=True,
+            )
             return True
         else:
-            self._logger.debug('filepath "%s" is not a file', archive_file.path)
+            self._logger.debug('filepath "%s" is not a file', archive_file.name)
 
         return False
 
@@ -756,14 +846,14 @@ class DownloadStructures:
             ] is True and not self._add_file_to_zip_aligned(
                 prot.split(":")[0], archive_file
             ):
-                error_file.write(f'sdf_info,{prot},{archive_file.path}\n')
+                error_file.write(f'sdf_info,{prot},{archive_file.name}\n')
                 mol_errors += 1
 
             # Append sdf file on the Molecule record to the combined_sdf_file.
             if zip_contents['molecules'][
                 'single_sdf_file'
             ] is True and not self._add_file_to_sdf(combined_sdf_file, archive_file):
-                error_file.write(f'single_sdf_file,{prot},{archive_file.path}\n')
+                error_file.write(f'single_sdf_file,{prot},{archive_file.name}\n')
                 mol_errors += 1
 
         return mol_errors
@@ -803,16 +893,16 @@ class DownloadStructures:
                 experiment_upload.assembly_transforms,
                 experiment_upload.reference_structure_transforms,
             )
-            if f.name is not None
+            # An unset FileField has the name '' (or None)
+            if f.name
         ]
         for tmf in trans_matrix_files:
-            filepath = Path(settings.MEDIA_ROOT).joinpath(str(tmf))
             archive_path = os.path.join(
                 _ZIP_FILEPATHS['trans_matrix_info'],
                 Path(str(tmf)).name,
             )
-            if filepath.is_file():
-                self.write_symlink(filepath, archive_path)
+            if name := self._stored_name(str(tmf)):
+                self.queue_copy(name, archive_path)
             else:
                 self._logger.debug('File %s does not exist', Path(str(tmf)).name)
                 self._add_empty_file(archive_path)
@@ -878,37 +968,28 @@ class DownloadStructures:
         experiment_upload = target.experimentupload_set.order_by(
             'commit_datetime'
         ).last()
-        extra_files = (
-            Path(settings.MEDIA_ROOT)
-            .joinpath(settings.TARGET_LOADER_MEDIA_DIRECTORY)
-            .joinpath(target.zip_archive.name)
-            .joinpath(experiment_upload.upload_data_dir)
-        )
-
-        extra_files = extra_files.joinpath('extra_files')
-
-        self._logger.debug('extra_files path 2: %s', extra_files)
+        extra_files = f'{experiment_upload.upload_prefix()}/extra_files/'
         self._logger.info('Processing extra files (%s)...', extra_files)
 
-        if extra_files.is_dir():
+        names = sorted(n for n in self._target_files() if n.startswith(extra_files))
+        if names:
             num_extra_dir = num_extra_dir + 1
 
-            for src_path in extra_files.rglob("*"):
-                if src_path.is_file():
-                    filepath = src_path.relative_to(extra_files)
+            for name in names:
+                filepath = name[len(extra_files) :]
 
-                    if soakdb_files or (
-                        not soakdb_files and str(filepath).find('soakdb_') < 0
-                    ):
-                        self._logger.info('Adding extra file "%s"...', src_path)
-                        self.write_symlink(
-                            src_path,
-                            os.path.join(
-                                f'{_ZIP_FILEPATHS["extra_files"]}_{num_extra_dir}',
-                                filepath,
-                            ),
-                        )
-                        num_processed += 1
+                if soakdb_files or (
+                    not soakdb_files and str(filepath).find('soakdb_') < 0
+                ):
+                    self._logger.info('Adding extra file "%s"...', name)
+                    self.queue_copy(
+                        name,
+                        os.path.join(
+                            f'{_ZIP_FILEPATHS["extra_files"]}_{num_extra_dir}',
+                            filepath,
+                        ),
+                    )
+                    num_processed += 1
 
         else:
             self._logger.info('Directory does not exist (%s)...', extra_files)
@@ -922,12 +1003,7 @@ class DownloadStructures:
         """Add all yaml files (except transforms) from upload to ziparchive"""
 
         for experiment_upload in target.experimentupload_set.all():
-            yaml_paths = (
-                Path(settings.MEDIA_ROOT)
-                .joinpath(settings.TARGET_LOADER_MEDIA_DIRECTORY)
-                .joinpath(target.zip_archive.name)
-                .joinpath(experiment_upload.upload_data_dir)
-            )
+            yaml_paths = PurePosixPath(experiment_upload.upload_prefix())
 
             transforms = [
                 Path(f.name).name
@@ -942,10 +1018,13 @@ class DownloadStructures:
 
             archive_path = Path('yaml_files').joinpath(yaml_paths.parts[-1])
 
+            # The .yaml files directly in the upload directory
             yaml_files = [
-                f
-                for f in list(yaml_paths.glob("*.yaml"))
-                if f.is_file() and f.name not in transforms
+                PurePosixPath(n)
+                for n in sorted(self._target_files())
+                if PurePosixPath(n).parent == yaml_paths
+                and n.endswith('.yaml')
+                and PurePosixPath(n).name not in transforms
             ]
 
             self._logger.debug('Processing yaml files (%s)...', yaml_files)
@@ -955,7 +1034,7 @@ class DownloadStructures:
                 if not transforms_requested and file.name == 'neighbourhoods.yaml':
                     # don't add this file if transforms are not requested
                     continue
-                self.write_symlink(file, str(Path(archive_path).joinpath(file.name)))
+                self.queue_copy(str(file), str(Path(archive_path).joinpath(file.name)))
 
     def _compound_sets_zip(self, target) -> None:
         """Add compound sets to download"""
@@ -974,60 +1053,76 @@ class DownloadStructures:
             # TODO(unification): verify once the model merge settles -
             #   virtual_name is the molecule name, and Result.raw_value carries
             #   the score value for each result_property.
-            for so in cset.site_observations.all():
-                self._logger.debug(
-                    'Processing computed observation (%s)...', so.virtual_name
+            observations = list(cset.site_observations.all())
+            with TemporaryDirectory() as scratch:
+                # Get all the mol files in parallel (one S3 request each)
+                local_mols = {
+                    so.pk: Path(scratch, str(so.pk), PurePosixPath(name).name)
+                    for so in observations
+                    if (name := so.virtual_ligand_mol_name)
+                }
+                media_storage.fetch(
+                    (so.virtual_ligand_mol_name, local_mols[so.pk])
+                    for so in observations
+                    if so.pk in local_mols
                 )
-                # virtual_ligand_mol is MEDIA_ROOT-relative; joining it onto
-                # computed_set_data/ is what raised the OSError in #1025.
-                mol_path = so.virtual_ligand_mol_path
-                if mol_path is None:
-                    # No mol recorded for this observation. A legitimate
-                    # state - there is simply nothing to add to the archive.
-                    self._logger.debug(
-                        'No mol recorded for computed observation (%s)',
-                        so.virtual_name,
+                for so in observations:
+                    self._add_computed_observation(
+                        writer, cset, so, local_mols.get(so.pk)
                     )
-                    continue
-
-                if not mol_path.is_file():
-                    # Recorded but absent - that is worth complaining about.
-                    # MolFromMolFile raises OSError, not None, for a missing
-                    # file, so this check has to come first.
-                    self._logger.warning(
-                        'Missing mol file for computed observation (%s), path=%s',
-                        so.virtual_name,
-                        mol_path,
-                    )
-                    continue
-
-                mol = Chem.MolFromMolFile(str(mol_path))
-                self._logger.debug('mol: %s', mol)
-                if mol is None:
-                    # Readable but unparseable. Skip it rather than blow up on
-                    # the SetProp() below.
-                    self._logger.warning(
-                        'Unreadable mol file for computed observation (%s), path=%s',
-                        so.virtual_name,
-                        mol_path,
-                    )
-                    continue
-
-                mol.SetProp('_Name', so.virtual_name or '')
-                for result in so.result_set.filter(computed_set=cset):
-                    if result.raw_value is not None:
-                        mol.SetProp(
-                            result.result_property.result_property,
-                            str(result.raw_value),
-                        )
-
-                writer.write(mol)
 
             # SDWriter buffers: without this close() the StringIO is still
             # empty here and every virtual_hits SDF ships as a 0-byte file.
             writer.close()
 
             self.write_file(buff.getvalue(), str(Path(archive_path)))
+
+    def _add_computed_observation(self, writer, cset, so, mol_path) -> None:
+        """Writes a computed observation's mol (a local copy) and its scores.
+
+        mol_path is None when no mol is recorded for the observation.
+        """
+        self._logger.debug('Processing computed observation (%s)...', so.virtual_name)
+        if mol_path is None:
+            # No mol recorded for this observation. A legitimate
+            # state - there is simply nothing to add to the archive.
+            self._logger.debug(
+                'No mol recorded for computed observation (%s)', so.virtual_name
+            )
+            return
+
+        if not mol_path.is_file():
+            # Recorded but absent - that is worth complaining about.
+            # MolFromMolFile raises OSError, not None, for a missing
+            # file, so this check has to come first.
+            self._logger.warning(
+                'Missing mol file for computed observation (%s), path=%s',
+                so.virtual_name,
+                so.virtual_ligand_mol_name,
+            )
+            return
+
+        mol = Chem.MolFromMolFile(str(mol_path))
+        self._logger.debug('mol: %s', mol)
+        if mol is None:
+            # Readable but unparseable. Skip it rather than blow up on
+            # the SetProp() below.
+            self._logger.warning(
+                'Unreadable mol file for computed observation (%s), path=%s',
+                so.virtual_name,
+                so.virtual_ligand_mol_name,
+            )
+            return
+
+        mol.SetProp('_Name', so.virtual_name or '')
+        for result in so.result_set.filter(computed_set=cset):
+            if result.raw_value is not None:
+                mol.SetProp(
+                    result.result_property.result_property,
+                    str(result.raw_value),
+                )
+
+        writer.write(mol)
 
     def _document_file_zip(self, original_search):
         """Create the document file
@@ -1106,6 +1201,18 @@ class DownloadStructures:
         for filename in list_of_files:
             readme.write(f'- {filename}' + '\n')
 
+    def compress_and_store(self, name):
+        """Compresses the archive directory and stores the archive as the name.
+
+        The archive is made outside the archive directory (so that it
+        does not contain itself), then stored.
+        """
+        with TemporaryDirectory() as out:
+            local = Path(out, PurePosixPath(name).name)
+            self.compress_directory(self.temp_path, str(local))
+            self.update_task(ProcessState.PROCESSING, 'Storing tarball...')
+            media_storage.store_file(local, name)
+
     def compress_directory(self, data_path, tarball_path):
         """Compress data for download.
 
@@ -1137,46 +1244,26 @@ class DownloadStructures:
         poll_frequency = 2
 
         if self.use_zip:
-            # NB! this is not the same tempdir where the symlinks are,
-            # this is where the symlinks are resolved for 7z
-            with TemporaryDirectory() as tmpdir:
-                # unlike gzip, 7z cannot resolve symlinks. Have to do
-                # this myself. Chose to use rsync instead of writing
-                # files directly because
-                # - would have to choose every time whether to use
-                #   symlink or not
-                # - this way there's the additional efficiency of
-                #   handling things in bulk
+            # The archive directory has real files (not symlinks),
+            # so 7z can compress it directly.
+            self._logger.info(
+                'Invoking Popen("7z ...") data_path=%s...',
+                str(data_path.absolute()),
+            )
+            self.update_task(ProcessState.PROCESSING, 'Compressing tarball...')
+            compress_process = subprocess.Popen(
+                ["7z", "a", "-tzip", '-mmt=on', "-mx=4", tarball_path, "."],
+                cwd=str(data_path.absolute()),
+            )
 
-                self._logger.info(
-                    'Invoking run("rsync ...") data_path=%s tmpdir=%s...',
-                    str(data_path.absolute()),
-                    str(tmpdir),
-                )
-                self.update_task(ProcessState.PROCESSING, 'Resolving symlinks...')
-                subprocess.run(
-                    ["rsync", "-aL", str(data_path.absolute()) + "/", str(tmpdir)],
-                    check=True,
-                )
+            check_popen_progress(compress_process, poll_frequency)
+            compress_process.wait()
 
-                self._logger.info(
-                    'Invoking Popen("7z ...") tmpdir=%s...',
-                    str(tmpdir),
-                )
-                self.update_task(ProcessState.PROCESSING, 'Compressing tarball...')
-                compress_process = subprocess.Popen(
-                    ["7z", "a", "-tzip", '-mmt=on', "-mx=4", tarball_path, "."],
-                    cwd=str(tmpdir),
-                )
-
-                check_popen_progress(compress_process, poll_frequency)
-                compress_process.wait()
-
-                self._logger.info(
-                    'Finished Popen("7z ...") tmpdir=%s returncode=%s',
-                    str(tmpdir),
-                    compress_process.returncode,
-                )
+            self._logger.info(
+                'Finished Popen("7z ...") data_path=%s returncode=%s',
+                str(data_path.absolute()),
+                compress_process.returncode,
+            )
 
         else:
             with open(tarball_path, "wb") as output_file:
@@ -1192,9 +1279,8 @@ class DownloadStructures:
                 )
                 tar_process = subprocess.Popen(
                     [
+                        # The archive directory has no symlinks to follow
                         "tar",
-                        "--dereference",
-                        "--hard-dereference",
                         "-C",
                         data_path.absolute(),
                         "-cf",
@@ -1462,9 +1548,9 @@ def create_download(download_link_id: int, task, use_zip: bool = False):
     This function is being ran inside a celery task, hence the object
     ids instead of objects themselves.
 
-    Downloads are located in <MEDIA_ROOT>/downloads/ using a subdirectory
-    using a UUID-4 value, with the file located in it, using the target title.
-    For example: "/code/media/downloads/4c3afc69-bca9-4fb1-a76e-56c85a85899f/XX01ZVNS2B.zip".
+    Downloads are stored as downloads/<task_id>/<target title>.<zip|tar.gz>
+    in the media storage (see viewer.media_storage).
+    For example: "downloads/4c3afc69-bca9-4fb1-a76e-56c85a85899f/XX01ZVNS2B.zip".
 
     This function constructs the download file or returns a download form an exiting record.
 
@@ -1526,9 +1612,8 @@ def create_download(download_link_id: int, task, use_zip: bool = False):
         filename = f'{download_link.target.title}.tar.gz'
     # The per-download directory uses the task_id (set above) so the path is
     # reproducible from the model alone — see DownloadLinks.get_file_url().
-    file_url = os.path.join(
-        settings.MEDIA_ROOT, 'downloads', download_link.task_id, filename
-    )
+    # The storage name of the archive (see DownloadLinks.get_file_url())
+    file_url = f'downloads/{download_link.task_id}/{filename}'
 
     with TemporaryDirectory() as tempdir:
         downloader = DownloadStructures(
@@ -1711,19 +1796,14 @@ def hard_erase_out_of_date_download_records():
             dead_dynamic_record.deleted = True
             dead_dynamic_record.save()
             continue
-        dir_name = os.path.dirname(full_path)
+        dir_name = posixpath.dirname(full_path)
         logger.debug('Deleting %s...', dir_name)
-        if os.path.isdir(dir_name):
-            try:
-                shutil.rmtree(dir_name)
-                logger.debug('Removed %s', dir_name)
-            except Exception as ex:
-                # Avoid potential race condition deleting the directory.
-                # It's possible another call or stack Pod has deleted the directory
-                # since we checked on line 1450. Issue a warning if the error
-                # does not look like 'No such file or directory'...
-                if 'No such file' not in str(ex):
-                    logger.warning('Failed to remove %s (%s)', dir_name, ex)
+        try:
+            # A missing directory is not an error (another Pod can delete it)
+            media_storage.delete_prefix(dir_name)
+            logger.debug('Removed %s', dir_name)
+        except Exception as ex:  # pylint: disable=broad-except
+            logger.warning('Failed to remove %s (%s)', dir_name, ex)
 
         dead_dynamic_record.deleted = True
         dead_dynamic_record.save()
@@ -1739,6 +1819,5 @@ def hard_erase_out_of_date_download_records():
 
 # TODO: issue with single_sdf file
 def get_total_size(path: str) -> int:
-    """Estimate data directory size (resolves symlinks)"""
-    out = subprocess.check_output(["du", "-sbL", path], text=True)
-    return int(out.split()[0])
+    """The total size (bytes) of the files in a local directory."""
+    return sum(p.stat().st_size for p in Path(path).rglob('*') if p.is_file())

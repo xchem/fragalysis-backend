@@ -1,6 +1,5 @@
 import contextlib
 import logging
-import os
 import uuid
 from dataclasses import dataclass
 from pathlib import Path
@@ -885,19 +884,6 @@ class SiteObservation(Versionable, models.Model):
         return ''
 
     @property
-    def virtual_ligand_mol_path(self) -> Path | None:
-        """Absolute path of virtual_ligand_mol, or None when it is unset.
-
-        The stored value is relative to MEDIA_ROOT - one convention, resolved
-        one way. Migration 0172 normalised the bare basenames migration 0149
-        used to write, so there is nothing here to detect or guess at.
-
-        The file is not guaranteed to exist; callers must handle a missing one.
-        """
-        name = self.virtual_ligand_mol_name
-        return None if name is None else Path(settings.MEDIA_ROOT).joinpath(name)
-
-    @property
     def virtual_ligand_mol_name(self) -> str | None:
         """The storage name of virtual_ligand_mol, or None when it is unset.
 
@@ -1668,7 +1654,7 @@ class DownloadLinks(models.Model):
         )
 
     def get_file_url(self):
-        """Reconstruct the absolute filesystem path of the download file.
+        """The storage name of the download file: downloads/<task_id>/<file_url>.
 
         Returns None when either file_url (the basename) or task_id (the
         per-download directory name) is missing — i.e. the download has
@@ -1676,9 +1662,7 @@ class DownloadLinks(models.Model):
         """
         if not self.file_url or not self.task_id:
             return None
-        return os.path.join(
-            settings.MEDIA_ROOT, 'downloads', self.task_id, self.file_url
-        )
+        return f'downloads/{self.task_id}/{self.file_url}'
 
     class Meta:
         db_table = 'viewer_downloadlinks'

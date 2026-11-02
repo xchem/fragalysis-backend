@@ -14,8 +14,10 @@ media/computed_set_data/target_loader_data/...``, issue #1025.
 
 The fix normalises the data (migration 0172) rather than teaching callers to
 detect which shape they are holding. These tests exist to keep it that way:
-``virtual_ligand_mol_path`` must stay a plain MEDIA_ROOT join, because the
-moment it starts interpreting the value the two conventions become permanent.
+``virtual_ligand_mol_name`` must stay the plain stored value (a storage name,
+see viewer.media_storage), because the moment it starts interpreting the value
+the two conventions become permanent. (It replaced ``virtual_ligand_mol_path``,
+a MEDIA_ROOT join, in issue 1038.)
 """
 
 import importlib
@@ -42,37 +44,33 @@ MOL_BLOCK = Chem.MolToMolBlock(Chem.MolFromSmiles("CCO"))
 # --------------------------------------------------------------------------
 
 
-def test_resolves_media_relative_value(settings, tmp_path):
-    """The convention: MEDIA_ROOT + the stored value, and nothing else."""
-    settings.MEDIA_ROOT = str(tmp_path)
+def test_resolves_media_relative_value(settings):
+    """The convention: the stored value is the storage name, and nothing else."""
     name = (
         f"{settings.TARGET_LOADER_MEDIA_DIRECTORY}/A71EV2A/upload_1/virtual_files/x.mol"
     )
 
     obs = SiteObservation(virtual_ligand_mol=name)
 
-    assert obs.virtual_ligand_mol_path == Path(tmp_path, name)
+    assert obs.virtual_ligand_mol_name == name
 
 
-def test_computed_set_value_resolves_once_not_twice(settings, tmp_path):
+def test_computed_set_value_resolves_once_not_twice(settings):
     """A ``computed_set_data/...`` value is MEDIA_ROOT-relative like any other -
     it must not be joined onto ``computed_set_data/`` a second time."""
-    settings.MEDIA_ROOT = str(tmp_path)
     name = f"{settings.COMPUTED_SET_MEDIA_DIRECTORY}/A0486a.mol"
 
     obs = SiteObservation(virtual_ligand_mol=name)
 
-    assert obs.virtual_ligand_mol_path == Path(tmp_path, name)
+    assert obs.virtual_ligand_mol_name == name
 
 
-def test_returns_none_when_unset(settings, tmp_path):
-    settings.MEDIA_ROOT = str(tmp_path)
-
-    assert SiteObservation().virtual_ligand_mol_path is None
-    assert SiteObservation(virtual_ligand_mol="").virtual_ligand_mol_path is None
+def test_returns_none_when_unset():
+    assert SiteObservation().virtual_ligand_mol_name is None
+    assert SiteObservation(virtual_ligand_mol="").virtual_ligand_mol_name is None
 
 
-def test_accessor_does_not_rescue_a_bare_basename(settings, tmp_path):
+def test_accessor_does_not_rescue_a_bare_basename():
     """The guard against reintroducing flavour-detection.
 
     A bare basename is not a valid value any more - migration 0172 removed
@@ -80,11 +78,9 @@ def test_accessor_does_not_rescue_a_bare_basename(settings, tmp_path):
     accessor has gone back to guessing and the column is free to hold two
     conventions again.
     """
-    settings.MEDIA_ROOT = str(tmp_path)
-
     obs = SiteObservation(virtual_ligand_mol="A0486a.mol")
 
-    assert obs.virtual_ligand_mol_path == Path(tmp_path, "A0486a.mol")
+    assert obs.virtual_ligand_mol_name == "A0486a.mol"
 
 
 # --------------------------------------------------------------------------
