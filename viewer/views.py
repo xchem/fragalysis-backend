@@ -5,13 +5,13 @@ import hashlib
 import json
 import logging
 import os
-import shutil
+import posixpath
+import re
 import zipfile
 from datetime import datetime, timezone
 from io import BytesIO
-from pathlib import Path
+from pathlib import PurePosixPath
 from typing import Any, Dict, List, Optional
-from wsgiref.util import FileWrapper
 
 import pandas as pd
 import pytz
@@ -22,7 +22,7 @@ from dateutil.parser import parse
 from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.core.exceptions import SuspiciousFileOperation
-from django.http import FileResponse, HttpResponse, JsonResponse
+from django.http import HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils.decorators import method_decorator
@@ -1382,6 +1382,12 @@ class DiscoursePostView(viewsets.ViewSet):
             return Response({"Posts": posts})
 
 
+# A DictToCSV file's storage name
+_DICT_TO_CSV_NAME = re.compile(
+    rf'^{re.escape(CSV_TO_DICT_DOWNLOAD_ROOT)}/[0-9a-f-]{{36}}/[^/]+$'
+)
+
+
 class DictToCSVView(viewsets.ViewSet):
     """Takes a dictionary and returns a download link to a CSV file with the data."""
 
@@ -1393,35 +1399,27 @@ class DictToCSVView(viewsets.ViewSet):
         file_url = request.GET.get('file_url', '')
         logger.info('DictToCsv file_url="%s"', file_url)
 
-        # The file is expected to include a full path
-        # to a file in the dicttocsv directory.
-        real_file_url = os.path.realpath(file_url)
-        if (
-            os.path.commonpath([CSV_TO_DICT_DOWNLOAD_ROOT, real_file_url])
-            != CSV_TO_DICT_DOWNLOAD_ROOT
-        ):
-            logger.warning(
-                'DictToCsv path is invalid (file_url="%s" real_file_url="%s")',
-                file_url,
-                real_file_url,
-            )
+        # The file must be a dicttocsv file: downloads/dicttocsv/<uuid>/<file>
+        # (a storage name, or a legacy absolute path).
+        try:
+            name = media_storage.to_name(file_url)
+        except SuspiciousFileOperation:
+            name = ''
+        if not _DICT_TO_CSV_NAME.match(name):
+            logger.warning('DictToCsv path is invalid (file_url="%s")', file_url)
             return Response("Please provide a file_url for an existing DictToCsv file")
-        elif not os.path.isfile(real_file_url):
-            logger.warning(
-                'DictToCsv file does not exist (file_url="%s" real_file_url="%s")',
-                file_url,
-                real_file_url,
-            )
+        try:
+            content = media_storage.read_bytes(name)
+        except FileNotFoundError:
+            logger.warning('DictToCsv file does not exist (file_url="%s")', file_url)
             return Response("The given DictToCsv file does not exist")
 
-        with open(real_file_url, encoding='utf8') as csvfile:
-            # return file and tidy up.
-            response = HttpResponse(csvfile, content_type='text/csv')
-            # response['Content-Disposition'] = 'attachment; filename=download.csv'
-            filename = str(Path(real_file_url).name)
-            response['Content-Disposition'] = f'attachment; filename={filename}'
-            shutil.rmtree(os.path.dirname(real_file_url), ignore_errors=True)
-            return response
+        # return file and tidy up.
+        response = HttpResponse(content, content_type='text/csv')
+        filename = PurePosixPath(name).name
+        response['Content-Disposition'] = f'attachment; filename={filename}'
+        media_storage.delete_prefix(posixpath.dirname(name))
+        return response
 
     def create(self, request):
         """Method to handle POST request. Creates a file that the user
@@ -1438,7 +1436,7 @@ class DictToCSVView(viewsets.ViewSet):
         logger.info(
             'Created file_url="%s" (size=%s)',
             file_url,
-            os.path.getsize(file_url),
+            media_storage.size(file_url),
         )
 
         return Response({"file_url": file_url})
@@ -2385,7 +2383,7 @@ class DownloadExperimentUploadView(viewsets.ModelViewSet):
                     status=status.HTTP_403_FORBIDDEN,
                 )
             target: models.Target = serializer.validated_data['target']
-            if project != target.project.title:
+            if project != target.project:
                 return Response(
                     {'error': "The Target is not part of the given Project"},
                     status=status.HTTP_403_FORBIDDEN,
@@ -2416,25 +2414,26 @@ class DownloadExperimentUploadView(viewsets.ModelViewSet):
             # We don't need the user's filename any more,
             # it's embedded in the ExperimentUpload's file field.
             exp_upload: models.ExperimentUpload = exp_uploads[0]
-            file_path = exp_upload.get_download_path()
+            bundle_name = exp_upload.bundle_name()
             logger.info(
-                "Found exp_upload=%s file_path=%s",
+                "Found exp_upload=%s bundle_name=%s",
                 exp_upload,
-                file_path,
+                bundle_name,
             )
-            if not file_path.exists():
+            if bundle_name is None:
                 return Response(
                     {'error': f"TargetExperiment file '{filename}' not found"},
                     status=status.HTTP_404_NOT_FOUND,
                 )
-            # Finally, return the file
-            wrapper = FileWrapper(open(file_path, 'rb'))
-            response = FileResponse(wrapper, content_type='application/zip')
-            response['Content-Disposition'] = (
-                'attachment; filename="%s"' % file_path.name
+            # Finally, return the file. nginx serves it (and follows the
+            # X-Accel-Redirect of this POST with a GET).
+            return media_response(
+                request,
+                bundle_name,
+                content_type='application/zip',
+                content_disposition='attachment; filename="%s"'
+                % PurePosixPath(bundle_name).name,
             )
-            response['Content-Length'] = os.path.getsize(file_path)
-            return response
 
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
