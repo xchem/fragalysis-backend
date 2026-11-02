@@ -67,7 +67,7 @@ def fetch_image(url: str) -> SimpleUploadedFile:
         raise ImageFetchError("The image URL could not be reached") from exc
 
     return SimpleUploadedFile(
-        _file_name(parts.path, bytes(content)),
+        _file_name(parts.path, bytes(content)),  # media-seam: not media
         bytes(content),
         content_type=response.headers.get("Content-Type"),
     )
