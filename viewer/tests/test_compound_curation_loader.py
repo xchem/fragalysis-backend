@@ -15,6 +15,7 @@ import logging
 import pytest
 from openpyxl import load_workbook
 
+from viewer import media_storage
 from viewer.compound_curation import (
     ResolvedAction,
     auto_merge_non_conflicting_compounds,
@@ -131,7 +132,7 @@ def test_gate_fails_safe_on_unresolved_conflict():
 
 
 @pytest.mark.django_db
-def test_gate_builds_update_action_from_curation(tmp_path):
+def test_gate_builds_update_action_from_curation(media_backend):
     project = Project.objects.create(title="lb-1")
     existing = _existing(project)
 
@@ -144,10 +145,10 @@ def test_gate_builds_update_action_from_curation(tmp_path):
     data = edit_group_row(data, existing_id, action="MERGE")
     data = edit_group_row(data, MERGE_ROW, action="MERGE", compound_code="NEW")
 
-    path = tmp_path / "curation.xlsx"
-    path.write_bytes(data)
+    # The loader gets the curation file's storage name (see the upload view)
+    name = media_storage.store_bytes("tmp/uploads/u1/curation.xlsx", data)
 
-    tl = _loader(project, curation_file=str(path))
+    tl = _loader(project, curation_file=name)
     tl._reconcile_compounds_gate(CRYSTALS)
 
     assert not tl.report.errors()

@@ -10,7 +10,7 @@ import string
 import tempfile
 import uuid
 from pathlib import Path
-from typing import Dict, Generator, Optional, Tuple
+from typing import Dict, Generator, Iterable, Optional, Tuple
 from urllib.parse import urlparse
 
 import pandas as pd
@@ -202,12 +202,6 @@ def get_https_host(request):
     Note that this link will not work on local
     """
     return settings.SECURE_PROXY_SSL_HEADER[1] + '://' + request.get_host()
-
-
-def handle_uploaded_file(path: Path, f):
-    with open(path, "wb+") as destination:
-        for chunk in f.chunks(4096):
-            destination.write(chunk)
 
 
 def dump_curated_tags(filename: str) -> None:
@@ -539,13 +533,17 @@ def email_task_completion(
     return
 
 
-def sanitize_directory_name(name: str, path: Path | None = None) -> str:
+def sanitize_directory_name(
+    name: str, path: Path | None = None, existing: Iterable[str] | None = None
+) -> str:
     """
     Sanitize a string to ensure it only contains characters allowed in UNIX directory names.
 
     Parameters:
     name: The input string to sanitize.
     path (optional): the parent directory where the directory would reside, to check if unique
+    existing (optional): directory names that already exist, to check if unique
+        (i.e. from viewer.media_storage.list_dirs(), which works for S3 too)
 
     Returns:
     str: A sanitized string with only allowed characters.
@@ -559,8 +557,10 @@ def sanitize_directory_name(name: str, path: Path | None = None) -> str:
     # Replace multiple underscores with a single underscore
     sanitized_name = re.sub(r'__+', '_', sanitized_name)
     logger.debug('sanitized name: %s', sanitized_name)
-    if path:
-        target_dirs = [d.name for d in list(path.glob("*")) if d.is_dir()]
+    if path or existing is not None:
+        target_dirs = list(existing or [])
+        if path:
+            target_dirs += [d.name for d in list(path.glob("*")) if d.is_dir()]
         logger.debug('target dirs: %s', target_dirs)
         new_name = sanitized_name
         suf = 1
