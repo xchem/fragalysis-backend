@@ -26,8 +26,10 @@ class Migration(migrations.Migration):
         cmp_set_folder = os.path.join(
             settings.MEDIA_ROOT, settings.COMPUTED_SET_MEDIA_DIRECTORY
         )
-        if not os.path.isdir(cmp_set_folder):
-            os.mkdir(cmp_set_folder)
+        # Only a stack with computed molecules writes files. A new stack has
+        # none, and with S3 media storage it has no MEDIA_ROOT (issue 1038).
+        if ComputedMolecule.objects.exists():
+            os.makedirs(cmp_set_folder, exist_ok=True)
 
         # move and save the compound set
         sdf_root = Path(settings.MEDIA_ROOT).joinpath(settings.COMPUTED_SET_MEDIA_DIRECTORY)
