@@ -28,6 +28,7 @@ _MEDIA_ENV = [
     "MEDIA_S3_ACCESS_KEY_ID",
     "MEDIA_S3_SECRET_ACCESS_KEY",
     "MEDIA_S3_URL_EXPIRY_S",
+    "MEDIA_TRANSFER_THREADS",
 ]
 
 
@@ -89,6 +90,7 @@ def test_s3_storage_takes_its_options_from_the_environment(monkeypatch):
         MEDIA_S3_ACCESS_KEY_ID="key-id",
         MEDIA_S3_SECRET_ACCESS_KEY="secret",
         MEDIA_S3_URL_EXPIRY_S="600",
+        MEDIA_TRANSFER_THREADS="8",
     )
 
     assert s.MEDIA_STORAGE == "S3"
@@ -103,8 +105,25 @@ def test_s3_storage_takes_its_options_from_the_environment(monkeypatch):
             "secret_access_key": "secret",
             "url_expiry": 600,
             "url_base": "/media/",
+            "max_pool_connections": 8,
         },
     }
+    assert s.MEDIA_TRANSFER_THREADS == 8
+
+
+def test_s3_options_are_available_in_filesystem_mode(monkeypatch):
+    """The copy_media command builds an S3 storage from them in either mode."""
+    s = _load_settings(monkeypatch, MEDIA_S3_BUCKET_NAME=_BUCKET)
+
+    assert s.MEDIA_STORAGE == "FILESYSTEM"
+    assert s.MEDIA_S3_STORAGE_OPTIONS["bucket_name"] == _BUCKET
+    assert s.STORAGES["default"]["BACKEND"] == _FILESYSTEM_BACKEND
+
+
+def test_s3_storage_uses_the_s3_options(monkeypatch):
+    s = _load_settings(monkeypatch, MEDIA_STORAGE="S3", MEDIA_S3_BUCKET_NAME=_BUCKET)
+
+    assert s.STORAGES["default"]["OPTIONS"] == s.MEDIA_S3_STORAGE_OPTIONS
 
 
 def test_empty_s3_options_are_left_to_boto3(monkeypatch):
@@ -117,6 +136,7 @@ def test_empty_s3_options_are_left_to_boto3(monkeypatch):
     assert options["access_key_id"] is None
     assert options["secret_access_key"] is None
     assert options["url_expiry"] == 3600
+    assert options["max_pool_connections"] == 16
 
 
 # System check ---------------------------------------------------------------

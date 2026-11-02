@@ -142,7 +142,7 @@ def process_link_value(x):
 
     # 3. Path structure check
     # Expected: /structure/3PJR
-    parts = parsed.path.strip("/").split("/")
+    parts = parsed.path.strip("/").split("/")  # media-seam: not media
     if len(parts) != 2 or parts[0] != "structure":
         return x, 'LINK', True, f'Not PDB structure URL: {x}'
 

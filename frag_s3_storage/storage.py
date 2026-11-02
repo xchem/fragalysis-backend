@@ -23,8 +23,11 @@ This module must not import from the backend's apps. It depends only on
 Django and boto3, so that it can move to its own repository unchanged.
 """
 import mimetypes
+import os
 import posixpath
 import tempfile
+from collections.abc import Iterable, Iterator
+from datetime import datetime
 from typing import IO, Any
 from urllib.parse import urljoin
 
@@ -45,6 +48,9 @@ _NOT_FOUND_CODES = {"404", "NoSuchKey"}
 
 # Content larger than this goes to a disk file, not memory.
 _SPOOL_MAX_BYTES = 10 * 1024 * 1024
+
+# The largest number of keys that one DeleteObjects request accepts.
+_DELETE_BATCH_SIZE = 1000
 
 
 def _is_not_found(error: ClientError) -> bool:
@@ -69,6 +75,7 @@ class S3Storage(Storage):
         secret_access_key: str | None = None,
         url_expiry: int = 3600,
         url_base: str | None = None,
+        max_pool_connections: int = 16,
     ) -> None:
         if not bucket_name:
             raise ImproperlyConfigured("S3Storage needs a 'bucket_name' option")
@@ -81,7 +88,10 @@ class S3Storage(Storage):
             "region_name": region_name,
             "aws_access_key_id": access_key_id,
             "aws_secret_access_key": secret_access_key,
-            "config": Config(signature_version="s3v4"),
+            # A caller that transfers files with N threads needs N connections.
+            "config": Config(
+                signature_version="s3v4", max_pool_connections=max_pool_connections
+            ),
         }
         self._client: Any = None
 
@@ -106,6 +116,17 @@ class S3Storage(Storage):
                 f"The name '{name}' is outside the storage location"
             )
         return posixpath.join(self.location, clean) if self.location else clean
+
+    def _key_prefix(self, prefix: str) -> str:
+        """Returns the key prefix for a name prefix, keeping a trailing ``/``."""
+        key = self._key(prefix)
+        if key and (prefix.endswith("/") or not prefix):
+            key += "/"
+        return key
+
+    def _name(self, key: str) -> str:
+        """Returns the storage name for an object key (the inverse of ``_key()``)."""
+        return key[len(self.location) + 1 :] if self.location else key
 
     def _head(self, name: str) -> dict[str, Any]:
         try:
@@ -185,6 +206,72 @@ class S3Storage(Storage):
             for obj in page.get("Contents", []):
                 files.append(obj["Key"][len(prefix) :])
         return directories, files
+
+    def upload_file(self, local_path: str | os.PathLike, name: str) -> str:
+        """Uploads a local file to the name, and replaces any existing file.
+
+        boto3 uses a multipart upload for a large file.
+        """
+        content_type = mimetypes.guess_type(name)[0] or "application/octet-stream"
+        self.client.upload_file(
+            str(local_path),
+            self.bucket_name,
+            self._key(name),
+            ExtraArgs={"ContentType": content_type},
+        )
+        return name
+
+    def download_file(self, name: str, local_path: str | os.PathLike) -> None:
+        """Downloads the file to a local file (boto3 uses ranged, parallel GETs)."""
+        try:
+            self.client.download_file(
+                self.bucket_name, self._key(name), str(local_path)
+            )
+        except ClientError as error:
+            if _is_not_found(error):
+                raise FileNotFoundError(name) from error
+            raise
+
+    def copy(self, source_name: str, target_name: str) -> None:
+        """Copies a file inside the bucket (a managed copy, for any size)."""
+        try:
+            self.client.copy(
+                {"Bucket": self.bucket_name, "Key": self._key(source_name)},
+                self.bucket_name,
+                self._key(target_name),
+            )
+        except ClientError as error:
+            if _is_not_found(error):
+                raise FileNotFoundError(source_name) from error
+            raise
+
+    def delete_many(self, names: Iterable[str]) -> list[str]:
+        """Deletes the files, with one request for each 1000 names.
+
+        Returns the names that S3 did not delete. A missing file is not a failure.
+        """
+        keys = [self._key(name) for name in names]
+        failed: list[str] = []
+        for start in range(0, len(keys), _DELETE_BATCH_SIZE):
+            batch = keys[start : start + _DELETE_BATCH_SIZE]
+            response = self.client.delete_objects(
+                Bucket=self.bucket_name,
+                Delete={"Objects": [{"Key": key} for key in batch], "Quiet": True},
+            )
+            failed.extend(self._name(e["Key"]) for e in response.get("Errors", []))
+        return failed
+
+    def iter_objects(self, prefix: str = "") -> Iterator[tuple[str, int, datetime]]:
+        """Yields ``(name, size, modified)`` for every file whose name starts with
+        the prefix, at any depth. Use a trailing ``/`` to list one "directory"
+        (``"Mpro/"`` does not match ``"Mpro_2/a.txt"``).
+        """
+        paginator = self.client.get_paginator("list_objects_v2")
+        for page in paginator.paginate(
+            Bucket=self.bucket_name, Prefix=self._key_prefix(prefix)
+        ):
+            for obj in page.get("Contents", []):
+                yield self._name(obj["Key"]), obj["Size"], obj["LastModified"]
 
     def url(self, name: str) -> str:
         """Returns the URL of a file.

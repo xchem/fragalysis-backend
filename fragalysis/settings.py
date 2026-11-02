@@ -651,6 +651,30 @@ MEDIA_S3_ACCESS_KEY_ID: str = os.environ.get("MEDIA_S3_ACCESS_KEY_ID", "")
 MEDIA_S3_SECRET_ACCESS_KEY: str = os.environ.get("MEDIA_S3_SECRET_ACCESS_KEY", "")
 MEDIA_S3_URL_EXPIRY_S: int = int(os.environ.get("MEDIA_S3_URL_EXPIRY_S", "3600"))
 
+# The number of threads that transfer media files at the same time
+# (i.e. when a target is loaded or a download is built). S3 requests are slow
+# one at a time (30-75 ms each) but much faster in parallel. See #1038.
+MEDIA_TRANSFER_THREADS: int = int(os.environ.get("MEDIA_TRANSFER_THREADS", "16"))
+
+# The S3 storage options, built from the MEDIA_S3_* variables. The settings
+# build them whatever MEDIA_STORAGE is, because the copy_media command uses
+# them to copy an existing stack's files to (or from) the bucket.
+MEDIA_S3_STORAGE_OPTIONS: Dict[str, Any] = {
+    "bucket_name": MEDIA_S3_BUCKET_NAME,
+    "location": MEDIA_S3_LOCATION,
+    "endpoint_url": MEDIA_S3_ENDPOINT_URL or None,
+    "region_name": MEDIA_S3_REGION_NAME or None,
+    "access_key_id": MEDIA_S3_ACCESS_KEY_ID or None,
+    "secret_access_key": MEDIA_S3_SECRET_ACCESS_KEY or None,
+    "url_expiry": MEDIA_S3_URL_EXPIRY_S,
+    # File URLs are MEDIA_URL URLs, as for the filesystem. Django checks
+    # access and nginx serves the file (see viewer/media_storage.py).
+    # Only nginx gets a presigned S3 URL.
+    "url_base": MEDIA_URL,
+    # One connection for each transfer thread.
+    "max_pool_connections": MEDIA_TRANSFER_THREADS,
+}
+
 # Django's file storages, built from MEDIA_STORAGE.
 # Static files always use the local filesystem.
 STORAGES: Dict[str, Dict[str, Any]] = {
@@ -660,19 +684,7 @@ STORAGES: Dict[str, Dict[str, Any]] = {
 if MEDIA_STORAGE == "S3":
     STORAGES["default"] = {
         "BACKEND": "frag_s3_storage.S3Storage",
-        "OPTIONS": {
-            "bucket_name": MEDIA_S3_BUCKET_NAME,
-            "location": MEDIA_S3_LOCATION,
-            "endpoint_url": MEDIA_S3_ENDPOINT_URL or None,
-            "region_name": MEDIA_S3_REGION_NAME or None,
-            "access_key_id": MEDIA_S3_ACCESS_KEY_ID or None,
-            "secret_access_key": MEDIA_S3_SECRET_ACCESS_KEY or None,
-            "url_expiry": MEDIA_S3_URL_EXPIRY_S,
-            # File URLs are MEDIA_URL URLs, as for the filesystem. Django checks
-            # access and nginx serves the file (see viewer/media_storage.py).
-            # Only nginx gets a presigned S3 URL.
-            "url_base": MEDIA_URL,
-        },
+        "OPTIONS": MEDIA_S3_STORAGE_OPTIONS,
     }
 
 NEOMODEL_NEO4J_BOLT_URL: str = os.environ.get(

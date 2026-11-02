@@ -792,7 +792,7 @@ class Squonk2Agent:
         url: ParseResult = urlparse(self.__CFG_OIDC_KEYCLOAK_REALM)
         assert url.hostname
         self.__keycloak_hostname = url.hostname
-        self.__keycloak_realm = os.path.split(url.path)[1]
+        self.__keycloak_realm = os.path.split(url.path)[1]  # media-seam: not media
 
         # Can we translate the billing day to an integer?
         assert self.__CFG_SQUONK2_UNIT_BILLING_DAY
