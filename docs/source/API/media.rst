@@ -51,20 +51,26 @@ the target model we have two files that are served as files:
             help_text="Link to zip file created from targets uploaded with the loader",
         )
 
-The :code:`metadata` file and the :code:`zip_archive` file. To make sure that these :code:`Files` are served as download links
-, we have to tell nginx to allow access to the media area where the files are uploaded/saved to.
+Django does not send the content of these files. A view checks that the user can see the file, then
+:code:`viewer.media_storage.media_response()` returns an :code:`X-Accel-Redirect` to an internal nginx location
+(see :code:`django_nginx.conf`). The browser cannot request these locations directly. There are two locations,
+one for each media storage (the :code:`MEDIA_STORAGE` setting):
 
-We define this in :code:`django_nginx.conf`, for example for the :code:`metadata` file:
+- :code:`/media-local/<name>` (:code:`FILESYSTEM`): nginx reads the file from :code:`/code/media/<name>`.
+- :code:`/media-s3/<name>` (:code:`S3`): Django also sends a presigned S3 URL in the :code:`X-Media-Url` header.
+  nginx gets the file from that URL and sends it to the browser. The browser does not see the S3 URL, so the file
+  stays on the same origin and the URL cannot be shared.
 
-.. code-block:: bash
+:code:`<name>` is the storage name of the file (the :code:`name` of its :code:`FileField`).
+A new media endpoint does not need a new nginx location.
 
-    location /metadata/ {
-            alias /code/media/metadata/;
-            internal;
-        }
+Django answers a :code:`HEAD` request itself, with the file size in :code:`Content-Length`,
+because a URL presigned for :code:`GET` does not work for :code:`HEAD`.
 
-This tells nginx that the url :code:`/metadata/` can be used to access files hosted on the back-end under
-:code:`/code/media/metadata`.
+The S3 location needs a DNS server (an nginx :code:`resolver`). :code:`launch-stack.sh` writes it from
+:code:`NGINX_RESOLVER`, or from the first :code:`nameserver` in :code:`/etc/resolv.conf`.
+The nginx resolver does not use search domains, so in Kubernetes the host in :code:`MEDIA_S3_ENDPOINT_URL`
+must be a fully qualified domain name.
 
 In order to tell django to serve these files at the given URL, we need a :code:`View`, just like any other endpoint. The
 view for serving :code:`metadata` files can be found in :code:`media_serve/views.py`:
@@ -126,10 +132,12 @@ method, returning the response including the file as an attachment:
                         response['Content-Disposition'] = 'attachment; filename="%s"' % file_name
 
                 else:
-                    response = HttpResponse()
-                    response["Content-Type"] = self.content_type
-                    response["X-Accel-Redirect"] = self.prefix + file_name
-                    response["Content-Disposition"] = "attachment;filename=" + file_name
+                    response = media_response(
+                        self.request,
+                        str(getattr(object, self.field_name)),
+                        content_type=self.content_type,
+                        content_disposition="attachment;filename=" + file_name,
+                    )
 
                 return response
             except Exception:

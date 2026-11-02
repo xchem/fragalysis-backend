@@ -49,6 +49,27 @@ gunicorn --config gunicorn.conf.py fragalysis.wsgi:application
 # firefox. 12Hopefully won't be necessary soon
 echo proxy_set_header X-Forwarded-Proto "${PROXY_FORWARDED_PROTO_HEADER:-https};"  >> /etc/nginx/frag_proxy_params
 
+# nginx needs a DNS server to find the S3 host of the media storage (issue 1038).
+# Use NGINX_RESOLVER (one or more addresses) if it is set,
+# otherwise use the first nameserver in /etc/resolv.conf.
+# The nginx resolver does not use search domains, so in Kubernetes
+# the MEDIA_S3_ENDPOINT_URL host must be a fully qualified domain name.
+if [ -n "${NGINX_RESOLVER:-}" ]; then
+    resolver="${NGINX_RESOLVER}"
+else
+    resolver=$(awk '/^nameserver/ {print $2; exit}' /etc/resolv.conf)
+    # nginx needs an IPv6 address in brackets
+    if [[ "${resolver}" == *:* ]]; then
+        resolver="[${resolver}]"
+    fi
+fi
+if [ -n "${resolver}" ]; then
+    echo "Using DNS server ${resolver} for nginx"
+    echo "resolver ${resolver} valid=30s;" > /etc/nginx/frag_resolver.conf
+else
+    echo "WARNING: No DNS server for nginx (S3 media files will not be served)"
+fi
+
 echo "Testing nginx config..."
 nginx -tq
 

@@ -8,8 +8,8 @@ member / non-member / public / anonymous paths are pinned here.
 
 ``ISPyBSafeStaticFiles2`` (used by ``/pdbs/``, ``/target_loader_data/`` and
 ``/computed_set_data/``) deliberately does *not* re-query the database - it only
-builds the Nginx ``X-Accel-Redirect`` path - so its test asserts that path
-construction rather than access control.
+builds the media name for ``viewer.media_storage.media_response`` - so its test
+asserts that name construction rather than access control.
 
 Access control is driven through the Django membership path
 (``TA_AUTH_SERVICE`` unset, ``Project.user_id`` membership) - the same seam the
@@ -27,7 +27,7 @@ from django.test import RequestFactory
 from api.security import ISPyBSafeStaticFiles, ISPyBSafeStaticFiles2
 from viewer.models import Target
 
-# The stored FileField value and the basename Nginx should be handed.
+# The stored FileField value (the name that nginx is given) and its basename.
 _METADATA_PATH = "metadata/Mpro_meta.csv"
 _METADATA_NAME = "Mpro_meta.csv"
 
@@ -74,7 +74,7 @@ def test_member_is_served_the_file(target_with_metadata, make_user, settings):
     response = _metadata_handler(user).get_response()
 
     assert response.status_code == 200
-    assert response["X-Accel-Redirect"] == "/metadata/" + _METADATA_NAME
+    assert response["X-Accel-Redirect"] == "/media-local/" + _METADATA_PATH
     assert response["Content-Type"] == "application/x-pilot"
     assert _METADATA_NAME in response["Content-Disposition"]
 
@@ -103,7 +103,7 @@ def test_public_project_is_served_to_non_member(
     response = _metadata_handler(anyone).get_response()
 
     assert response.status_code == 200
-    assert response["X-Accel-Redirect"] == "/metadata/" + _METADATA_NAME
+    assert response["X-Accel-Redirect"] == "/media-local/" + _METADATA_PATH
 
 
 @pytest.mark.django_db
@@ -126,7 +126,7 @@ def test_anonymous_user_served_public_file(target_with_metadata, settings):
     response = _metadata_handler(AnonymousUser()).get_response()
 
     assert response.status_code == 200
-    assert response["X-Accel-Redirect"] == "/metadata/" + _METADATA_NAME
+    assert response["X-Accel-Redirect"] == "/media-local/" + _METADATA_PATH
 
 
 def test_static_files2_builds_nginx_redirect_path():
@@ -136,6 +136,9 @@ def test_static_files2_builds_nginx_redirect_path():
     builder for the loader-data downloads.
     """
     handler = ISPyBSafeStaticFiles2()
+    handler.request = RequestFactory().get(
+        "/media/target_loader_data/Mpro/aligned/Mpro-x0001/Mpro-x0001_apo.pdb"
+    )
     handler.content_type = "application/x-pilot"
     handler.prefix = "/target_loader_data/"
     handler.input_string = "Mpro/aligned/Mpro-x0001/Mpro-x0001_apo.pdb"
@@ -145,7 +148,7 @@ def test_static_files2_builds_nginx_redirect_path():
     assert response.status_code == 200
     assert (
         response["X-Accel-Redirect"]
-        == "/target_loader_data/Mpro/aligned/Mpro-x0001/Mpro-x0001_apo.pdb"
+        == "/media-local/target_loader_data/Mpro/aligned/Mpro-x0001/Mpro-x0001_apo.pdb"
     )
     assert response["Content-Type"] == "application/x-pilot"
     assert handler.input_string in response["Content-Disposition"]

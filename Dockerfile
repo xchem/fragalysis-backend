@@ -7,6 +7,7 @@ USER root
 
 RUN apt-get update -y && \
     apt-get install --no-install-recommends -y \
+      ca-certificates \
       default-libmysqlclient-dev \
       nginx \
       pandoc \
@@ -54,6 +55,8 @@ WORKDIR /code
 COPY nginx.conf /etc/nginx/nginx.conf
 COPY django_nginx.conf /etc/nginx/sites-available/default.conf
 COPY proxy_params /etc/nginx/frag_proxy_params
+# launch-stack.sh replaces this with the nginx DNS server (resolver) setting
+COPY frag_resolver.conf /etc/nginx/frag_resolver.conf
 RUN ln -s /etc/nginx/sites-available/default.conf /etc/nginx/sites-enabled
 
 COPY . ./

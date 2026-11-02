@@ -1,8 +1,8 @@
 # pylint: skip-file
 import logging
 import os
+import posixpath
 from dataclasses import dataclass
-from pathlib import Path
 from typing import Any, Dict, Optional
 from wsgiref.util import FileWrapper
 
@@ -13,6 +13,7 @@ from django.db.models import Q
 from django.http import Http404, HttpResponse
 from rest_framework import viewsets
 
+from viewer.media_storage import media_response
 from viewer.models import Project, UserRole
 
 from .utils import deployment_mode_is_production
@@ -358,7 +359,6 @@ class ISPyBSafeStaticFiles:
             file_name = os.path.basename(str(getattr(instance, self.field_name)))
 
             logger.debug("instance: %r", instance)
-            logger.debug("Path to pass to nginx: %s", self.prefix + file_name)
 
             if hasattr(self, 'file_format'):
                 if self.file_format == 'raw':
@@ -373,10 +373,12 @@ class ISPyBSafeStaticFiles:
                     )
 
             else:
-                response = HttpResponse()
-                response["Content-Type"] = self.content_type
-                response["X-Accel-Redirect"] = self.prefix + file_name
-                response["Content-Disposition"] = "attachment;filename=" + file_name
+                response = media_response(
+                    self.request,
+                    str(getattr(instance, self.field_name)),
+                    content_type=self.content_type,
+                    content_disposition="attachment;filename=" + file_name,
+                )
 
             return response
         except Exception as exc:
@@ -390,15 +392,14 @@ class ISPyBSafeStaticFiles2(ISPyBSafeStaticFiles):
         # it wasn't working because found two objects with test file name
         # so it doesn't help me here..
         try:
-            # file_name = Path('/').joinpath(self.prefix).joinpath(self.input_string)
-            # file_name = Path(self.prefix).joinpath(self.input_string)
-            file_name = str(Path('/').joinpath(self.prefix).joinpath(self.input_string))
-            logger.debug("Path to pass to nginx: %s", file_name)
-            response = HttpResponse()
-            response["Content-Type"] = self.content_type
-            response["X-Accel-Redirect"] = file_name
-            # response["Content-Disposition"] = "attachment;filename=" + file_name.name
-            response["Content-Disposition"] = "attachment;filename=" + self.input_string
+            file_name = posixpath.join(self.prefix.strip("/"), self.input_string)
+            logger.debug("Media file name: %s", file_name)
+            response = media_response(
+                self.request,
+                file_name,
+                content_type=self.content_type,
+                content_disposition="attachment;filename=" + self.input_string,
+            )
 
             logger.debug("- Response resolved: %r", response)
             return response
