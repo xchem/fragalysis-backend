@@ -72,33 +72,6 @@ def create_squonk_job_request_url(instance_id):
     return settings.SQUONK2_INSTANCE_API + str(instance_id)
 
 
-def create_media_sub_directory(sub_directory):
-    """Creates a directory (or directories) in the MEDIA directory,
-    returning the full path.
-    """
-    directory = os.path.join(settings.MEDIA_ROOT, sub_directory)
-    os.makedirs(directory, exist_ok=True)
-
-    return directory
-
-
-def delete_media_sub_directory(sub_directory):
-    """Removes a media sub-directory."""
-    assert sub_directory
-    assert len(sub_directory)
-    directory = os.path.normpath(os.path.join(settings.MEDIA_ROOT, sub_directory))
-    if not os.path.isdir(directory):
-        # No such directory!
-        return
-    if not directory.startswith(settings.MEDIA_ROOT) or os.path.samefile(
-        directory, settings.MEDIA_ROOT
-    ):
-        # Danger!
-        return
-
-    shutil.rmtree(directory)
-
-
 def add_prop_to_sdf(sdf_file_in, sdf_file_out, properties):
     """Returns an SDF file with the requested property
     (a dictionary of keys and values) added.

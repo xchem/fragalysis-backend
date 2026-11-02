@@ -42,9 +42,9 @@ from .sdf_check import (  # check_refmol,
     check_ver_name,
 )
 from .squonk_job_file_transfer import process_file_transfer
-from .squonk_job_file_upload import get_upload_sub_directory, process_compound_set_file
+from .squonk_job_file_upload import delete_upload_files, process_compound_set_file
 from .target_set_upload import validate_target
-from .utils import SDF_VERSION, delete_media_sub_directory
+from .utils import SDF_VERSION
 
 # If Celery configured to always run 'synchronously' (eager),
 # then use a standard logger, otherwise use the Celery logger.
@@ -719,7 +719,7 @@ def erase_compound_set_job_material(task_params, job_request_id=0):
     logger.info('+ TASK Erased and updated JobRequest %s', job_request)
 
     # Always erase uploaded data
-    delete_media_sub_directory(get_upload_sub_directory(job_request))
+    delete_upload_files(job_request)
 
 
 @celery_app.task(bind=True)

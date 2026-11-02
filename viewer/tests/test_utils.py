@@ -8,14 +8,11 @@ import os
 from unittest.mock import Mock
 
 import pytest
-from django.conf import settings
 
 from viewer.utils import (
     add_prop_to_sdf,
     clean_filename,
-    create_media_sub_directory,
     create_squonk_job_request_url,
-    delete_media_sub_directory,
     get_https_host,
     is_url,
     word_count,
@@ -27,22 +24,6 @@ def test_create_squonk_job_request_url():
         create_squonk_job_request_url("instance-0000")
         == "data-manager-ui/results/instance/instance-0000"
     )
-
-
-def test_create_media_sub_directory():
-    result = create_media_sub_directory("utils-test-blob")
-    try:
-        assert result == os.path.join(settings.MEDIA_ROOT, "utils-test-blob")
-        assert os.path.isdir(result)
-    finally:
-        delete_media_sub_directory("utils-test-blob")
-
-
-def test_delete_media_sub_directory():
-    result = create_media_sub_directory("utils-test-blobby")
-    assert os.path.isdir(result)
-    delete_media_sub_directory("utils-test-blobby")
-    assert not os.path.exists(result)
 
 
 def test_add_prop_to_sdf(tmp_path):
