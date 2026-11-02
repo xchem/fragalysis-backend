@@ -55,73 +55,7 @@ The code that shows this form is:
 This code uses standard html tags to show that we're using a form, and uses django's templating language to insert the
 form as a list (:code:`{{ form.as_ul}}`)
 
-**2. Dynamic loading of validate task status and results** - this part of the template is included as a Javascript
-script, and uses a function to periodically ping the task endpoint, updating what is displayed on the page depending on
-the tasks status:
-
-.. code-block:: html
-
-    {% if validate_task_id %}
-      <script>
-      var content = document.getElementById('content');
-      content.innerHTML = "";
-      var taskUrl = "{% url 'validate_task' validate_task_id=validate_task_id %}";
-      var dots = 1;
-      var progressTitle = document.getElementById('progress-title');
-      updateProgressTitle();
-      var timer = setInterval(function() {
-        updateProgressTitle();
-        axios.get(taskUrl)
-          .then(function(response){
-            var taskStatus = response.data.validate_task_status
-            if (taskStatus === 'SUCCESS') {
-
-              var content = document.getElementById('links');
-              content.innerHTML = response.data.html;
-
-              clearTimer('');
-            }
-
-            else if (taskStatus === 'FAILURE') {
-
-                clearTimer('An error occurred - see traceback below');
-                var content = document.getElementById('links');
-                content.innerHTML = response.data.validate_traceback;
-
-            }
-          })
-      }, 800);
-
-      function updateProgressTitle() {
-        dots++;
-        if (dots > 3) {
-          dots = 1;
-        }
-        progressTitle.innerHTML = 'validating files';
-        for (var i = 0; i < dots; i++) {
-          progressTitle.innerHTML += '.';
-        }
-      }
-      function clearTimer(message) {
-        clearInterval(timer);
-        progressTitle.innerHTML = message;
-      }
-     </script>
-    {% endif %}
-
-The :code:`{if validate_task_id}` and :code:`{ endif }` use djangos templating language to make sure that the code
-wrapped in :code:`<script>...</script>` is only executed if there is a value for :code:`validate_task_id`. This value
-comes from the Validate task, which is described below.
-
-The different variables (:code:`var:...`) are used to decide what to render on the page in the different elements
-defined in functions (e.g. :code:`document.getElementById('links')` - which looks for the HTML div named :code:`links`).
-
-The most important variable for dynamic loading is the :code:`response.data.validate_task_status` variable - this is the
-status of the validate task from the Celery task, returned by the Validate task, which is described below.
-
-The responses returned by the View are described in :ref:`Computational Data (Views) <comp-views>`
-
-**3. Dynamic loading of upload task status and results** - this part of the template is included as a Javascript
+**2. Dynamic loading of upload task status and results** - this part of the template is included as a Javascript
 script, and uses a function to periodically ping the task endpoint, updating what is displayed on the page depending on
 the tasks status:
 
@@ -142,14 +76,6 @@ the tasks status:
                       var taskStatus = response.data.upload_task_status
                       if (taskStatus === 'SUCCESS') {
                           var validatedStatus = response.data.validated
-                          if (validatedStatus === 'Not validated') {
-
-                              var content = document.getElementById('links');
-                              content.innerHTML = response.data.html;
-
-                              clearTimer('');
-
-                          }
                           if (validatedStatus === 'Validated') {
                               clearTimer('Your files were uploaded! The download links are:');
 
@@ -212,29 +138,18 @@ the tasks status:
          </script>
       {% endif %}
 
-This code works in the same way as the Javascript code for the validate task, but instead uses the Upload task described
-in :ref:`Computational Data (Views) <comp-views>`
-
-Celery task - validating uploaded data
---------------------------------------
-
-The first task that has to be completed when uploading a computed set is validation of the data. This task checks the
-format of the uploaded SDF file provided to :code:`viewer.views.UploadCSetView` to make sure it is in the correct format
-and contains all of the required information (specified here: [link]) to upload save the data to the database through
-the :code:`viewer.views.UploadTaskView` into the relevant models specified in
-:ref:`Computational Data (Models) <comp-models>`.
-
-
-.. autoclass:: viewer.tasks.validate_compound_set
-    :members:
-
+The :code:`{if upload_task_id}` and :code:`{ endif }` use djangos templating language to make sure that the code
+wrapped in :code:`<script>...</script>` is only executed if there is a value for :code:`upload_task_id`. The most
+important variable for dynamic loading is :code:`response.data.upload_task_status` - the status of the Celery task. The
+responses returned by the View are described in :ref:`Computational Data (Views) <comp-views>`
 
 Celery task - processing and saving uploaded data
 -------------------------------------------------
 
-The second task that has to be completed when uploading a computed set is the upload itself. This task checks takes the
-output of :code:`viewer.tasks.validate` - the uploaded files must be validated before their data can be saved to the
-database.
+This task uploads a computed set from the files provided to :code:`viewer.views.UploadCSetView`, saving the data into
+the relevant models specified in :ref:`Computational Data (Models) <comp-models>`. There is no separate validation
+step: if anything in the files is wrong the upload is rolled back and the task fails with the error, which
+:code:`viewer.views.UploadTaskView` reports back to the user.
 
 
 .. autoclass:: viewer.tasks.process_compound_set

@@ -3,7 +3,6 @@ import datetime
 import logging
 import os
 import shutil
-from typing import Any, Dict
 
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "fragalysis.settings")
 
@@ -12,15 +11,11 @@ import django
 django.setup()
 
 import zipfile
-from contextlib import contextmanager
-from io import StringIO
 
-import numpy as np
-import rdkit
 from celery import shared_task
 from celery.utils.log import get_task_logger
 from django.conf import settings
-from rdkit import Chem, rdBase
+from rdkit import Chem
 from rdkit.Chem import Descriptors
 
 from fragalysis.celery import app as celery_app
@@ -31,19 +26,10 @@ from .cache import clear_view_cache
 from .cset_upload import MolOps, PdbOps, blank_mol_vals
 from .download_structures import create_download
 from .models import ComputedSet, JobFileTransfer, JobRequest, SiteObservation
-from .sdf_check import (  # check_refmol,
-    add_warning,
-    check_blank_mol_props,
-    check_blank_prop,
-    check_compound_set,
-    check_mol_props,
-    check_name_characters,
-    check_ver_name,
-)
 from .squonk_job_file_transfer import process_file_transfer
 from .squonk_job_file_upload import get_upload_sub_directory, process_compound_set_file
 from .target_set_upload import validate_target
-from .utils import SDF_VERSION, delete_media_sub_directory
+from .utils import delete_media_sub_directory
 
 # If Celery configured to always run 'synchronously' (eager),
 # then use a standard logger, otherwise use the Celery logger.
@@ -53,81 +39,64 @@ else:
     logger = get_task_logger(__name__)
 
 
-@contextmanager
-def capture_rdkit_logs():
-    """Capture rdkit logs to pass on to user"""
-    # Enable Python logging
-    rdBase.LogToPythonLogger()
-
-    # Save old handlers
-    old_handlers = list(rdkit.logger.handlers)
-
-    # Prepare capture
-    sio = StringIO()
-    hdlr = logging.StreamHandler(sio)
-    fmt = logging.Formatter('%(name)s - %(levelname)s - %(message)s')
-    hdlr.setFormatter(fmt)
-
-    rdkit.logger.handlers.clear()
-    rdkit.logger.addHandler(hdlr)
-
-    try:
-        yield sio  # let the caller run RDKit code
-    finally:
-        # Restore old handlers
-        rdkit.logger.handlers.clear()
-        for h in old_handlers:
-            rdkit.logger.addHandler(h)
-
-
 @shared_task
-def process_compound_set(validate_output):
-    """Celery task to process a computed set. Used in a chain invoked from views.py's
-    UploadCSet, taking the output of the `validate_compound_set()`, and uploads
-    molecules to a new computed set if the uploaded files are valid.
+def process_compound_set(task_params):
+    """Celery task to upload a computed set. Started by views.py's
+    UploadComputedSetView (and the Squonk job chain), it loads the molecules
+    into a new (or updated) computed set. SDF file is mandatory, zip file
+    is optional.
+
+    There is no separate validation step: anything wrong with the files
+    raises, the upload is rolled back and the task fails with the error.
 
     (Code is legacy, and has been taken on by multiple users - comments often
     retro-fitted and no apologies for the design)
 
     Parameters
     ----------
-    validate_output: tuple
-        see return value from 'validate_compound_set()'
+    task_params: dict
+        - user_id (int): User record ID of user initiating the task (may be None)
+        - sdf_file (str): path of the uploaded sdf file, saved to temporary
+          storage by `viewer.views.UploadComputedSetView`
+        - target (int): id of the target the computed set is associated with
+        - zfile (str): optional, path of the uploaded zip of PDB files
+        - update (str): optional, the name of a computed set to update, or 'None'
 
     Returns
     -------
-    If successful, a tuple that contains the fields: -
+    A tuple that contains the fields: -
 
         A value of 'process'
         the compound set name (its primary key)
-
-    Otherwise (i.e. not validated)...
-
-        Returns the response from 'validate_compound_set()'
+        a dict of any warnings collected while processing
     """
 
-    process_stage, validate_dict, validated, params = validate_output
+    user_id = task_params['user_id']
+    sdf_file = task_params['sdf_file']
+    target = task_params['target']
+    pdb_zip = task_params.get('zfile')
+    computed_set_id = task_params.get('update')
 
     logger.info('process_compound_set() ENTER')
-    logger.info('process_compound_set() validated=%s', validated)
-    logger.info('process_compound_set() params=%s', params)
+    logger.info('process_compound_set() task_params=%s', task_params)
 
-    if not validated:
-        logger.warning('process_compound_set() EXIT params=%s (not validated)', params)
-        return process_stage, validate_dict, validated
+    # Protect ourselves from an empty, blank or missing SD file.
+    if not sdf_file or not os.path.isfile(sdf_file):
+        msg = f'SD file "{sdf_file}" is missing'
+        logger.warning('process_compound_set() EXIT (%s)', msg)
+        raise ValueError(msg)
 
-    computed_set_id = params.get('update', None)
-    submitter_name, submitter_method, blank_version = blank_mol_vals(params['sdf'])
-    zfile, zfile_hashvals = PdbOps().run(params)
+    submitter_name, submitter_method, blank_version = blank_mol_vals(sdf_file)
+    zfile, zfile_hashvals = PdbOps().save_pdb_zip(pdb_zip)
 
     # We expect a User ID, but it may be None.
     # If AUTHENTICATE_UPLOAD is False the User ID will be None.
     save_mols = MolOps(
-        user_id=params['user_id'],
-        sdf_filename=params['sdf'],
+        user_id=user_id,
+        sdf_filename=sdf_file,
         submitter_name=submitter_name,
         submitter_method=submitter_method,
-        target=params['target'],
+        target=target,
         version=blank_version,
         zfile=zfile,
         zfile_hashvals=zfile_hashvals,
@@ -141,221 +110,6 @@ def process_compound_set(validate_output):
 
     logger.info('process_compound_set() EXIT (CompoundSet.id="%s")', compound_set.id)
     return 'process', compound_set.id, process_messages
-
-
-@shared_task
-def validate_compound_set(task_params):
-    """Celery task to process validate the uploaded files for a computed set upload.
-    SDF file is mandatory, zip file is optional. Used in a chain invoked from views.py's
-    UploadCSet and the first stage in a chain that includes 'process_compound_set()'
-
-    (Code is legacy, and has been taken on by multiple users - comments often
-    retro-fitted and no apologies for the design)
-
-    Parameters
-    ----------
-    user_id: The record ID of the user initiating the task.
-    sdf_file: str
-        filepath of the uploaded sdf file, which is saved to temporary storage
-        by `viewer.views.UploadCSet`
-    target: str
-        name of the target (`viewer.models.Target.title`) to add add the computed set to
-    zfile: dict
-        dictionary where key is the name of the file minus extension and path,
-        and value is the filename, which is saved
-        to temporary storage by `viewer.views.UploadCSet`
-    update: str
-        The name of a computed set to update, or 'None'
-
-    Returns
-    -------
-    tuple containing the following:
-        - processing stage (str): 'validate'
-        - validate dict (dict): dict containing any errors found during the validation step
-        - validated (bool): True if the file(s) were validated, False if not
-        - params (dict):
-            - user_id (int): User record ID of user initiating the task
-            - sdf (str): name of the uploaded sdf file
-            - target (int): id of the target that the computed set is associated with
-            - zfile: dictionary where key is the name of the file minus extension
-                     and path, and value is the filename, which is saved to
-                     temporary storage by `viewer.views.UploadCSet`
-    If there are problems with the 'blank (initial) molecule' the following is also
-    returned...
-            - submitter_name (str): name of the author of the computed set
-            - submitter_method (str): name of the method used to generate the computed set
-    """
-
-    # Required entry params
-    user_id = task_params['user_id']
-    sdf_file = task_params['sdf_file']
-    target = task_params['target']
-    # Optional params
-    zfile = task_params.get('zfile')
-    update = task_params.get('update')
-
-    logger.info('validate_compound_set() ENTER')
-    logger.info('validate_compound_set() user_id=%s', user_id)
-    logger.info('validate_compound_set() sdf_file=%s', sdf_file)
-    logger.info('validate_compound_set() target=%s', target)
-    logger.info('validate_compound_set() update=%s', update)
-
-    validated = True
-    validate_dict: Dict[str, Any] = {
-        'molecule_name': [],
-        'field': [],
-        'warning_string': [],
-    }
-
-    # params = {
-    #     'sdf': 'tests/test_data/test_chodera/test_0_2.sdf',
-    #     'target': 'Mpro',
-    #     'choice': 1,
-    #     'update_set': None,
-    #     'pdb_zip': '/code/tests/test_data/test_chodera/references.zip'
-    # }
-
-    outbound_params = {
-        'user_id': user_id,
-        'sdf': sdf_file,
-        'target': target,
-        'pdb_zip': zfile,
-        'update': update,
-    }
-
-    # Protect ourselves from an empty, blank or missing SD file.
-    if sdf_file is None or len(sdf_file) == 0:
-        validated = False
-        logger.info(
-            'validate_compound_set() EXIT (no file) validated=%s outbound_params=%s',
-            validated,
-            outbound_params,
-        )
-        return 'validate', validate_dict, validated, outbound_params
-    elif not os.path.isfile(sdf_file):
-        validated = False
-        logger.info(
-            'validate_compound_set() EXIT (missing file) validated=%s outbound_params=%s',
-            validated,
-            outbound_params,
-        )
-        return 'validate', validate_dict, validated, outbound_params
-
-    with capture_rdkit_logs() as log_buffer:
-        suppl = Chem.SDMolSupplier(sdf_file)
-        blank_mol = suppl[0]
-
-    if blank_mol is None:
-        logs = log_buffer.getvalue()
-        validate_dict = add_warning(
-            molecule_name='Blank Mol',
-            field='N/A',
-            warning_string='your blank molecule could not be'
-            ' read by rdkit. The molecule must'
-            ' have at least one atom!'
-            ' No other checks were done',
-            validate_dict=validate_dict,
-        )
-        for line in logs.split('\n'):
-            validate_dict = add_warning(
-                molecule_name='Blank Mol',
-                field='N/A',
-                warning_string=line,
-                validate_dict=validate_dict,
-            )
-        validated = False
-        logger.warning(
-            'validate_compound_set() EXIT user_id=%s sdf_file=%s validated=False',
-            user_id,
-            sdf_file,
-        )
-        return 'validate', validate_dict, validated, outbound_params
-
-    if not update or update == 'None':
-        validate_dict = check_compound_set(blank_mol, validate_dict)
-    else:
-        validate_dict = check_compound_set(blank_mol, validate_dict, update=update)
-
-    other_mols = [suppl[i] for i in range(1, len(suppl))]
-
-    # all mol checks
-    # Check if all mols can be read by rdkit
-    # - all mols have the same properties
-    all_props = []
-    # Use index and check_mol to see if any sdf entries are None type mol objects
-    index = 1
-    for mol in suppl:
-        if not mol:
-            add_warning(
-                molecule_name='Unknown',
-                field='N/A',
-                warning_string=f'SDF entry number: {index} cannot be converted'
-                ' into an rdkit mol object',
-                validate_dict=validate_dict,
-            )
-        if mol:
-            all_props.extend([key for key in list(mol.GetPropsAsDict().keys())])
-        index += 1
-    unique_props = list(set(all_props))
-
-    for mol in suppl:
-        if mol:
-            props = [key for key in list(mol.GetPropsAsDict().keys())]
-            diff_list = np.setdiff1d(props, unique_props)
-            for diff in diff_list:
-                molecule_name = 'Unknown (no _Name property)'
-                if mol.HasProp('_Name'):
-                    molecule_name = mol.GetProp('_Name')
-                add_warning(
-                    molecule_name=molecule_name,
-                    field='property (missing)',
-                    warning_string=f'{diff} property is missing from this molecule',
-                    validate_dict=validate_dict,
-                )
-
-    # Check version in blank mol
-    validate_dict = check_ver_name(blank_mol, SDF_VERSION, validate_dict)
-
-    # Check compulsory fields in blank mol props
-    validate_dict = check_blank_mol_props(blank_mol, validate_dict)
-
-    # Check properties have been described and validate url
-    # Anything wrong with validation goes into this and we leave
-    # with a validation error.
-    validate_dict = check_blank_prop(blank_mol, validate_dict)
-
-    # main mols checks
-    # - missing compulsary fields
-    # - check name characters
-    # - check pdb assignment and if pdb filepath exists
-    # - check compulsory field populated
-    # - check SMILES can be opened by rdkit
-    # (check api for pdb if fragalysis)
-    for m in other_mols:
-        if m:
-            validate_dict = check_mol_props(m, validate_dict)
-            molecule_name = ''
-            if m.HasProp('_Name'):
-                molecule_name = m.GetProp('_Name')
-            validate_dict = check_name_characters(molecule_name, validate_dict)
-
-    len_validate_dict = len(validate_dict['molecule_name'])
-    if len_validate_dict != 0:
-        logger.warning(
-            'validate_compound_set()'
-            ' user_id=%s sdf_file=%s len_validate_dict=%s validated=False',
-            user_id,
-            sdf_file,
-            len_validate_dict,
-        )
-        validated = False
-
-    logger.info(
-        'validate_compound_set() EXIT validated=%s outbound_params=%s',
-        validated,
-        outbound_params,
-    )
-    return 'validate', validate_dict, validated, outbound_params
 
 
 def create_mol(inchi, long_inchi=None, name=None):
@@ -601,7 +355,7 @@ def process_compound_set_job_file(task_params):
 
     Returns
     -------
-    parameters suitable for validation
+    parameters suitable for process_compound_set()
     """
 
     jr_id = task_params['jr_id']
@@ -628,7 +382,7 @@ def process_compound_set_job_file(task_params):
         # This should only be done on a successful upload.
         logger.info('+ TASK file Upload Ended Successfully (%s)', jr_id)
 
-    # We are expected to be followed by 'validate_compound_set'
+    # We are expected to be followed by 'process_compound_set'
     # which expects user_id, sdf_file and target
     return {
         'user_id': job_request.user.id,
@@ -641,8 +395,7 @@ def process_compound_set_job_file(task_params):
 def erase_compound_set_job_material(task_params, job_request_id=0):
     """Celery task to clean-up files generated by a JobRequest on Squonk2.
     We receive the output of 'process_compound_set()'. It provides us with a tuple.
-    If the first field is not 'process' then we can assume the upload failed,
-    maybe during validation?
+    If the first field is not 'process' then we can assume the upload failed.
 
     Parameters
     ----------

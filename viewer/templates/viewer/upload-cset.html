@@ -124,7 +124,6 @@
           </div>
       </section>
         <p class="has-text-centered" id="links"></p>
-        <p class="has-text-centered" id="validate-id"></p>
         <p class="has-text-centered" id="upload-id"></p>
         <p class="has-text-centered" id="upload_warnings"></p>
     </body>
@@ -136,56 +135,6 @@
       var content = document.getElementById('links');
       content.innerHTML = "{{ error_message }}";
     </script>
-    {% endif %}
-
-    {% if validate_task_id %}
-          <script>
-          var content = document.getElementById('content');
-          content.innerHTML = "";
-          var taskUrl = "{% url 'viewer:validate_task' validate_task_id=validate_task_id %}";
-          var validid = document.getElementById('validate-id');
-          validid.innerHTML = taskUrl;
-          var dots = 1;
-          var progressTitle = document.getElementById('progress-title');
-          updateProgressTitleVal();
-          var timerVal = setInterval(function() {
-            updateProgressTitleVal();
-            axios.get(taskUrl)
-              .then(function(response){
-                var taskStatus = response.data.validate_task_status;
-                if (taskStatus === 'SUCCESS') {
-
-                  var content = document.getElementById('links');
-                  content.innerHTML = response.data.html;
-
-                  clearTimerVal('');
-                }
-
-                else if (taskStatus === 'FAILURE') {
-
-                    clearTimerVal('An error occurred - see traceback below');
-                    var content = document.getElementById('links');
-                    content.innerHTML = response.data.validate_traceback;
-
-                }
-              })
-          }, 800);
-
-          function updateProgressTitleVal() {
-            dots++;
-            if (dots > 3) {
-              dots = 1;
-            }
-            progressTitle.innerHTML = 'validating files';
-            for (var i = 0; i < dots; i++) {
-              progressTitle.innerHTML += '.';
-            }
-          }
-          function clearTimerVal(message) {
-            clearInterval(timerVal);
-            progressTitle.innerHTML = message;
-          }
-         </script>
     {% endif %}
 
     {% if upload_task_id %}
@@ -205,14 +154,6 @@
                   var taskStatus = response.data.upload_task_status;
                   if (taskStatus === 'SUCCESS') {
                       var validatedStatus = response.data.validated;
-                      if (validatedStatus === 'Not validated') {
-
-                          var content = document.getElementById('links');
-                          content.innerHTML = response.data.html;
-
-                          clearTimer('');
-
-                      }
                       if (validatedStatus === 'Validated') {
 
                           clearTimer('Your files were uploaded! The download links are:');

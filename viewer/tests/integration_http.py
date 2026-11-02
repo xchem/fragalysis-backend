@@ -108,9 +108,9 @@ def poll_until_task_state(
 ) -> dict:
     """Poll ``status_url`` until ``status_key`` reaches a terminal Celery state.
 
-    The ``viewer`` task views (``UploadTaskView``, ``ValidateTaskView``) report
-    the raw Celery state under their own key (``upload_task_status``,
-    ``validate_task_status``) and carry no ``finished`` flag, so "done" means
+    The ``viewer`` task views (e.g. ``UploadTaskView``) report the raw Celery
+    state under their own key (e.g. ``upload_task_status``) and carry no
+    ``finished`` flag, so "done" means
     the state is terminal - ``SUCCESS`` or ``FAILURE``. The caller decides
     whether the terminal state it got is the one it wanted.
     """
