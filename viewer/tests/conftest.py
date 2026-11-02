@@ -19,7 +19,6 @@ import pytest
 import ta_auth_connector
 from django.contrib.auth.models import User
 from django.core.files.storage import storages
-from moto import mock_aws
 from rest_framework.test import APIClient
 
 from viewer.models import Project, Target
@@ -46,6 +45,10 @@ def media_backend(request, settings, tmp_path, monkeypatch) -> Iterator[str]:
         }
         yield request.param
         return
+
+    # moto is a 'test' dependency. Import it here, not at the top, because the
+    # integration tests load this conftest in the backend image, without moto.
+    from moto import mock_aws  # pylint: disable=import-outside-toplevel
 
     monkeypatch.setenv("AWS_ACCESS_KEY_ID", "testing")
     monkeypatch.setenv("AWS_SECRET_ACCESS_KEY", "testing")
