@@ -24,7 +24,7 @@ Adding an endpoint that serves media
 ------------------------------------
 
 In fragalysis, we use a :code:`FileField` in a :code:`Model` to specify a file, and where it is stored. For example, in
-the target model we have two files that are served as files:
+the target model the :code:`metadata` file is served as a download:
 
 .. code-block:: python
 
@@ -43,12 +43,6 @@ the target model we have two files that are served as files:
             max_length=255,
             help_text="Optional file upload defining metadata about the target."
             " Can be used to add custom site labels",
-        )
-        zip_archive = models.FileField(
-            upload_to="archive/",
-            null=True,
-            max_length=255,
-            help_text="Link to zip file created from targets uploaded with the loader",
         )
 
 Django does not send the content of these files. A view checks that the user can see the file, then
@@ -123,23 +117,12 @@ method, returning the response including the file as an attachment:
                 object = queryset.get(**filter_dict)
                 file_name = os.path.basename(str(getattr(object, self.field_name)))
 
-                if hasattr(self, 'file_format'):
-                    if self.file_format=='raw':
-                        file_field = getattr(object, self.field_name)
-                        filepath = file_field.path
-                        zip_file = open(filepath, 'rb')
-                        response = HttpResponse(FileWrapper(zip_file), content_type='application/zip')
-                        response['Content-Disposition'] = 'attachment; filename="%s"' % file_name
-
-                else:
-                    response = media_response(
-                        self.request,
-                        str(getattr(object, self.field_name)),
-                        content_type=self.content_type,
-                        content_disposition="attachment;filename=" + file_name,
-                    )
-
-                return response
+                return media_response(
+                    self.request,
+                    str(getattr(object, self.field_name)),
+                    content_type=self.content_type,
+                    content_disposition="attachment;filename=" + file_name,
+                )
             except Exception:
                 raise Http404
 
