@@ -11,13 +11,15 @@ that contains an 'outfile' declaration (e.g. "abc-molecules.sdf".).
 import json
 import os
 from datetime import datetime
+from tempfile import TemporaryDirectory
 
 from celery.utils.log import get_task_logger
 from squonk2.dm_api import DmApi
 
+from viewer import media_storage
 from viewer.models import JobRequest
 from viewer.squonk2_agent import Squonk2Agent, get_squonk2_agent
-from viewer.utils import SDF_VERSION, add_prop_to_sdf, create_media_sub_directory
+from viewer.utils import SDF_VERSION, add_prop_to_sdf
 
 logger = get_task_logger(__name__)
 
@@ -113,8 +115,16 @@ def _insert_sdf_blank_mol(
 
 
 def get_upload_sub_directory(job_request):
-    """Returns the media-relative directory for the upload job data."""
-    return os.path.join('squonk_upload', str(job_request.code))
+    """Returns the storage name prefix for the upload job data.
+
+    It is under tmp/, so that files left by a failed job are removed too.
+    """
+    return f'tmp/squonk_upload/{job_request.code}'
+
+
+def delete_upload_files(job_request) -> None:
+    """Deletes the job's uploaded files (successful or otherwise)."""
+    media_storage.delete_prefix(get_upload_sub_directory(job_request))
 
 
 def process_compound_set_file(
@@ -133,8 +143,10 @@ def process_compound_set_file(
         The Job's output file path (prefixed with '/' and relative to the project root)
         The Job's filename (pathless, and an SD-File)
 
-    Returns the fully-qualified path to the SDF file (sdf_filename).
-    The file will not exist as a file if the upload processing fails.
+    Returns the storage name of the SDF file
+    (tmp/squonk_upload/<code>/job_job-<code>.sdf). The Celery tasks that
+    follow can run on any worker, so they get a storage name, not a local path.
+    The file will not exist if the upload processing fails.
     """
 
     logger.info('Processing job compound file (%s)...', jr_id)
@@ -145,16 +157,32 @@ def process_compound_set_file(
 
     jr = JobRequest.objects.get(id=jr_id)
 
+    # The job's files are pulled into, and processed in, a scratch directory.
+    # Only the final SDF is stored.
+    sdf_name = f'{get_upload_sub_directory(jr)}/job_job-{jr.code}.sdf'
+    with TemporaryDirectory() as upload_dir:
+        local_sdf = _pull_and_process_job_files(
+            jr, transition_time_utc, job_output_path, job_output_filename, upload_dir
+        )
+        if local_sdf:
+            media_storage.store_file(local_sdf, sdf_name)
+    return sdf_name
+
+
+def _pull_and_process_job_files(
+    jr: JobRequest,
+    transition_time_utc: datetime,
+    job_output_path: str,
+    job_output_filename: str,
+    upload_dir: str,
+) -> str | None:
+    """Pulls the job's SDF and parameter files into upload_dir and makes the
+    compound set SDF there. Returns its local path, or None if it is not made.
+    """
     # The callback token is required to make Squonk API calls from the callback context
     jr_job_info_msg = jr.squonk_job_info['msg']
     callback_token = jr_job_info_msg.get('callback_token')
     logger.info("Squonk API callback_token=%s", callback_token)
-
-    # Do we need to create the upload path?
-    # This is used for this 'job' and is removed when the upload is complete
-    # successful or otherwise.
-    upload_sub_dir = get_upload_sub_directory(jr)
-    upload_dir = create_media_sub_directory(upload_sub_dir)
 
     # The temporary files we plan to upload to
     # (from the expected job_output_path and job_output_filename).
@@ -232,7 +260,7 @@ def process_compound_set_file(
             tmp_sdf_filename,
             tmp_param_filename,
         )
-        return sdf_filename
+        return None
 
     param_size = os.path.getsize(tmp_param_filename)
     sdf_size = os.path.getsize(tmp_sdf_filename)
@@ -242,7 +270,7 @@ def process_compound_set_file(
     # Uploaded files cannot be empty.
     if param_size == 0 or sdf_size == 0:
         logger.warning('Not processing. Either the param file or SDF is empty')
-        return sdf_filename
+        return None
 
     # Got both files (non-empty) if we get gere...
 
@@ -280,7 +308,7 @@ def process_compound_set_file(
         meta = json.loads(param_file.read())
         if 'annotations' not in meta or len(meta['annotations']) == 0:
             logger.warning('Not processing. No annotations in %s', tmp_param_filename)
-            return sdf_filename
+            return None
         for annotation in meta['annotations']:
             if 'fields' in annotation:
                 for key, value in annotation['fields'].items():
@@ -301,10 +329,9 @@ def process_compound_set_file(
             tmp_sdf_filename,
         )
         add_prop_to_sdf(tmp_sdf_filename, sdf_filename, params)
-        logger.info('Generated job compound file %s (%s)', sdf_filename, jr_id)
+        logger.info('Generated job compound file %s (%s)', sdf_filename, jr.id)
     else:
         logger.info('Found no suitable fields in %s', tmp_param_filename)
 
-    # Return the name of the file
-    # (which will exist if we pulled two files and all went well).
-    return sdf_filename
+    # Return the file (which will exist if we pulled two files and all went well).
+    return sdf_filename if os.path.isfile(sdf_filename) else None

@@ -3,7 +3,8 @@ Fragalysis to Squonk.
 """
 import os
 import urllib.parse
-from pathlib import Path
+from pathlib import Path, PurePosixPath
+from tempfile import TemporaryDirectory
 from typing import List, Tuple
 from urllib.parse import unquote
 
@@ -11,6 +12,7 @@ from celery.utils.log import get_task_logger
 from django.conf import settings
 from squonk2.dm_api import DmApi
 
+from viewer import media_storage
 from viewer.models import JobFileTransfer, SiteObservation, Target
 
 logger = get_task_logger(__name__)
@@ -59,7 +61,7 @@ def process_file_transfer(auth_token, job_transfer_id):
     )
     if all_filename_refs := job_transfer.proteins + job_transfer.compounds:
         logger.info('+ Collecting files (id=%s)', job_transfer_id)
-        file_list = []
+        file_names = []
         for filename_ref in all_filename_refs:
             # We need to decode the file reference,
             # it is likely to be URL encoded.
@@ -67,25 +69,32 @@ def process_file_transfer(auth_token, job_transfer_id):
             logger.info(
                 '+ Collecting %s (target=%s) (id=%s)', filename, target, job_transfer_id
             )
-            # File is expected to exist in the media directory
-            file_path = os.path.join(settings.MEDIA_ROOT, filename)
-            if not os.path.isfile(file_path):
-                msg = f'No such file {file_path} (id={job_transfer_id})'
+            # The file is expected to be in the media storage
+            file_names.append(filename)
+
+        # DmApi needs local files: get scratch copies (in parallel),
+        # each in its own directory so that it keeps its file name.
+        with TemporaryDirectory() as scratch:
+            local_files = [
+                Path(scratch, str(index), PurePosixPath(name).name)
+                for index, name in enumerate(file_names)
+            ]
+            if missing := media_storage.fetch(zip(file_names, local_files)):
+                msg = f'No such file {missing[0]} (id={job_transfer_id})'
                 logger.error(msg)
                 raise RuntimeError(msg)
-            file_list.append(file_path)
 
-        logger.info('+ Found %s files (id=%s)', len(file_list), job_transfer_id)
-        logger.info(
-            '+ Calling DmApi.put_unmanaged_project_files() (id=%s)', job_transfer_id
-        )
-        result = DmApi.put_unmanaged_project_files(
-            auth_token,
-            project_id=job_transfer.squonk_project,
-            project_files=file_list,
-            project_path=squonk_directory,
-            force=True,
-        )
+            logger.info('+ Found %s files (id=%s)', len(local_files), job_transfer_id)
+            logger.info(
+                '+ Calling DmApi.put_unmanaged_project_files() (id=%s)', job_transfer_id
+            )
+            result = DmApi.put_unmanaged_project_files(
+                auth_token,
+                project_id=job_transfer.squonk_project,
+                project_files=[str(path) for path in local_files],
+                project_path=squonk_directory,
+                force=True,
+            )
         logger.debug(result)
 
         if result.success:

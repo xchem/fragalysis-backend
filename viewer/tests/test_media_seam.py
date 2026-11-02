@@ -42,11 +42,9 @@ _ALLOWED = {
     "viewer/media_cleanup.py": 7,
     "viewer/media_watcher.py": 2,
     "viewer/models.py": 2,
-    "viewer/squonk_job_file_transfer.py": 1,
     "viewer/target_delete.py": 1,
     "viewer/target_set_upload.py": 1,
     "viewer/upload_delete.py": 4,
-    "viewer/utils.py": 4,
 }
 
 
