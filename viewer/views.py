@@ -20,6 +20,7 @@ from celery.result import AsyncResult
 from dateutil.parser import parse
 from django.conf import settings
 from django.contrib.auth import get_user_model
+from django.core.exceptions import SuspiciousFileOperation
 from django.http import FileResponse, HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
@@ -51,7 +52,7 @@ from api.utils import (
     validate_tas,
 )
 from service_status.models import Service
-from viewer import filters, models, serializers
+from viewer import filters, media_storage, models, serializers
 from viewer.compound_curation import (
     CurationFormatError,
     auto_merge_non_conflicting_compounds,
@@ -694,8 +695,8 @@ class UploadComputedSetView(generics.ListCreateAPIView):
                 selected_set.delete()
 
                 # ...and the original (expected) file
-                if os.path.isfile(written_sdf_filename):
-                    os.remove(written_sdf_filename)
+                if written_sdf_filename:
+                    media_storage.delete(written_sdf_filename)
 
                 request.session[
                     _SESSION_MESSAGE
@@ -1195,6 +1196,49 @@ class DesignSetUploadView(APIView):
         # END removed as part of 1247 (securing endpoints)
 
 
+def _computed_set_zip_response(computed_set) -> HttpResponse:
+    """A zip of the computed set's SDF files and user-uploaded PDB files.
+
+    Missing files are in the zip as empty "<name>_MISSING" entries.
+    """
+    zip_buffer = BytesIO()
+
+    # NB: this is not filtered by computed set, so every set's SDF is in the
+    # zip. Kept as it was in #1038 (media storage), to be fixed separately.
+    sdfs = models.ComputedSet.history.filter(
+        written_sdf_filename__isnull=False,
+    )
+    pdbs = computed_set.site_observations.all()
+
+    with zipfile.ZipFile(zip_buffer, 'a', zipfile.ZIP_DEFLATED) as ziparchive:
+        for sdf in sdfs:
+            try:
+                contents = media_storage.read_bytes(sdf.written_sdf_filename)
+            except (FileNotFoundError, SuspiciousFileOperation):
+                ziparchive.writestr(f'{str(sdf.submitted_sdf)}_MISSING', r'')
+            else:
+                ziparchive.writestr(str(sdf.submitted_sdf), contents)
+
+        for f in pdbs:
+            if not f.virtual_pdb_info:
+                # Only observations with a user-uploaded pdb are included
+                # (the former pdb__isnull=True computed molecules).
+                continue
+            try:
+                contents = media_storage.read_bytes(f.virtual_pdb_info.name)
+            except (FileNotFoundError, SuspiciousFileOperation):
+                ziparchive.writestr(f'{f.get_filename()}_MISSING', r'')
+            else:
+                ziparchive.writestr(f.get_filename(), contents)
+
+    response = HttpResponse(zip_buffer.getvalue(), content_type='application/zip')
+    response['Content-Disposition'] = (
+        'attachment; filename="%s"' % f'{computed_set.name}.zip'
+    )
+    response['Content-Length'] = zip_buffer.getbuffer().nbytes
+    return response
+
+
 class ComputedSetView(
     mixins.DestroyModelMixin,
     ISPyBSafeQuerySet,
@@ -1245,41 +1289,7 @@ class ComputedSetView(
                 status=status.HTTP_403_FORBIDDEN,
             )
 
-        zip_buffer = BytesIO()
-
-        sdfs = models.ComputedSet.history.filter(
-            written_sdf_filename__isnull=False,
-        )
-        pdbs = computed_set.site_observations.all()
-
-        # so now, get the file, and get the pdbs
-        with zipfile.ZipFile(zip_buffer, 'a', zipfile.ZIP_DEFLATED) as ziparchive:
-            for sdf in sdfs:
-                sdf_file = Path(sdf.written_sdf_filename)
-                if sdf_file.exists():
-                    with open(sdf_file, 'rb') as contents:
-                        ziparchive.writestr(str(sdf.submitted_sdf), contents.read())
-                else:
-                    ziparchive.writestr(f'{str(sdf.submitted_sdf)}_MISSING', r'')
-
-            for f in pdbs:
-                if not f.virtual_pdb_info:
-                    # Only observations with a user-uploaded pdb are included
-                    # (the former pdb__isnull=True computed molecules).
-                    continue
-                fpath = Path(settings.MEDIA_ROOT).joinpath(f.virtual_pdb_info.name)
-                if fpath.is_file():
-                    with open(fpath, 'rb') as contents:
-                        ziparchive.writestr(f.get_filename(), contents.read())
-                else:
-                    ziparchive.writestr(f'{f.get_filename()}_MISSING', r'')
-
-        response = HttpResponse(zip_buffer.getvalue(), content_type='application/zip')
-        response['Content-Disposition'] = (
-            'attachment; filename="%s"' % f'{computed_set.name}.zip'
-        )
-        response['Content-Length'] = zip_buffer.getbuffer().nbytes
-        return response
+        return _computed_set_zip_response(computed_set)
 
 
 class DiscoursePostView(viewsets.ViewSet):
@@ -3361,41 +3371,7 @@ class DownloadComputedSetView(ISPyBSafeQuerySet):
                 status=status.HTTP_403_FORBIDDEN,
             )
 
-        zip_buffer = BytesIO()
-
-        sdfs = models.ComputedSet.history.filter(
-            written_sdf_filename__isnull=False,
-        )
-        pdbs = computed_set.site_observations.all()
-
-        # so now, get the file, and get the pdbs
-        with zipfile.ZipFile(zip_buffer, 'a', zipfile.ZIP_DEFLATED) as ziparchive:
-            for sdf in sdfs:
-                sdf_file = Path(sdf.written_sdf_filename)
-                if sdf_file.exists():
-                    with open(sdf_file, 'rb') as contents:
-                        ziparchive.writestr(str(sdf.submitted_sdf), contents.read())
-                else:
-                    ziparchive.writestr(f'{str(sdf.submitted_sdf)}_MISSING', r'')
-
-            for f in pdbs:
-                if not f.virtual_pdb_info:
-                    # Only observations with a user-uploaded pdb are included
-                    # (the former pdb__isnull=True computed molecules).
-                    continue
-                fpath = Path(settings.MEDIA_ROOT).joinpath(f.virtual_pdb_info.name)
-                if fpath.is_file():
-                    with open(fpath, 'rb') as contents:
-                        ziparchive.writestr(f.get_filename(), contents.read())
-                else:
-                    ziparchive.writestr(f'{f.get_filename()}_MISSING', r'')
-
-        response = HttpResponse(zip_buffer.getvalue(), content_type='application/zip')
-        response['Content-Disposition'] = (
-            'attachment; filename="%s"' % f'{computed_set.name}.zip'
-        )
-        response['Content-Length'] = zip_buffer.getbuffer().nbytes
-        return response
+        return _computed_set_zip_response(computed_set)
 
 
 class TokenView(APIView):

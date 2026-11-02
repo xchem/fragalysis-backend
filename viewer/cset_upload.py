@@ -1,23 +1,22 @@
 import ast
 import datetime
 import logging
-import os
 import re
+import tempfile
 import uuid
 import zipfile
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 from typing import Any, Dict, List, Optional, Tuple
 
 import numpy as np
 from dateutil.parser import parse
 from django.conf import settings
 from django.core.exceptions import ValidationError
-from django.core.files.base import ContentFile
-from django.core.files.storage import default_storage
 from django.core.validators import validate_email
 from django.db import IntegrityError, transaction
 from django.db.models import F
 from django.utils import timezone
+from django.utils.text import get_valid_filename
 from openpyxl.utils import get_column_letter
 from rdkit import Chem
 
@@ -33,14 +32,9 @@ from viewer.models import (
     Target,
     User,
 )
-from viewer.utils import (
-    add_props_to_sdf_molecule,
-    alphanumerator,
-    is_url,
-    set_directory_permissions,
-    word_count,
-)
+from viewer.utils import alphanumerator, is_url, word_count
 
+from . import media_storage
 from .sdf_check import add_warning
 from .tags import TagManager
 from .target_loader import assign_observation_quality_status
@@ -129,40 +123,47 @@ class PdbOps:
     def save_pdb_zip(
         self, pdb_file
     ) -> Tuple[Optional[Dict[str, Any]], Optional[Dict[str, str]]]:
-        zfile = None
-        zfile_hashvals = None
+        """Stores each PDB file in the uploaded zip (a storage name).
+
+        Returns {pdb code: storage name} and {code: hash} for codes that
+        already exist. The PDBs go to a new tmp/cset/<uuid>/ directory.
+        """
+        zfile: Optional[Dict[str, Any]] = None
+        zfile_hashvals: Optional[Dict[str, str]] = None
         if pdb_file:
-            zf = zipfile.ZipFile(pdb_file)
-            zip_lst = zf.namelist()
             zfile = {}
             zfile_hashvals = {}
-            for filename in zip_lst:
-                # only handle pdb files
-                if filename.split(".")[-1] == "pdb":
-                    # Test if Protein object already exists
-                    code = filename.split("/")[-1].replace(".pdb", "")
-                    test_pdb_code = filename.split("/")[-1].replace(".pdb", "")
-                    test_site_obvs_objs = SiteObservation.objects.filter(
-                        code=test_pdb_code
-                    )
-
-                    if len(test_site_obvs_objs) != 0:
-                        # make a unique pdb code as not to overwrite existing object
-                        rand_str = uuid.uuid4().hex
-                        test_pdb_code = f"{code}#{rand_str}"
-                        zfile_hashvals[code] = rand_str
-
-                    fn = f"{test_pdb_code}.pdb"
-                    pdb_path = default_storage.save(
-                        f"tmp/{fn}", ContentFile(zf.read(filename))
-                    )
-                    zfile[test_pdb_code] = pdb_path
-
-            # Close the zip file
-            if zf:
-                zf.close()
+            upload_dir = f"tmp/cset/{uuid.uuid4().hex}"
+            with (
+                tempfile.TemporaryDirectory() as scratch,
+                media_storage.local_copy(pdb_file) as local_zip,
+                zipfile.ZipFile(local_zip) as zf,
+            ):
+                self._extract_pdbs(zf, Path(scratch), upload_dir, zfile, zfile_hashvals)
+                media_storage.store_tree(scratch, upload_dir)
 
         return zfile, zfile_hashvals
+
+    def _extract_pdbs(self, zf, scratch, upload_dir, zfile, zfile_hashvals) -> None:
+        """Writes each PDB in the zip to scratch, and records its future name."""
+        for filename in zf.namelist():
+            # only handle pdb files
+            if filename.split(".")[-1] != "pdb":
+                continue
+
+            # Test if Protein object already exists
+            code = filename.split("/")[-1].replace(".pdb", "")
+            test_pdb_code = code
+            if SiteObservation.objects.filter(code=test_pdb_code).exists():
+                # make a unique pdb code as not to overwrite existing object
+                rand_str = uuid.uuid4().hex
+                test_pdb_code = f"{code}#{rand_str}"
+                zfile_hashvals[code] = rand_str
+
+            # The same name rules as the Django storage used before
+            fn = get_valid_filename(f"{test_pdb_code}.pdb")
+            scratch.joinpath(fn).write_bytes(zf.read(filename))
+            zfile[test_pdb_code] = f"{upload_dir}/{fn}"
 
     def run(self, params) -> Tuple[Optional[Dict[str, Any]], Optional[Dict[str, str]]]:
         return self.save_pdb_zip(params["pdb_zip"])
@@ -231,11 +232,20 @@ class MolOps:
             )
         )
 
-        Path(settings.MEDIA_ROOT).joinpath(self.virtual_root).mkdir(
-            parents=True, exist_ok=True
-        )
+        # The uploaded PDBs moved to the computed set directory,
+        # as {tmp storage name: new storage name}.
+        self._moved_pdbs: dict[str, str] = {}
+        # The new virtual .mol files, as {storage name: mol block}.
+        # They are stored together (in parallel) at the end of the upload.
+        self._virtual_mols: dict[str, str] = {}
 
     def process_pdb(self, pdb_code, zfile, zfile_hashvals) -> str | None:
+        """Moves an uploaded PDB to the computed set directory.
+
+        Returns its new storage name, or None for an unknown code.
+        Two or more molecules can reference the same PDB, so a PDB
+        is moved once and then gives the same name.
+        """
         for key in zfile_hashvals.keys():
             if key == pdb_code:
                 pdb_code = f"{pdb_code}#{zfile_hashvals[pdb_code]}"
@@ -245,21 +255,59 @@ class MolOps:
         except KeyError:
             return None
 
+        if pdb_fp in self._moved_pdbs:
+            return self._moved_pdbs[pdb_fp]
+
         # ensure filename uniqueness
-        pdb_fn = "_".join([zfile[pdb_code].split("/")[-1], uuid.uuid4().hex])
-        pdb_field = Path(settings.COMPUTED_SET_MEDIA_DIRECTORY).joinpath(pdb_fn)
+        pdb_fn = "_".join([pdb_fp.split("/")[-1], uuid.uuid4().hex])
+        pdb_field = f"{settings.COMPUTED_SET_MEDIA_DIRECTORY}/{pdb_fn}"
+        try:
+            media_storage.move(pdb_fp, pdb_field)
+        except FileNotFoundError as exc:
+            raise IntegrityError(f"The uploaded PDB for {pdb_code} is missing") from exc
 
-        new_filename = Path(settings.MEDIA_ROOT).joinpath(pdb_field)
-        old_filename = Path(settings.MEDIA_ROOT).joinpath(pdb_fp)
+        self._moved_pdbs[pdb_fp] = pdb_field
+        return pdb_field
 
-        # there may be a case where 2 or more molfiles reference the
-        # same pdb. in this case, the old pdb is already renamed to
-        # new.
-        if old_filename.exists() and not new_filename.exists():
-            old_filename.rename(new_filename)
-            os.chmod(new_filename, 0o755)
+    def delete_uploaded_pdbs(self) -> None:
+        """Deletes the uploaded PDBs (moved or not), after a failed upload."""
+        names = list((self.zfile or {}).values()) + list(self._moved_pdbs.values())
+        media_storage.delete_many(names)
 
-        return str(pdb_field)
+    def write_virtual_mol(self, name: str, mol_block: str) -> None:
+        """Keeps a new virtual .mol file until store_virtual_files()."""
+        self._virtual_mols[name] = mol_block
+
+    def read_virtual_mol(self, name: str) -> Chem.Mol | None:
+        """Reads a virtual .mol file: a new one, or one that is stored."""
+        mol_block = self._virtual_mols.get(name)
+        if mol_block is None:
+            mol_block = media_storage.read_text(name)
+        return Chem.MolFromMolBlock(mol_block)
+
+    def store_virtual_files(self) -> None:
+        """Stores the new virtual .mol files under virtual_root, in parallel."""
+        root = PurePosixPath(self.virtual_root)
+        with tempfile.TemporaryDirectory() as scratch:
+            for name, mol_block in self._virtual_mols.items():
+                local = Path(scratch, PurePosixPath(name).relative_to(root))
+                local.parent.mkdir(parents=True, exist_ok=True)
+                local.write_text(mol_block, encoding="utf-8")
+            media_storage.store_tree(scratch, str(root))
+        self._virtual_mols.clear()
+
+    def store_sdf(self, computed_set: ComputedSet) -> None:
+        """Moves the uploaded SDF to the computed set directory, and records it."""
+        sdf_name = media_storage.to_name(self.sdf_filename)
+        submitted = PurePosixPath(sdf_name).name
+        written = (
+            f"{settings.COMPUTED_SET_MEDIA_DIRECTORY}/"
+            f"{computed_set.name}_upload_{computed_set.md_ordinal}_{submitted}"
+        )
+        media_storage.move(sdf_name, written)
+        computed_set.submitted_sdf = submitted
+        computed_set.written_sdf_filename = written
+        computed_set.save()
 
     # use zfile object for pdb files uploaded in zip
     def get_site_observation(
@@ -612,11 +660,7 @@ class MolOps:
             + f"{name}_{molecule_name}_{new_so.virtual_identifier}.mol"
         )
 
-        new_so_mol = Chem.MolToMolBlock(mol)
-        sdf_filename = Path(settings.MEDIA_ROOT).joinpath(filename)
-        with open(sdf_filename, "w", encoding='utf-8') as f:
-            f.write(new_so_mol)
-
+        self.write_virtual_mol(str(filename), Chem.MolToMolBlock(mol))
         new_so.virtual_ligand_mol = str(filename)
         new_so.save()
         assign_observation_quality_status(new_so)
@@ -631,8 +675,9 @@ class MolOps:
 
         # existing_computed_molecules = []
         for so in qs:
-            filepath = Path(settings.MEDIA_ROOT).joinpath(str(so.virtual_ligand_mol))
-            so_mol = Chem.MolFromMolFile(str(filepath))
+            if so.virtual_ligand_mol_name is None:
+                continue
+            so_mol = self.read_virtual_mol(so.virtual_ligand_mol_name)
             if so_mol:
                 # find distances between corresponding atoms of the
                 # two conformers. if any one exceeds the _DIST_LIMIT,
@@ -678,12 +723,10 @@ class MolOps:
             ignore_conflicts=True,
         )
 
-        # No update the molecule in the original file...
-        add_props_to_sdf_molecule(
-            sdf_file=str(sdf_filename),
-            molecule=molecule_name,
-            properties={"target_identifier": new_so.virtual_name},
-        )
+        # This used to call add_props_to_sdf_molecule() to add the
+        # "target_identifier" to "the original file". But it got the new .mol
+        # file (the 'filename' argument is reassigned above), which has no SDF
+        # record separator, so nothing changed. The call is removed (#1038).
 
         return new_so
 
@@ -928,9 +971,10 @@ class MolOps:
                 # This also sets the submitter and method URL properties of the computed set
                 # while also saving it.
                 sdf_filename = str(self.sdf_filename)
-                mols_to_process, score_descriptions = self.set_descriptions(
-                    filename=sdf_filename, computed_set=computed_set
-                )
+                with media_storage.local_copy(sdf_filename) as local_sdf:
+                    mols_to_process, score_descriptions = self.set_descriptions(
+                        filename=str(local_sdf), computed_set=computed_set
+                    )
 
                 # Process the molecules
                 logger.info("%s mols_to_process=%s", computed_set, len(mols_to_process))
@@ -958,47 +1002,16 @@ class MolOps:
                     new_observation_tag=f"{computed_set.name} {datestr}",
                 )
 
-                # adjust permissions for any files created
-                set_directory_permissions(
-                    Path(settings.MEDIA_ROOT).joinpath(self.virtual_root),
-                    0o755,
-                )
+                # The last step, so that a failed upload stores no .mol files
+                self.store_virtual_files()
 
         except IntegrityError as exc:
-            # clean up previously written files. this is not ideal,
-            # they should be written to a tempdir or something, like
-            # in target loader. TODO for later
-            try:
-                for p in self.zfile.values():
-                    Path(p).unlink()
-            except AttributeError:
-                # zfile is None, nothing to do
-                pass
-
+            # clean up the uploaded PDB files
+            self.delete_uploaded_pdbs()
             raise ValueError(exc.args[0]) from exc
 
-        # assuming no errors, write the files
-
-        # check compound set folder exists.
-        cmp_set_folder = os.path.join(
-            settings.MEDIA_ROOT, settings.COMPUTED_SET_MEDIA_DIRECTORY
-        )
-        if not os.path.isdir(cmp_set_folder):
-            logger.info("Making ComputedSet folder (%s)", cmp_set_folder)
-            os.mkdir(cmp_set_folder)
-
-        # move and save the compound set
-        new_filename = (
-            Path(settings.MEDIA_ROOT)
-            .joinpath(settings.COMPUTED_SET_MEDIA_DIRECTORY)
-            .joinpath(
-                f"{computed_set.name}_upload_{computed_set.md_ordinal}_{Path(sdf_filename).name}"
-            )
-        )
-        os.rename(sdf_filename, new_filename)
-        computed_set.submitted_sdf = Path(sdf_filename).name
-        computed_set.written_sdf_filename = new_filename
-        computed_set.save()
+        # assuming no errors, move the SDF to the computed set directory
+        self.store_sdf(computed_set)
 
         logger.info("Created %s", computed_set)
 
