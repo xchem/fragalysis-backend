@@ -8,6 +8,7 @@ from pathlib import Path
 from django.conf import settings
 from django.contrib.auth.models import User
 from django.contrib.postgres.fields import ArrayField
+from django.core.exceptions import SuspiciousFileOperation
 from django.core.serializers.json import DjangoJSONEncoder
 from django.core.validators import MinLengthValidator
 from django.db import IntegrityError, models, transaction
@@ -17,6 +18,7 @@ from pgvector.django import HalfVectorField, HnswIndex
 from shortuuid.django_fields import ShortUUIDField
 from simple_history.models import HistoricalRecords
 
+from . import media_storage
 from .managers import (
     AssayResultDataManager,
     CanonSiteConfDataManager,
@@ -298,13 +300,15 @@ class ExperimentUpload(models.Model):
     def __repr__(self) -> str:
         return "<ExperimentUpload %r %r %r>" % (self.id, self.project, self.target)
 
-    def get_upload_path(self):
+    def upload_prefix(self) -> str:
+        """The storage name of this upload's directory (see viewer.media_storage)."""
         return (
-            Path(settings.MEDIA_ROOT)
-            .joinpath(settings.TARGET_LOADER_MEDIA_DIRECTORY)
-            .joinpath(self.target.zip_archive.name)
-            .joinpath(self.upload_data_dir)
+            f"{settings.TARGET_LOADER_MEDIA_DIRECTORY}"
+            f"/{self.target.zip_archive.name}/{self.upload_data_dir}"
         )
+
+    def get_upload_path(self):
+        return Path(settings.MEDIA_ROOT).joinpath(self.upload_prefix())
 
     def get_download_path(self):
         """The path to the original uploaded file, used during downloads"""
@@ -874,14 +878,11 @@ class SiteObservation(Versionable, models.Model):
         )
 
     def get_ligand_mol_file(self):
-        contents = ''
+        """The content of the ligand .mol file, or '' if there is no file."""
         if self.ligand_mol:
-            path = Path(settings.MEDIA_ROOT).joinpath(self.ligand_mol.name)
-            with contextlib.suppress(TypeError, FileNotFoundError):
-                with open(path, "r", encoding="utf-8") as f:
-                    contents = f.read()
-
-        return contents
+            with contextlib.suppress(FileNotFoundError, SuspiciousFileOperation):
+                return media_storage.read_text(self.ligand_mol.name)
+        return ''
 
     @property
     def virtual_ligand_mol_path(self) -> Path | None:
@@ -893,13 +894,21 @@ class SiteObservation(Versionable, models.Model):
 
         The file is not guaranteed to exist; callers must handle a missing one.
         """
+        name = self.virtual_ligand_mol_name
+        return None if name is None else Path(settings.MEDIA_ROOT).joinpath(name)
+
+    @property
+    def virtual_ligand_mol_name(self) -> str | None:
+        """The storage name of virtual_ligand_mol, or None when it is unset.
+
+        Read the file with viewer.media_storage. It is not guaranteed to exist.
+        """
         if not self.virtual_ligand_mol:
             return None
-
         # str(), not .name: the field is a FileField but every writer assigns
         # a plain string to it, so static analysis cannot tell which it is.
         # Both stringify to the stored path.
-        return Path(settings.MEDIA_ROOT).joinpath(str(self.virtual_ligand_mol))
+        return str(self.virtual_ligand_mol)
 
     def get_filename(self):
         """Basename for this observation's uploaded pdb in downloads.
