@@ -168,6 +168,21 @@ class Target(models.Model):
             self.project,
         )
 
+    def get_xca_version(self) -> str | None:
+        """The XChemAlign version of the target's latest upload.
+
+        Each upload can be produced with a different XCA version, so the
+        version is recorded per ExperimentUpload. Uploads without a recorded
+        version are skipped. Returns None if no upload has one.
+        """
+        return (
+            self.experimentupload_set.exclude(xca_version__isnull=True)
+            .exclude(xca_version="")
+            .order_by("-upload_version", "-commit_datetime")
+            .values_list("xca_version", flat=True)
+            .first()
+        )
+
     class Meta:
         constraints = [
             models.UniqueConstraint(
@@ -288,6 +303,12 @@ class ExperimentUpload(models.Model):
     upload_version = models.PositiveSmallIntegerField(default=1)
     data_version_major = models.PositiveSmallIntegerField(default=0)
     data_version_minor = models.PositiveSmallIntegerField(default=0)
+    xca_version = models.TextField(
+        null=True,
+        blank=True,
+        help_text="The XChemAlign version the uploaded bundle was produced with"
+        " (meta_aligner.yaml xca_git_info->tag)",
+    )
 
     objects = models.Manager()
     upload_manager = ExperimentUploadDataManager()
