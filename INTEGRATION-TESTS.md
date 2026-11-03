@@ -147,6 +147,11 @@ running stack owns the one real database. For each manifest upload it:
    reuses the just-loaded state — no second upload — so it answers the original
    ticket's "do we need to release the stress tests as a package?" with **no**:
    the download check lives here, alongside the upload it depends on.
+6. **Checks media served by nginx** (#1038). For a site observation's file (from its
+   `/media/...` URL in the API) and for the download archive: GET 200, HEAD gives the
+   same `Content-Length`, a `Range` request gives 206 (observation file), at most one
+   `Content-Disposition`, and no `X-Media-Url` or `X-Accel-Redirect` header reaches the
+   client.
 
 Visibility for the anonymous GET/poll comes from the stack's `PUBLIC_TAS`, which
 publishes the loaded proposal (the loaded `Project.title` equals the TAS) so the
@@ -237,15 +242,20 @@ integration test — it runs **only** inside the integration stack, which passes
 |---|---|
 | `database` | Postgres (pgvector). Uses an **ephemeral named volume**, so every run starts clean. |
 | `redis` | The Celery broker + result backend (ephemeral volume). |
-| `backend` | gunicorn + nginx on `:80`. `CELERY_TASK_ALWAYS_EAGER=False`, `AUTHENTICATE_UPLOAD=False`, `PUBLIC_TAS=lb32627-66`, broker/result backend pointed at `redis`. |
+| `s3` | SeaweedFS, the S3-compatible store for the media files (ephemeral volume; the identity is in `seaweedfs-s3.json`). |
+| `backend` | gunicorn + nginx on `:80`. `MEDIA_STORAGE=S3` (against `s3`), `CELERY_TASK_ALWAYS_EAGER=False`, `AUTHENTICATE_UPLOAD=False`, `PUBLIC_TAS=lb32627-66`, broker/result backend pointed at `redis`. Its command runs `manage.py create_media_bucket` before `launch-stack.sh`. |
 | `celery_worker` | A **real** worker (`celery -A fragalysis worker`) that processes the upload asynchronously. |
 | `test` | The test runner: runs `pytest` against `INTEGRATION_BASE_URL=http://backend:80`. |
 
 A few non-obvious points baked into the compose file:
 
-- **Shared media volume.** The upload view writes the bundle to `MEDIA_ROOT`
-  (`/code/media/tmp/...`) and the *worker* (a separate container) reads it back,
-  so `backend` and `celery_worker` share a `media` volume.
+- **S3 media storage, no shared media volume** (#1038). The upload view stores the
+  bundle in the `s3` service (`tmp/uploads/<uuid>/<file>`), and the *worker* (a
+  separate container) gets it from there: the tasks pass storage names, never local
+  paths. So the stack tests the S3 path from the upload to nginx serving the files.
+- **The backend makes the bucket, not a separate service.** The test runs with
+  `--abort-on-container-exit`, which stops the stack when *any* container exits, so a
+  one-shot "make the bucket" service would stop it before the tests run.
 - **Anonymous committer.** With no authenticated user, the loader falls back to
   `settings.ANONYMOUS_USER` (pk 1), which is the `admin` superuser that
   `launch-stack.sh` creates on first boot.
@@ -293,9 +303,14 @@ docker compose -f docker-compose.integration.yml down -v
 On arm64 (Apple Silicon) the database image's HNSW index on
 `viewer_atomcoordinates.coords` (`pgvector_coord_index`) crashes Postgres with
 *"Illegal instruction"* during per-row index maintenance — the load aborts and
-the DB enters recovery. This is a CPU/SIMD mismatch in that image's pgvector
-build; **CI runs on linux/amd64 and is unaffected.** The normal unit suite never
-hits it because it doesn't bulk-insert coordinate vectors.
+the DB enters recovery. **CI runs on linux/amd64 and is unaffected.** The normal
+unit suite never hits it because it doesn't bulk-insert coordinate vectors.
+
+The cause is in the database image: it builds pgvector with its default
+`-march=native`, and its CI builds `linux/arm64` under QEMU, so the extension uses
+CPU instructions that Apple's processors do not have. The fix (`make OPTFLAGS=""`) is
+xchem/fragalysis-database#1 (issue xchem/fragalysis-database#2). When a fixed image is
+released and the backend uses it, this workaround is no longer necessary.
 
 To load locally on Apple Silicon, drop that index after the backend has migrated
 but before the load (row counts don't depend on it):
