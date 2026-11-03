@@ -36,3 +36,19 @@ services:
       timeout: 2s
       retries: 5
       start_period: 10s
+
+  # An S3-compatible object store for the media files (issue 1038), for
+  # development and the integration tests. Production uses STFC Echo.
+  # The identity (the access key and secret) is in seaweedfs-s3.json: local,
+  # development values only. The bucket is made by "manage.py create_media_bucket".
+  s3:
+    image: chrislusf/seaweedfs:4.48
+    container_name: s3
+    command: >-
+      server -dir=/data -s3 -s3.port=8333 -s3.config=/etc/seaweedfs/s3.json
+      -master.volumeSizeLimitMB=1024
+    volumes:
+    - ./data/s3:/data
+    - ./seaweedfs-s3.json:/etc/seaweedfs/s3.json:ro
+    ports:
+    - "8333:8333"

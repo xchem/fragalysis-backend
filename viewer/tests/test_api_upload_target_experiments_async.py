@@ -76,6 +76,35 @@ OBJECT_ENDPOINTS = {
 pytestmark = pytest.mark.integration
 
 
+def _assert_served_by_nginx(response) -> None:
+    """A media response came from nginx's internal location (issue 1038):
+    nginx's own headers only, with no media-storage details for the client."""
+    assert len(response.headers.getlist("Content-Disposition")) <= 1, response.headers
+    for name in ("X-Media-Url", "X-Accel-Redirect"):
+        assert name not in response.headers, response.headers
+
+
+def _fetch_observation_file(http: urllib3.PoolManager, base_url: str) -> None:
+    """Fetch a site observation's file the way the frontend does: from the
+    ``/media/...`` URL the API gives, served by nginx from the media storage."""
+    observations = _get_json(http, f"{base_url}/api/site_observations/?limit=1")
+    url = observations["results"][0]["apo_file"]
+    assert url and "/media/" in url, url
+
+    full = http.request("GET", url)
+    assert full.status == 200, (full.status, full.data[:200])
+    assert full.data, url
+    _assert_served_by_nginx(full)
+
+    head = http.request("HEAD", url)
+    assert head.status == 200, head.status
+    assert int(head.headers["Content-Length"]) == len(full.data)
+
+    ranged = http.request("GET", url, headers={"Range": "bytes=0-9"})
+    assert ranged.status == 206, ranged.status
+    assert ranged.data == full.data[:10]
+
+
 def _download_target(
     http: urllib3.PoolManager, base_url: str, target_name: str, tas: str
 ) -> None:
@@ -123,6 +152,12 @@ def _download_target(
     # a real, non-empty archive came back, so accept either signature rather
     # than couple this test to the compression choice.
     assert int(archive.headers.get("Content-Length", "0")) > 0
+    _assert_served_by_nginx(archive)
+    # The frontend asks for the size with a HEAD request first.
+    head = http.request(
+        "HEAD", f"{base_url}/api/download_structures/?file_url={file_url}"
+    )
+    assert int(head.headers["Content-Length"]) == len(archive.data)
     zip_magic, gzip_magic = b"PK\x03\x04", b"\x1f\x8b"
     assert (
         archive.data[:4] == zip_magic or archive.data[:2] == gzip_magic
@@ -201,6 +236,9 @@ def test_upload_poll_then_get(tmp_path):
         assert (
             not missing
         ), f"{key}: expected objects not found in {object_url}: {missing}"
+
+    # The loaded files are served from the media storage (#1038).
+    _fetch_observation_file(http, base_url)
 
     # Finally (#967): prove the loaded target can be downloaded. Reuse the
     # already-loaded state rather than re-uploading - the upload above is the

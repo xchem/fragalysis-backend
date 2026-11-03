@@ -16,9 +16,10 @@
 #
 # The download is anonymous, so no AWS credentials are needed.
 
-# The backend and the worker share these settings - the worker reads the bundle
-# the backend wrote to MEDIA_ROOT, and both must agree on the broker, the
-# (disabled) upload authorisation, and the published TAS.
+# The backend and the worker share these settings - they must agree on the media
+# storage (S3: there is no shared media volume, the tasks pass storage names to
+# each other, issue 1038), the broker, the (disabled) upload authorisation, and
+# the published TAS.
 x-backend-environment: &backend-environment
   DEPLOYMENT_MODE: 'development'
   POSTGRESQL_USER: postgres
@@ -42,6 +43,13 @@ x-backend-environment: &backend-environment
   WEB_DJANGO_SUPERUSER_NAME: &superuser-name admin
   WEB_DJANGO_SUPERUSER_PASSWORD: &superuser-password UNSECURED
   WEB_DJANGO_SUPERUSER_EMAIL: admin@example.com
+  # The media files are in the s3 service (SeaweedFS), see seaweedfs-s3.json.
+  MEDIA_STORAGE: S3
+  MEDIA_S3_BUCKET_NAME: fragalysis-media
+  MEDIA_S3_ENDPOINT_URL: http://s3:8333
+  MEDIA_S3_REGION_NAME: us-east-1
+  MEDIA_S3_ACCESS_KEY_ID: fragalysis
+  MEDIA_S3_SECRET_ACCESS_KEY: fragalysis-local-secret
 
 services:
 
@@ -63,22 +71,33 @@ services:
     volumes:
     - integration-redis:/data
 
+  # The media files' object store, starting empty every run.
+  s3:
+    extends:
+      file: common-services.yml
+      service: s3
+    volumes:
+    - integration-s3:/data
+    - ./seaweedfs-s3.json:/etc/seaweedfs/s3.json:ro
+
   # The stack backend (gunicorn + nginx, listening on :80), with Celery
   # running for real against redis.
   backend:
     image: ${BE_NAMESPACE:-xchem}/fragalysis-backend:${BE_IMAGE_TAG:-latest}
     container_name: backend
-    command: /bin/bash /code/launch-stack.sh
+    # Make the (empty) S3 store's media bucket first: the start-up check needs
+    # it. (A one-shot service would stop the stack: see --abort-on-container-exit.)
+    command: >-
+      sh -c "python manage.py create_media_bucket --wait-s 120 &&
+      /bin/bash /code/launch-stack.sh"
     environment: *backend-environment
-    volumes:
-    # The upload view writes the bundle to MEDIA_ROOT/tmp; the worker (a
-    # separate container) must read the same path.
-    - media:/code/media
     depends_on:
       database:
         condition: service_healthy
       redis:
         condition: service_healthy
+      s3:
+        condition: service_started
     healthcheck:
       # Ready once nginx is accepting connections on :80.
       test: python -c "import socket; socket.create_connection(('localhost', 80), 2).close()"
@@ -94,8 +113,6 @@ services:
     command: sh -c "celery -A fragalysis worker -l info"
     hostname: celery_worker
     environment: *backend-environment
-    volumes:
-    - media:/code/media
     restart: on-failure
     depends_on:
       database:
@@ -139,6 +156,6 @@ services:
         condition: service_healthy
 
 volumes:
-  media:
+  integration-s3:
   integration-db:
   integration-redis:

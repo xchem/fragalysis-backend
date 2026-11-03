@@ -59,6 +59,12 @@ services:
       retries: 20
       start_period: 10s
 
+  # The S3-compatible store for the media files (used when MEDIA_STORAGE is S3)
+  s3:
+    extends:
+      file: common-services.yml
+      service: s3
+
   # The stack backend
   backend:
     image: ${BE_NAMESPACE:-xchem}/fragalysis-backend:${BE_IMAGE_TAG:-latest}
@@ -66,7 +72,11 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    command: /bin/bash /code/launch-stack.sh
+    # Make the media bucket in the s3 service first (the start-up check needs
+    # it when MEDIA_STORAGE is S3).
+    command: >-
+      sh -c "python manage.py create_media_bucket --wait-s 120 &&
+      /bin/bash /code/launch-stack.sh"
     volumes:
     - ./data/logs:/code/logs/
     - ./data/media:/code/media/
@@ -108,6 +118,14 @@ services:
       SQUONK2_ASAPI_URL: ${SQUONK2_ASAPI_URL}
       SQUONK2_REFRESH_SHOULD_RETRIEVE_RESULTS: 'Yes'
       PROXY_FORWARDED_PROTO_HEADER: ${PROXY_FORWARDED_PROTO_HEADER:-http}
+      # The media storage (issue 1038). FILESYSTEM uses ./data/media; for S3 run
+      # "MEDIA_STORAGE=S3 docker compose up", which uses the s3 service.
+      MEDIA_STORAGE: ${MEDIA_STORAGE:-FILESYSTEM}
+      MEDIA_S3_BUCKET_NAME: ${MEDIA_S3_BUCKET_NAME:-fragalysis-media}
+      MEDIA_S3_ENDPOINT_URL: ${MEDIA_S3_ENDPOINT_URL:-http://s3:8333}
+      MEDIA_S3_REGION_NAME: ${MEDIA_S3_REGION_NAME:-us-east-1}
+      MEDIA_S3_ACCESS_KEY_ID: ${MEDIA_S3_ACCESS_KEY_ID:-fragalysis}
+      MEDIA_S3_SECRET_ACCESS_KEY: ${MEDIA_S3_SECRET_ACCESS_KEY:-fragalysis-local-secret}
     ports:
     - "8080:80"
     depends_on:
@@ -117,3 +135,5 @@ services:
         condition: service_healthy
       graph:
         condition: service_healthy
+      s3:
+        condition: service_started
