@@ -24,6 +24,15 @@ def check_media_storage(app_configs, **kwargs):  # pylint: disable=unused-argume
                 id="viewer.E001",
             )
         ]
+    if settings.MEDIA_TMP_MAX_AGE_H < settings.MEDIA_TMP_MIN_AGE_H:
+        return [
+            Error(
+                f"MEDIA_TMP_MAX_AGE_H ({settings.MEDIA_TMP_MAX_AGE_H}) is too short",
+                hint=f"Use at least {settings.MEDIA_TMP_MIN_AGE_H} hour(s): tmp/ holds"
+                " files that are in use for a short time (i.e. a bundle as it loads)",
+                id="viewer.E004",
+            )
+        ]
     if settings.MEDIA_STORAGE != "S3":
         return []
 

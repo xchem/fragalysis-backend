@@ -4,14 +4,13 @@ The scan has to be exactly right in one direction: a file it fails to recognise
 as referenced gets deleted. Most of what follows is therefore about the three
 ways a computed-set reference can be stored (absolute path, ``computed_set_data/``
 prefix, bare basename) and about the entries that must never be touched at all -
-symlinks, the file watcher's log, anything a hand-edited ``zip_archive`` points at.
+the file watcher's log, anything a hand-edited ``zip_archive`` points at.
 
 ``django_cleanup`` is active (``fragalysis.settings``), so replacing a FileField
 value also removes the old file from disk: tests that need a superseded file on
 disk write it *after* the save.
 """
 
-import os
 from io import StringIO
 from pathlib import Path
 
@@ -74,7 +73,8 @@ def _run(*argv) -> str:
     argparse, and the defaults with it.
     """
     out = StringIO()
-    call_command("cleanup_media", *argv, stdout=out, stderr=out)
+    # These tests make new files, which the default --min-age-hours leaves alone
+    call_command("cleanup_media", "--min-age-hours=0", *argv, stdout=out, stderr=out)
     return out.getvalue()
 
 
@@ -239,7 +239,9 @@ def test_missing_referenced_file_is_reported_not_fatal(db, settings, tmp_path, u
     report = scan_computed_set_data()
 
     assert "never_written.sdf" in report.missing
-    assert [c.path for c in report.candidates] == [orphan]
+    assert [c.name for c in report.candidates] == [
+        f"{settings.COMPUTED_SET_MEDIA_DIRECTORY}/orphan.sdf"
+    ]
 
 
 def test_superseded_value_becomes_debris(db, settings, tmp_path, user):
@@ -298,28 +300,6 @@ def test_empty_database_refuses_to_delete_without_force(db, settings, tmp_path):
 
     assert not orphan_dir.exists()
     assert not orphan_file.exists()
-
-
-def test_symlinks_are_never_followed_or_deleted(db, settings, tmp_path):
-    """Download staging trees are built from symlinks; a symlink is reported and
-    left, and whatever it points at is untouched."""
-    media_root = _make_media_root(settings, tmp_path)
-    outside = tmp_path / "outside"
-    outside.mkdir()
-    precious = outside / "precious.pdb"
-    precious.write_text("do not delete")
-
-    dir_link = _loader_dir(settings, media_root) / "Linked_proposal"
-    dir_link.symlink_to(outside, target_is_directory=True)
-    file_link = _cset_dir(settings, media_root) / "linked.sdf"
-    file_link.symlink_to(precious)
-
-    output = _run("--delete", "--force")
-
-    assert precious.exists()
-    assert dir_link.is_symlink()
-    assert file_link.is_symlink()
-    assert "symlink" in output
 
 
 def test_unusable_zip_archive_is_ignored_with_a_warning(
@@ -398,21 +378,3 @@ def test_missing_media_directories_are_a_noop(db, settings, tmp_path):
     assert scan_target_loader_data().candidates == []
     assert scan_computed_set_data().candidates == []
     assert "removed 0 entries" in output
-
-
-def test_directory_size_ignores_symlinked_content(db, settings, tmp_path):
-    """A symlink inside an orphan contributes its own size, not its target's."""
-    media_root = _make_media_root(settings, tmp_path)
-    outside = tmp_path / "outside"
-    outside.mkdir()
-    big = outside / "big.bin"
-    big.write_bytes(b"0" * 100_000)
-
-    orphan = _orphan_dir(_loader_dir(settings, media_root))
-    os.symlink(big, orphan / "link.bin")
-
-    candidates = scan_target_loader_data().candidates
-
-    assert len(candidates) == 1
-    assert candidates[0].size_bytes < 1_000
-    assert big.exists()

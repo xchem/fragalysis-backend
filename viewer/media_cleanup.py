@@ -1,4 +1,4 @@
-"""Find (and remove) orphaned debris in the media directory.
+"""Find (and remove) orphaned debris in the media storage (see viewer.media_storage).
 
 This is the reusable core of the ``cleanup_media`` management command, kept free
 of any CLI concerns so the same reference-resolution logic can be shared with
@@ -7,21 +7,22 @@ about what counts as a live reference.
 
 Two areas are covered, each with an exact database cross-reference:
 
-``media/target_loader_data/``
+``target_loader_data/``
     Every top-level *directory* belongs to a target and its name is stored in
     ``Target.zip_archive`` (a FileField misused to hold a bare directory name,
     e.g. ``A71EV2A_lb32627-66`` - see ``viewer.target_loader``). A directory no
     ``Target`` names is debris, left behind by the targets that used to be
     deleted by hand in the Django shell.
 
-``media/computed_set_data/``
+``computed_set_data/``
     A flat, target-shared directory of computed-set files. A file no row points
     at is debris.
 
 Resolving a computed-set reference is the subtle part: the same column holds
 paths in three different flavours.
 
-* absolute - ``ComputedSet.written_sdf_filename`` (a TextField);
+* absolute - a legacy ``ComputedSet.written_sdf_filename`` (a TextField; migration
+  0174 made the values storage names);
 * ``computed_set_data/<file>`` - ``SiteObservation.virtual_pdb_info``, and the
   ``ComputedSet.submitted_sdf`` of an assay-data upload;
 * a bare basename - the ``ComputedSet.submitted_sdf`` written by
@@ -30,23 +31,27 @@ paths in three different flavours.
   ``computed_set_data/``.
 
 That last flavour is why the referencing fields are listed explicitly below
-rather than discovered by walking model metadata: resolving a bare name against
-MEDIA_ROOT lands outside ``computed_set_data/`` and would mark every migrated
+rather than discovered by walking model metadata: resolving a bare name as a
+storage name lands outside ``computed_set_data/`` and would mark every migrated
 ``.mol`` file as debris. ``unexpected_computed_set_fields`` is the guard against
 the list going stale - a test asserts it stays empty.
+
+Each area is listed once, and files are removed in batches (S3 requests are slow).
+``expire_tmp_files`` removes old objects in ``tmp/``.
 """
 
 import logging
-import os
-import shutil
 from dataclasses import dataclass, field
-from pathlib import Path, PurePosixPath
+from datetime import datetime, timedelta, timezone
+from pathlib import PurePosixPath
 
 from django.apps import apps
 from django.conf import settings
+from django.core.exceptions import SuspiciousFileOperation
 from django.db import models
 from django.db.models import Q
 
+from viewer import media_storage
 from viewer.models import ComputedSet, Experiment, SiteObservation, Target
 
 logger = logging.getLogger(__name__)
@@ -81,11 +86,10 @@ _EMPTY_VALUES = frozenset(("", "None"))
 class Candidate:
     """One orphaned entry, ready to be removed."""
 
-    path: Path
+    name: str  # The storage name (i.e. "target_loader_data/<dir>")
     is_dir: bool
     size_bytes: int
-    # Reported so a human can eyeball the listing. Deliberately *not* used to
-    # decide anything - see the note on in-flight uploads in AreaReport.
+    # Newest modification time (a timestamp) of the entry's files
     mtime: float
 
 
@@ -94,15 +98,15 @@ class AreaReport:
     """What a scan of one media subdirectory found."""
 
     area: str
-    root: Path
+    root: str  # The storage name of the area
     scanned: int = 0
     referenced: int = 0
     candidates: list[Candidate] = field(default_factory=list)
-    # (path, reason) - entries deliberately left alone, e.g. the file watcher's
-    # log, symlinks, anything of an unexpected type.
-    skipped: list[tuple[Path, str]] = field(default_factory=list)
-    # Referenced names with no file on disk. The inverse orphan; free to collect
-    # here and worth knowing about.
+    # (name, reason) - entries deliberately left alone, e.g. the file watcher's
+    # log, recently changed entries, anything of an unexpected type.
+    skipped: list[tuple[str, str]] = field(default_factory=list)
+    # Referenced names with no file in the storage. The inverse orphan; free to
+    # collect here and worth knowing about.
     missing: list[str] = field(default_factory=list)
     warnings: list[str] = field(default_factory=list)
 
@@ -111,51 +115,25 @@ class AreaReport:
         return sum(c.size_bytes for c in self.candidates)
 
 
-def media_subdir(name: str) -> Path:
-    """``MEDIA_ROOT/<name>``, read from settings at call time.
+@dataclass
+class _Entry:
+    """A top-level entry of an area: a file, or a "directory" of files."""
 
-    Nothing in this module may cache MEDIA_ROOT at import time or the test-suite
-    cannot retarget it.
-    """
-    return Path(settings.MEDIA_ROOT).joinpath(name)
-
-
-def is_within(path: Path, root: Path) -> bool:
-    """True if ``path`` resolves to somewhere inside ``root``."""
-    try:
-        return path.resolve().is_relative_to(root.resolve())
-    except (OSError, RuntimeError):
-        # Unreadable path or a symlink loop: treat as outside, i.e. hands off.
-        return False
+    is_dir: bool = False
+    size_bytes: int = 0
+    mtime: float = 0.0
 
 
-def entry_stats(path: Path, is_dir: bool) -> tuple[int, float]:
-    """Total size in bytes and newest mtime of ``path``, never following symlinks.
-
-    Symlinked files contribute their own (tiny) size, never the size of whatever
-    they point at, so a staging tree of download symlinks can't inflate the
-    reclaimable total.
-    """
-    try:
-        stat = path.lstat()
-    except OSError:
-        return 0, 0.0
-
-    if not is_dir:
-        return stat.st_size, stat.st_mtime
-
-    total = 0
-    newest = stat.st_mtime
-    for dirpath, _, filenames in os.walk(path, followlinks=False):
-        for filename in filenames:
-            file_path = Path(dirpath, filename)
-            try:
-                file_stat = file_path.lstat()
-            except OSError:
-                continue
-            total += file_stat.st_size
-            newest = max(newest, file_stat.st_mtime)
-    return total, newest
+def _area_entries(area: str) -> dict[str, _Entry]:
+    """The area's top-level entries by name, from one listing of the storage."""
+    entries: dict[str, _Entry] = {}
+    for stored in media_storage.list_prefix(area):
+        first, _, rest = stored.name[len(area) + 1 :].partition("/")
+        entry = entries.setdefault(first, _Entry())
+        entry.is_dir = entry.is_dir or bool(rest)
+        entry.size_bytes += stored.size
+        entry.mtime = max(entry.mtime, stored.modified.timestamp())
+    return dict(sorted(entries.items()))
 
 
 def _computed_set_name(value) -> str | None:
@@ -170,22 +148,23 @@ def _computed_set_name(value) -> str | None:
     if name in _EMPTY_VALUES:
         return None
 
-    pure = PurePosixPath(name)
-    computed_set_dir = settings.COMPUTED_SET_MEDIA_DIRECTORY
+    if PurePosixPath(name).is_absolute():
+        # A legacy absolute path: its storage name, if it is under MEDIA_ROOT
+        try:
+            name = media_storage.to_name(name)
+        except SuspiciousFileOperation:
+            return None  # Not a media file
 
-    if pure.is_absolute():
-        root = PurePosixPath(str(media_subdir(computed_set_dir)))
-    elif pure.parent != PurePosixPath("."):
-        # Relative to MEDIA_ROOT: either computed_set_data/... (ours) or
-        # target_loader_data/... (a current-upload virtual_ligand_mol, which
-        # protects nothing here).
-        root = PurePosixPath(computed_set_dir)
-    else:
+    pure = PurePosixPath(name)
+    if pure.parent == PurePosixPath("."):
         # A bare basename means computed_set_data/<name>.
         return pure.name
 
+    # A storage name: either computed_set_data/... (ours) or
+    # target_loader_data/... (a current-upload virtual_ligand_mol, which
+    # protects nothing here).
     try:
-        relative = pure.relative_to(root)
+        relative = pure.relative_to(settings.COMPUTED_SET_MEDIA_DIRECTORY)
     except ValueError:
         return None
     return relative.parts[0] if relative.parts else None
@@ -298,101 +277,101 @@ def _rows_reference_directory(dir_name: str) -> bool:
     )
 
 
-def _classify(entry, want_dir: bool) -> str | None:
-    """Why this directory entry can't be a candidate, or None if it can be.
+def _classify(name: str, entry: _Entry, want_dir: bool, newest: float) -> str | None:
+    """Why this entry can't be a candidate, or None if it can be.
 
-    Symlinks are never followed or removed - the download staging trees are
-    built out of them - and an entry of the wrong type is reported rather than
-    touched. In target_loader_data that is what protects the file watcher's
-    ``deletions-<host>.log``.
+    An entry of the wrong type is reported rather than touched. In
+    target_loader_data that is what protects the file watcher's
+    ``deletions-<host>.log``. A recently changed entry can belong to an upload
+    that is still in progress (see scan_target_loader_data()).
     """
-    if entry.name.startswith("."):
+    if name.startswith("."):
         return "hidden"
-    if entry.is_symlink():
-        return "symlink"
-    if entry.is_dir(follow_symlinks=False) != want_dir:
+    if entry.is_dir != want_dir:
         return "not a directory" if want_dir else "unexpected directory"
+    if entry.mtime > newest:
+        return "recently changed"
     return None
 
 
-def _scandir(root: Path):
-    """``os.scandir`` entries of ``root``, or an empty list if it isn't there."""
-    try:
-        with os.scandir(root) as entries:
-            return sorted(entries, key=lambda e: e.name)
-    except FileNotFoundError:
-        return []
+def _newest_allowed(min_age: timedelta) -> float:
+    return (datetime.now(timezone.utc) - min_age).timestamp()
 
 
-def scan_target_loader_data() -> AreaReport:
+def scan_target_loader_data(min_age: timedelta = timedelta(0)) -> AreaReport:
     """Find target-loader directories no Target claims.
 
-    An in-flight upload is never a candidate: the loader does all its work in a
-    temporary directory and only creates ``target_loader_data/<dir>/`` in
-    ``_move_and_save_target_experiment``, after the transaction that saved
-    ``Target.zip_archive`` has committed. The database reference therefore
-    always exists before the directory does.
+    The loader stores an upload's files as the last step of its transaction, so
+    for a new target the directory exists shortly before the Target that claims
+    it is committed. An entry changed within ``min_age`` is therefore skipped:
+    the cleanup_media command uses a safe default.
     """
-    root = media_subdir(settings.TARGET_LOADER_MEDIA_DIRECTORY)
+    area = settings.TARGET_LOADER_MEDIA_DIRECTORY
     referenced, warnings = referenced_target_dir_names()
-    report = AreaReport(
-        area=settings.TARGET_LOADER_MEDIA_DIRECTORY, root=root, warnings=warnings
-    )
+    report = AreaReport(area=area, root=area, warnings=warnings)
+    newest = _newest_allowed(min_age)
 
     found = set()
-    for entry in _scandir(root):
+    for entry_name, entry in _area_entries(area).items():
         report.scanned += 1
-        path = Path(entry.path)
+        name = f"{area}/{entry_name}"
 
-        if reason := _classify(entry, want_dir=True):
-            report.skipped.append((path, reason))
-            continue
-
-        found.add(entry.name)
-        if entry.name in referenced:
+        if entry_name in referenced:
+            found.add(entry_name)
             report.referenced += 1
             continue
 
-        if _rows_reference_directory(entry.name):
-            report.skipped.append((path, "rows reference files inside it"))
+        if reason := _classify(entry_name, entry, want_dir=True, newest=newest):
+            report.skipped.append((name, reason))
+            continue
+
+        if _rows_reference_directory(entry_name):
+            report.skipped.append((name, "rows reference files inside it"))
             report.warnings.append(
-                f"{entry.name}: no Target claims this directory but rows still"
+                f"{entry_name}: no Target claims this directory but rows still"
                 " reference files inside it - left alone"
             )
             continue
 
-        size, mtime = entry_stats(path, is_dir=True)
         report.candidates.append(
-            Candidate(path=path, is_dir=True, size_bytes=size, mtime=mtime)
+            Candidate(
+                name=name, is_dir=True, size_bytes=entry.size_bytes, mtime=entry.mtime
+            )
         )
 
     report.missing = sorted(referenced - found)
     return report
 
 
-def scan_computed_set_data() -> AreaReport:
-    """Find computed-set files no row points at."""
-    root = media_subdir(settings.COMPUTED_SET_MEDIA_DIRECTORY)
+def scan_computed_set_data(min_age: timedelta = timedelta(0)) -> AreaReport:
+    """Find computed-set files no row points at.
+
+    A file changed within ``min_age`` is skipped (it can belong to a computed-set
+    upload that is still in progress).
+    """
+    area = settings.COMPUTED_SET_MEDIA_DIRECTORY
     referenced = referenced_computed_set_names()
-    report = AreaReport(area=settings.COMPUTED_SET_MEDIA_DIRECTORY, root=root)
+    report = AreaReport(area=area, root=area)
+    newest = _newest_allowed(min_age)
 
     found = set()
-    for entry in _scandir(root):
+    for entry_name, entry in _area_entries(area).items():
         report.scanned += 1
-        path = Path(entry.path)
+        name = f"{area}/{entry_name}"
 
-        if reason := _classify(entry, want_dir=False):
-            report.skipped.append((path, reason))
-            continue
-
-        found.add(entry.name)
-        if entry.name in referenced:
+        if entry_name in referenced:
+            found.add(entry_name)
             report.referenced += 1
             continue
 
-        size, mtime = entry_stats(path, is_dir=False)
+        if reason := _classify(entry_name, entry, want_dir=False, newest=newest):
+            report.skipped.append((name, reason))
+            continue
+
         report.candidates.append(
-            Candidate(path=path, is_dir=False, size_bytes=size, mtime=mtime)
+            Candidate(
+                name=name, is_dir=False, size_bytes=entry.size_bytes, mtime=entry.mtime
+            )
         )
 
     report.missing = sorted(referenced - found)
@@ -411,40 +390,68 @@ def delete_candidates(report: AreaReport) -> tuple[int, int, list[str]]:
 
     Every safety check is repeated here rather than trusted from scan time: an
     upload can commit between the scan and the deletion, so the reference set is
-    re-queried and each path is re-checked before anything is removed. Failures
-    are collected, never raised - a half-removed directory simply turns up as a
-    candidate again on the next run.
+    re-queried and each entry is listed again before anything is removed.
+    Failures are collected, never raised - a half-removed directory simply turns
+    up as a candidate again on the next run. Files are removed in batches.
     """
     referenced = _referenced_for(report.area)
+    entries = _area_entries(report.area)
     deleted = 0
     failed = 0
     errors: list[str] = []
+    files: list[str] = []
 
     for candidate in report.candidates:
-        path = candidate.path
+        entry_name = PurePosixPath(candidate.name).name
+        entry = entries.get(entry_name)
         if (
-            path.is_symlink()
-            or not is_within(path, report.root)
-            or path.name in referenced
-            or path.is_dir() != candidate.is_dir
+            entry is None
+            or entry.is_dir != candidate.is_dir
+            or entry_name in referenced
         ):
             failed += 1
-            errors.append(f"{path}: changed since the scan - left alone")
+            errors.append(f"{candidate.name}: changed since the scan - left alone")
             continue
 
         # Logged before the event: filewatcher.sh exists because files have
         # gone missing unattributably, and this command must not become a new
         # suspect.
-        logger.info("cleanup_media removing %s (%s bytes)", path, candidate.size_bytes)
+        logger.info(
+            "cleanup_media removing %s (%s bytes)", candidate.name, candidate.size_bytes
+        )
+        if not candidate.is_dir:
+            files.append(candidate.name)
+            continue
         try:
-            if candidate.is_dir:
-                shutil.rmtree(path)
-            else:
-                path.unlink()
+            media_storage.delete_prefix(candidate.name)
         except OSError as exc:
             failed += 1
-            errors.append(f"{path}: {exc}")
+            errors.append(f"{candidate.name}: {exc}")
             continue
         deleted += 1
 
+    if files:
+        try:
+            media_storage.delete_many(files)
+            deleted += len(files)
+        except OSError as exc:
+            failed += len(files)
+            errors.append(f"{len(files)} files: {exc}")
+
     return deleted, failed, errors
+
+
+def expire_tmp_files(now: datetime | None = None) -> int:
+    """Deletes the tmp/ objects older than MEDIA_TMP_MAX_AGE_H hours.
+
+    tmp/ holds staged uploads, computed-set and Squonk job files, and what a
+    failed upload left behind. Run periodically (see start_download_cleanup).
+    Returns the number of objects deleted.
+    """
+    now = now or datetime.now(timezone.utc)
+    cutoff = now - timedelta(hours=settings.MEDIA_TMP_MAX_AGE_H)
+    expired = [o.name for o in media_storage.list_prefix("tmp") if o.modified < cutoff]
+    media_storage.delete_many(expired)
+    if expired:
+        logger.info("Deleted %s tmp/ objects older than %s", len(expired), cutoff)
+    return len(expired)
