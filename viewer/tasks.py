@@ -2,7 +2,6 @@ import collections
 import datetime
 import logging
 import os
-import shutil
 from typing import Any, Dict
 
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "fragalysis.settings")
@@ -11,7 +10,6 @@ import django
 
 django.setup()
 
-import zipfile
 from contextlib import contextmanager
 from io import StringIO
 
@@ -43,7 +41,6 @@ from .sdf_check import (  # check_refmol,
 )
 from .squonk_job_file_transfer import process_file_transfer
 from .squonk_job_file_upload import delete_upload_files, process_compound_set_file
-from .target_set_upload import validate_target
 from .utils import SDF_VERSION
 
 # If Celery configured to always run 'synchronously' (eager),
@@ -469,67 +466,6 @@ def process_design_sets(df, set_type=None, set_description=None):
         sets.append(compounds)
 
     return set_names, sets
-
-
-@shared_task
-def validate_target_set(target_zip, target=None, proposal=None, email=None):
-    """Celery task to process validate the uploaded files/format for a target set upload. Zip file is mandatory
-
-    Parameters
-    ----------
-    target_zip: str
-        filepath of the uploaded target file, which is saved to temporary storage by `viewer.views.UploadTSet`
-    target: str
-        name of the target (`viewer.models.Target.title`) to add add the target set to
-
-    Returns
-    -------
-    validate_output: tuple
-        contains the following:
-            - validate dict (dict): dict containing any errors found during the validation step
-            - validated (bool): True if the file(s) were validated, False if not
-            - filename (str): name of the uploaded target file
-            - target (str): name of the target
-            - submitter_name (str): name of the user who submitted the upload
-
-    """
-    logger.info('+ TASK target_zip=%s', target_zip)
-
-    # Get submitter name/info for passing into upload to get unique name
-    submitter_name = ''
-
-    tmp_folder = os.path.dirname(target_zip)
-    new_data_folder = os.path.join(tmp_folder, 'new_data')
-
-    # This will create the target folder in the tmp/ location.
-    with zipfile.ZipFile(target_zip, 'r') as zip_ref:
-        zip_ref.extractall(new_data_folder)
-
-    validated, validate_dict = validate_target(new_data_folder, target, proposal)
-
-    os.remove(target_zip)
-    # Tidy up data if not validated
-    if not validated:
-        shutil.rmtree(new_data_folder)
-
-    logger.info(
-        '- TASK target_zip=%s validated=%s validate_dict=%s',
-        target_zip,
-        validated,
-        validate_dict,
-    )
-
-    return (
-        'validate',
-        'tset',
-        validate_dict,
-        validated,
-        new_data_folder,
-        target,
-        proposal,
-        submitter_name,
-        email,
-    )
 
 
 @celery_app.task(bind=True)

@@ -8,6 +8,8 @@ lines, so it drops a marker the watcher checks before writing.
 
 from pathlib import Path
 
+import pytest
+
 from viewer import media_storage
 from viewer.media_watcher import PAUSE_PREFIX, deletions_expected
 from viewer.target_delete import delete_target
@@ -92,3 +94,12 @@ def test_target_deletion_suppresses_the_watcher(
     assert seen and len(seen[0]) == 1
     # ... and is gone afterwards
     assert not _markers(media_root)
+
+
+@pytest.mark.parametrize("media_backend", ["s3"], indirect=True)
+def test_s3_media_storage_writes_no_marker(media_backend, settings, tmp_path):
+    """filewatcher.sh only runs with the filesystem media storage (issue 1038)."""
+    settings.MEDIA_ROOT = str(tmp_path)
+
+    with deletions_expected("target delete"):
+        assert not _markers(tmp_path)
