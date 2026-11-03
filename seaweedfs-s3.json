@@ -1,0 +1,14 @@
+{
+  "identities": [
+    {
+      "name": "fragalysis",
+      "credentials": [
+        {
+          "accessKey": "fragalysis",
+          "secretKey": "fragalysis-local-secret"
+        }
+      ],
+      "actions": ["Admin", "Read", "List", "Tagging", "Write"]
+    }
+  ]
+}
