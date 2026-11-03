@@ -116,6 +116,19 @@ they can be launched with the additional compose file:
     docker compose -f docker-compose.yml -f docker-compose.celery.yml up
 
 
+### Media storage (filesystem or S3)
+The media files (uploads, target data, computed sets, downloads) are on the
+filesystem (`./data/media`) by default. To use S3 media storage locally, set
+`MEDIA_STORAGE` when you start the stack: -
+
+    MEDIA_STORAGE=S3 docker compose up -d
+
+The stack always runs an S3-compatible store (SeaweedFS, the `s3` service, data in
+`./data/s3`), and the backend creates the media bucket in it before it starts.
+The `MEDIA_S3_*` variables in `docker-compose.yml` point at that store. See
+`ARCHITECTURE.md` (Media storage) for how the code uses the storage, and
+`MEDIA-MIGRATION.md` for how to move an existing stack's media to S3.
+
 There is also a convenient bash script that can be used to build and push an
 image to a repository. you just need to provide the Docker image *namespace* and a *tag*.
 All you need is [poetry] and [docker], and you can run the script: -

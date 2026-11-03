@@ -80,6 +80,12 @@ in `tests/test_settings.py`. Tests live in `viewer/tests/`.
   `api.security.ISPyBSafeQuerySet` and declare `filter_permissions` so results are
   filtered to the user's accessible proposals. Don't bypass this when adding views —
   see `ARCHITECTURE.md` § Access control.
+- **Media goes through `viewer/media_storage.py`.** The media files can be in S3
+  (`MEDIA_STORAGE`), so read, write, list, delete and serve them with that module and
+  pass *storage names* (relative paths) between Celery tasks.
+  `viewer/tests/test_media_seam.py` fails on any other `MEDIA_ROOT`, `.path` or
+  `default_storage` use. Test media code with the `media_backend` fixture (it runs
+  each test on the filesystem and on S3). See `ARCHITECTURE.md` § Media storage.
 - **"Infections"** (`api/infections.py`) let you inject specific error paths for
   testing via the `INFECTIONS` env var; they are ignored in production mode.
 - **Conventional Commits** are used for commit messages.

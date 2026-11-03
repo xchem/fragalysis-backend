@@ -148,7 +148,60 @@ things to understand:
 
 After a successful load it clears the view cache (`viewer/cache.py`) and derives tags.
 
+The bundle is extracted in a temporary directory in the Pod. The upload's files are
+stored (`store_upload_files()`) as the **last step of the transaction**, so a failed
+load stores nothing, and a failure after the store deletes only that upload's files.
+
+## Media storage
+
+Media files (uploads, target data, computed sets, download archives) are in one of
+two storages. `MEDIA_STORAGE` selects it:
+
+- **`FILESYSTEM`** (the default): under `MEDIA_ROOT` (`/code/media`).
+- **`S3`**: an S3 bucket (the `MEDIA_S3_*` settings). Production uses STFC Echo.
+  The compose stacks use SeaweedFS (the `s3` service; `create_media_bucket` makes the
+  bucket).
+
+**All media access goes through `viewer/media_storage.py`** (the seam). It works with
+*storage names*: relative POSIX paths, the same as a FileField's `name` (i.e.
+`target_loader_data/Mpro_lb1/upload_1/a.pdb`). `to_name()` also accepts a legacy
+absolute path under `MEDIA_ROOT`. The guard test (`viewer/tests/test_media_seam.py`)
+fails when other code uses `MEDIA_ROOT`, a FieldFile's `.path` or `default_storage`.
+`frag_s3_storage/` is the S3 `Storage` class (on boto3). It imports nothing from the
+backend apps, so that it can move to its own repository.
+
+Four rules follow from S3:
+
+1. **Celery tasks pass storage names to each other, never local paths.** Each task
+   can run on a different worker, and there is no shared media volume.
+2. **Local tools use scratch copies.** tar, pigz, 7z and RDKit need local files: get
+   them with `fetch()` or `local_copy()`, and store results with `store_file()` or
+   `store_tree()`. Scratch is Pod-local (`TemporaryDirectory`, under `TMPDIR`).
+3. **Transfer and delete in bulk.** One S3 request takes 30-75 ms (the Echo benchmark
+   on #1038). `store_tree()` and `fetch()` are parallel (`MEDIA_TRANSFER_THREADS`), and
+   `delete_many()`/`delete_prefix()` send 1000 keys for each request. `SiteObservation`
+   and `ExperimentUpload` are `@cleanup.ignore`: the target and upload deletes remove
+   their files in batches.
+4. **nginx serves the files.** A view checks access, then
+   `media_storage.media_response()` returns an `X-Accel-Redirect` to an internal nginx
+   location: `/media-local/` (an alias of `MEDIA_ROOT`) or `/media-s3/` (nginx proxies
+   the presigned URL in `X-Media-Url`). The browser only sees same-origin `/media/...`
+   URLs: the API's file URLs (`FieldFile.url`) are `/media/<name>` in both storages
+   (the `url_base` option). Django answers a HEAD request itself. nginx needs a DNS
+   resolver for the S3 host (`launch-stack.sh`, `NGINX_RESOLVER`); in Kubernetes the
+   `MEDIA_S3_ENDPOINT_URL` host must be a fully qualified domain name.
+
+`tmp/` holds staged uploads and job files. The `stack-0` scheduler
+(`start_download_cleanup`) deletes objects in it that are older than
+`MEDIA_TMP_MAX_AGE_H` hours. `cleanup_media` finds and removes orphaned media.
+
+To move an existing stack's media from the filesystem to S3, see `MEDIA-MIGRATION.md`
+(the `copy_media` command).
+
 ## Squonk2 integration
+
+**Deprecated:** Squonk will use the Fragalysis API in the future, and this integration
+is to be removed. Keep it working, unchanged, until then.
 
 External computational jobs run on the Squonk2 platform. `viewer/squonk2_agent.py`
 (`Squonk2Agent`, a process-wide singleton) wraps the Squonk2 client and maps
@@ -172,5 +225,5 @@ and handling success callbacks that ingest results back as a `ComputedSet`.
 
 Operational/maintenance tasks live in `viewer/management/commands/` (documented in
 that directory's `README.md`) and `service_status/` — e.g. `load_target`,
-`clear_cache`, `start_download_cleanup`, `start_service_queries`, and various
-one-off data-correction commands.
+`clear_cache`, `start_download_cleanup`, `start_service_queries`, and the media
+commands `cleanup_media`, `copy_media` and `create_media_bucket`.
