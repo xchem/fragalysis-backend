@@ -298,28 +298,15 @@ down (and wipe the ephemeral volumes) with:
 docker compose -f docker-compose.integration.yml down -v
 ```
 
-### Apple-Silicon gotcha (pgvector SIGILL)
+### Apple Silicon (pgvector "Illegal instruction"): fixed
 
-On arm64 (Apple Silicon) the database image's HNSW index on
-`viewer_atomcoordinates.coords` (`pgvector_coord_index`) crashes Postgres with
-*"Illegal instruction"* during per-row index maintenance — the load aborts and
-the DB enters recovery. **CI runs on linux/amd64 and is unaffected.** The normal
-unit suite never hits it because it doesn't bulk-insert coordinate vectors.
-
-The cause is in the database image: it builds pgvector with its default
-`-march=native`, and its CI builds `linux/arm64` under QEMU, so the extension uses
-CPU instructions that Apple's processors do not have. The fix (`make OPTFLAGS=""`) is
-xchem/fragalysis-database#1 (issue xchem/fragalysis-database#2). When a fixed image is
-released and the backend uses it, this workaround is no longer necessary.
-
-To load locally on Apple Silicon, drop that index after the backend has migrated
-but before the load (row counts don't depend on it):
-
-```bash
-docker compose -f docker-compose.integration.yml up -d --wait database redis backend celery_worker
-docker exec database psql -U postgres -d frag -c "DROP INDEX IF EXISTS pgvector_coord_index;"
-docker compose -f docker-compose.integration.yml run --rm --no-deps test
-```
+Database images before `2026.10.1` crashed Postgres with *"Illegal instruction"* on
+arm64 (Apple Silicon) when it built the HNSW index on
+`viewer_atomcoordinates.coords` (`pgvector_coord_index`), so a target load failed.
+The image built pgvector with `-march=native` on a QEMU (x86) runner. The fix is
+xchem/fragalysis-database#1 (issue xchem/fragalysis-database#2), released in
+`xchem/fragalysis-database:2026.10.1`, which this repository uses. If you see the
+crash, check that your compose stack uses that image (or a later one).
 
 ---
 
@@ -428,5 +415,5 @@ short codes the loader generates.
 - **`No module named 'tests'`** in the `test` service — `DJANGO_SETTINGS_MODULE`
   must be `fragalysis.settings` (the top-level `tests/` package is not in the
   image); the compose file sets this.
-- **Postgres "Illegal instruction" / recovery mode on arm64** — the pgvector
-  HNSW index; see the Apple-Silicon gotcha above.
+- **Postgres "Illegal instruction" / recovery mode on arm64** — a database image
+  older than `2026.10.1`; see "Apple Silicon" above.
