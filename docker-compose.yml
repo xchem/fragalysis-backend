@@ -12,7 +12,7 @@
 services:
 
   database:
-    image: xchem/fragalysis-database:2026.04.1
+    image: xchem/fragalysis-database:2026.10.1
     container_name: database
     volumes:
     - ./data/postgresql/data:/var/lib/postgresql/data
