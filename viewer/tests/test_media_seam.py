@@ -41,10 +41,7 @@ _ALLOWED = {
     "viewer/management/commands/tags_from_sites.py": 1,
     "viewer/media_cleanup.py": 7,
     "viewer/media_watcher.py": 2,
-    "viewer/models.py": 2,
-    "viewer/target_delete.py": 1,
     "viewer/target_set_upload.py": 1,
-    "viewer/upload_delete.py": 4,
 }
 
 

@@ -8,23 +8,22 @@ function simply does the deletion once those checks have passed.
 """
 
 import logging
-import shutil
-from pathlib import Path
 
 from django.conf import settings
 from django.db import transaction
 from django.db.models.deletion import ProtectedError
 
-from viewer.media_cleanup import computed_set_file_names, media_subdir
+from viewer import media_storage
+from viewer.media_cleanup import computed_set_file_names
 from viewer.media_watcher import deletions_expected
 from viewer.models import SiteObservation, Target
 
 logger = logging.getLogger(__name__)
 
 
-def _computed_set_media_files(target: Target) -> list[Path]:
-    """Collect the absolute paths of every computed-set file belonging to this
-    target. These live under ``media/computed_set_data/`` which is shared across
+def _computed_set_media_files(target: Target) -> list[str]:
+    """Collect the storage names of every computed-set file belonging to this
+    target. These live under ``computed_set_data/`` which is shared across
     targets, so they must be removed individually - never by nuking the dir.
 
     Resolution is delegated to :func:`viewer.media_cleanup.computed_set_file_names`
@@ -35,30 +34,25 @@ def _computed_set_media_files(target: Target) -> list[Path]:
 
     Must be called *before* the database rows are deleted.
     """
-    computed_set_dir = media_subdir(settings.COMPUTED_SET_MEDIA_DIRECTORY)
     names = computed_set_file_names(
         target.computedset_set.all(),
         SiteObservation.objects.filter(computed_set__target=target),
     )
-    return [computed_set_dir.joinpath(name) for name in sorted(names)]
+    return [f"{settings.COMPUTED_SET_MEDIA_DIRECTORY}/{name}" for name in sorted(names)]
 
 
-def _target_loader_media_dir(target: Target) -> Path | None:
-    """The target-loader subdirectory for this target (deleted in its entirety),
-    or ``None`` if the target has no ``zip_archive`` set.
+def _target_loader_media_dir(target: Target) -> str | None:
+    """The storage name of the target-loader subdirectory for this target (deleted
+    in its entirety), or ``None`` if the target has no ``zip_archive`` set.
 
     ``zip_archive`` stores the subdirectory name (e.g. ``Mpro_lb32627-66``) under
     ``media/target_loader_data/`` - see ``viewer/target_loader.py``.
     """
     subdir = str(target.zip_archive) if target.zip_archive else ""
-    # Guard against a blank value so we never rmtree the parent directory.
+    # Guard against a blank value so we never delete the parent directory.
     if not subdir.strip():
         return None
-    return (
-        Path(settings.MEDIA_ROOT)
-        .joinpath(settings.TARGET_LOADER_MEDIA_DIRECTORY)
-        .joinpath(subdir)
-    )
+    return f"{settings.TARGET_LOADER_MEDIA_DIRECTORY}/{subdir}"
 
 
 def delete_target(target: Target) -> None:
@@ -97,18 +91,21 @@ def delete_target(target: Target) -> None:
                 )
                 raise
 
-        # DB rows are gone - now remove the media files.
+        # DB rows are gone - now remove the media files, in batches.
+        # A file that can't be removed shouldn't fail the whole deletion -
+        # the DB rows are already gone (cleanup_media finds any that are left).
         if target_loader_dir is not None:
             logger.info("Removing target loader directory %s", target_loader_dir)
-            shutil.rmtree(target_loader_dir, ignore_errors=True)
-
-        for file_path in computed_set_files:
             try:
-                if file_path.is_file():
-                    file_path.unlink()
+                media_storage.delete_prefix(target_loader_dir)
             except OSError:
-                # A missing or unremovable computed-set file shouldn't fail the whole
-                # deletion - the DB rows are already gone.
-                logger.warning("Could not remove computed set file %s", file_path)
+                logger.warning("Could not remove all of %s", target_loader_dir)
+
+        try:
+            media_storage.delete_many(computed_set_files)
+        except OSError:
+            logger.warning(
+                "Could not remove all %d computed set files", len(computed_set_files)
+            )
 
     logger.info("Deleted target pk=%s title=%s", target_pk, target_title)

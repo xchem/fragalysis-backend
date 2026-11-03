@@ -229,6 +229,10 @@ class TargetBlog(models.Model):
         return "<TargetBlog %r %r %r>" % (self.id, self.target_id, self.title)
 
 
+# The files are not deleted one at a time by django_cleanup (one S3 request each,
+# thousands for a target). The target delete and the upload delete remove them in
+# batches (see viewer/target_delete.py and viewer/upload_delete.py), issue 1038.
+@cleanup.ignore
 class ExperimentUpload(models.Model):
     LOADING = "LOADING"
     LOADED = "LOADED"
@@ -306,9 +310,6 @@ class ExperimentUpload(models.Model):
             f"/{self.target.zip_archive.name}/{self.upload_data_dir}"
         )
 
-    def get_upload_path(self):
-        return Path(settings.MEDIA_ROOT).joinpath(self.upload_prefix())
-
     def bundle_name(self) -> str | None:
         """The storage name of this upload's bundle, or None if it is not stored.
 
@@ -331,14 +332,6 @@ class ExperimentUpload(models.Model):
                 f'{target_dir}/{file_path.stem}_{self.upload_data_dir}{file_path.suffix}',
             )
         return next((c for c in candidates if media_storage.exists(c)), None)
-
-    def get_download_path(self):
-        """The path to the original uploaded file, used during downloads"""
-        return (
-            Path(settings.MEDIA_ROOT)
-            .joinpath(settings.TARGET_LOADER_MEDIA_DIRECTORY)
-            .joinpath(Path(str(self.file)))
-        )
 
 
 class QualityStatusType(models.Model):
@@ -768,6 +761,10 @@ class Pose(models.Model):
         )
 
 
+# The files are not deleted one at a time by django_cleanup (one S3 request each,
+# thousands for a target). The target delete and the upload delete remove them in
+# batches (see viewer/target_delete.py and viewer/upload_delete.py), issue 1038.
+@cleanup.ignore
 class SiteObservation(Versionable, models.Model):
     #: See :attr:`CanonSite.SUPERSEDE_FIELDS`.
     SUPERSEDE_FIELDS = ("experiment", "cmpd", "seq_id", "chain_id", "altloc")
