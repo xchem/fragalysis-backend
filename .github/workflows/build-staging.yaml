@@ -92,7 +92,7 @@ jobs:
       # PostgreSQL (pgvector) for the unit tests. pytest connects on
       # localhost:5432 - see tests/test_settings.py for the connection defaults.
       database:
-        image: xchem/fragalysis-database:2026.04.1
+        image: xchem/fragalysis-database:2026.10.1
         env:
           POSTGRES_PASSWORD: fragalysis
           POSTGRES_DB: frag
