@@ -8,6 +8,7 @@ lines, so it drops a marker the watcher checks before writing.
 
 from pathlib import Path
 
+from viewer import media_storage
 from viewer.media_watcher import PAUSE_PREFIX, deletions_expected
 from viewer.target_delete import delete_target
 
@@ -77,13 +78,13 @@ def test_target_deletion_suppresses_the_watcher(
     (subdir / "data.pdb").write_text("x")
 
     seen = []
-    real_rmtree = __import__("shutil").rmtree
+    real_delete_prefix = media_storage.delete_prefix
 
-    def spy(path, *args, **kwargs):
+    def spy(prefix):
         seen.append(_markers(media_root))
-        return real_rmtree(path, *args, **kwargs)
+        return real_delete_prefix(prefix)
 
-    monkeypatch.setattr("viewer.target_delete.shutil.rmtree", spy)
+    monkeypatch.setattr("viewer.target_delete.media_storage.delete_prefix", spy)
 
     delete_target(target)
 

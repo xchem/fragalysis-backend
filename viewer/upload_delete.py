@@ -33,14 +33,16 @@ Compounds the upload created are removed only once nothing anywhere points at th
 
 import logging
 from dataclasses import dataclass, field
-from pathlib import Path
+from pathlib import PurePosixPath
 
 import yaml
 from django.conf import settings
 from django.contrib.postgres.fields import ArrayField
+from django.core.exceptions import SuspiciousFileOperation
 from django.db import transaction
 from django.db.models import Count, Exists, Min, Model, OuterRef, Q
 
+from viewer import media_storage
 from viewer.cache import clear_view_cache
 from viewer.compound_dedup import _through_compound_fk_attname
 from viewer.media_watcher import deletions_expected
@@ -116,8 +118,9 @@ class UploadDeletionPlan:
     children_repointed: list[tuple[str, int, int, int]] = field(default_factory=list)
     refs_cleared: list[tuple[str, int]] = field(default_factory=list)
     restored: dict[str, int] = field(default_factory=dict)
-    files_removed: list[Path] = field(default_factory=list)
-    files_kept: list[Path] = field(default_factory=list)
+    # Storage names (see viewer.media_storage)
+    files_removed: list[str] = field(default_factory=list)
+    files_kept: list[str] = field(default_factory=list)
     warnings: list[str] = field(default_factory=list)
 
     def summary(self) -> str:
@@ -194,14 +197,14 @@ def read_upload_metadata(upload: ExperimentUpload) -> dict[str, set[str]]:
     exactly the way :mod:`viewer.target_loader` composes them. The other three sections key
     on ``<name><separator><version>``, split the same way the loader splits them.
     """
-    path = Path(upload.get_upload_path()) / METADATA_FILE
-    if not path.is_file():
+    path = f"{upload.upload_prefix()}/{METADATA_FILE}"
+    try:
+        meta = yaml.safe_load(media_storage.read_text(path)) or {}
+    except FileNotFoundError as exc:
         raise NotDeletable(
             f"{path} is missing; cannot establish what this upload added. "
             "The bundle's own metadata is the authority for the deletion."
-        )
-
-    meta = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
+        ) from exc
 
     declared_format = str(meta.get("data_format_version", ""))
     supported_major = settings.XCA_DATA_FORMAT_VERSION.split(".")[0]
@@ -269,10 +272,11 @@ def _crystal_files(upload) -> dict[str, dict]:
     carrying their own ``upload_N/`` prefix - which is what
     ``process_experiment`` joins onto the target directory to build the stored field.
     """
-    path = Path(upload.get_upload_path()) / METADATA_FILE
-    if not path.is_file():
+    path = f"{upload.upload_prefix()}/{METADATA_FILE}"
+    try:
+        meta = yaml.safe_load(media_storage.read_text(path)) or {}
+    except FileNotFoundError:
         return {}
-    meta = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
 
     def one(value):
         """``(path, source_file)`` from either a file dict or a bare path string."""
@@ -316,8 +320,9 @@ def _restore_experiment_files(upload: ExperimentUpload, plan) -> None:
     """
     target = upload.target
     prefix = f"{_target_media_prefix(target)}/{upload.upload_data_dir}/"
-    media_root = Path(settings.MEDIA_ROOT)
     target_dir = _target_media_prefix(target)
+    # The target's stored files, listed once (when first needed)
+    stored: set[str] = set()
 
     earlier = list(
         ExperimentUpload.objects.filter(target=target)
@@ -359,7 +364,9 @@ def _restore_experiment_files(upload: ExperimentUpload, plan) -> None:
         return None
 
     def report_missing(exp, file_field, paths):
-        absent = [p for p in paths if not (media_root / p).is_file()]
+        if not stored:
+            stored.update(o.name for o in media_storage.list_prefix(target_dir))
+        absent = [p for p in paths if p not in stored]
         if absent:
             plan.warnings.append(
                 f"Experiment {exp.pk} ({exp.code}): {file_field} restored to "
@@ -920,14 +927,13 @@ def _file_values(instance) -> list[str]:
     return values
 
 
-def _referenced_paths(target) -> set[Path]:
-    """Absolute paths of every target-loader file still referenced by a surviving row.
+def _referenced_names(target) -> set[str]:
+    """Storage names of every target-loader file still referenced by a surviving row.
 
     Computed after the database work, inside the same call but before any file is touched,
     so the answer describes the state the deletion actually leaves behind.
     """
-    media_root = Path(settings.MEDIA_ROOT)
-    referenced: set[Path] = set()
+    referenced: set[str] = set()
     querysets = (
         SiteObservation.objects.filter(pk__in=_scoped_ids(SiteObservation, target)),
         Experiment.objects.filter(experiment_upload__target=target),
@@ -935,43 +941,34 @@ def _referenced_paths(target) -> set[Path]:
     for qs in querysets:
         for instance in qs.iterator():
             for value in _file_values(instance):
-                path = Path(value)
-                referenced.add(path if path.is_absolute() else media_root / path)
+                try:
+                    referenced.add(media_storage.to_name(value))
+                except SuspiciousFileOperation:
+                    continue  # Not a media file, so not one this deletion removes
     return referenced
 
 
-def _bundle_archive_paths(upload: ExperimentUpload) -> list[Path]:
-    """Every place this upload's bundle archive could be sitting.
+def _bundle_archive_name(upload: ExperimentUpload) -> str | None:
+    """The storage name of this upload's bundle archive, or None.
 
-    ``ExperimentUpload.file`` records only the archive's basename
-    (``target_loader.py``: ``file=self.data_bundle``, and ``data_bundle`` is
-    ``Path(...).name``), while ``_move_and_save_target_experiment`` moves the archive
-    into the *target's* directory. ``get_download_path()`` therefore resolves one
-    directory too high, and a delete driven by it silently removes nothing - which is
-    how six bundles totalling 8.7 GB survived a full peel.
-
-    The same move renames the archive to ``<stem>_<version_dir><suffix>`` when a file of
-    that name is already there, again without recording the new name, so that spelling
-    has to be tried too.
+    The loader stores the archive in the *target's* directory, as its file name, or as
+    ``<stem>_<version_dir><suffix>`` when a file of that name is already there
+    (``ExperimentUpload.bundle_name()``). The plain name can therefore be an earlier
+    upload's archive: it is this upload's only if no other upload of the target has the
+    same file name. (An earlier version deleted every candidate, so deleting a second
+    upload with the same name also deleted the first upload's archive.) When that
+    cannot be decided, nothing is deleted: cleanup_media finds the archive later.
     """
-    candidates = [Path(upload.get_download_path())]
-
-    name = Path(str(upload.file)).name
-    if name and upload.target.zip_archive:
-        target_dir = (
-            Path(settings.MEDIA_ROOT)
-            / settings.TARGET_LOADER_MEDIA_DIRECTORY
-            / str(upload.target.zip_archive)
-        )
-        stem, suffix = Path(name).stem, Path(name).suffix
-        candidates.append(target_dir / name)
-        if upload.upload_data_dir:
-            candidates.append(target_dir / f"{stem}_{upload.upload_data_dir}{suffix}")
-
-    seen: dict[Path, None] = {}
-    for path in candidates:
-        seen.setdefault(path, None)
-    return list(seen)
+    name = upload.bundle_name()
+    if name is None or PurePosixPath(name).name != PurePosixPath(str(upload.file)).name:
+        return name  # The renamed archive (or none)
+    # The plain name is ambiguous if another upload with the same file name also
+    # has no renamed archive: that upload's archive could be the plain one.
+    others = ExperimentUpload.objects.filter(
+        target=upload.target, file=upload.file
+    ).exclude(pk=upload.pk)
+    ambiguous = any(other.bundle_name() == name for other in others)
+    return None if ambiguous else name
 
 
 def _remove_upload_media(upload: ExperimentUpload, plan) -> None:
@@ -992,52 +989,42 @@ def _remove_upload_media(upload: ExperimentUpload, plan) -> None:
     leave deleted files behind live rows.
     """
     target = upload.target
-    referenced = _referenced_paths(target)
+    referenced = _referenced_names(target)
     deleted_dir = (
-        Path(settings.MEDIA_ROOT)
-        / settings.TARGET_LOADER_MEDIA_DIRECTORY
-        / str(target.zip_archive)
-        / (upload.upload_data_dir or "")
+        f"{_target_media_prefix(target)}/{upload.upload_data_dir}"
         if target.zip_archive and upload.upload_data_dir
         else None
     )
 
-    if deleted_dir is not None and deleted_dir.is_dir():
-        for path in sorted(deleted_dir.rglob("*")):
-            if not path.is_file():
-                continue
-            if path in referenced:
-                # A row still needs it, so removing it would break that row. This is an
-                # anomaly now that file paths are restored, and it is reported below.
-                plan.files_kept.append(path)
-                continue
-            try:
-                path.unlink()
-                plan.files_removed.append(path)
-            except OSError:
-                plan.warnings.append(f"Could not remove {path}.")
-
-    if deleted_dir is not None and deleted_dir.is_dir():
-        # Prune what is now empty; anything left is a file a surviving row still needs.
-        for path in sorted(deleted_dir.rglob("*"), reverse=True):
-            if path.is_dir() and not any(path.iterdir()):
-                path.rmdir()
-        if not any(deleted_dir.iterdir()):
-            deleted_dir.rmdir()
-        else:
-            left = sorted(p for p in deleted_dir.rglob("*") if p.is_file())
+    if deleted_dir is not None:
+        names = sorted(o.name for o in media_storage.list_prefix(deleted_dir))
+        # A row still needs a referenced file, so removing it would break that row.
+        # This is an anomaly now that file paths are restored, and it is reported below.
+        kept = [name for name in names if name in referenced]
+        doomed = [name for name in names if name not in referenced]
+        plan.files_kept.extend(kept)
+        try:
+            if kept:
+                media_storage.delete_many(doomed)
+            else:
+                # Also removes the (empty) directories on the filesystem
+                media_storage.delete_prefix(deleted_dir)
+            plan.files_removed.extend(doomed)
+        except OSError as exc:
             plan.warnings.append(
-                f"{deleted_dir} could not be removed: {len(left)} file(s) in it are "
+                f"Could not remove the files in {deleted_dir} ({exc})."
+            )
+        if kept:
+            plan.warnings.append(
+                f"{deleted_dir} could not be removed: {len(kept)} file(s) in it are "
                 "still referenced by surviving rows. Experiment file paths are restored "
                 "from the previous upload's metadata, so this means that metadata did "
-                f"not supply a replacement. First: {left[:3]}"
+                f"not supply a replacement. First: {kept[:3]}"
             )
 
-    for archive in _bundle_archive_paths(upload):
-        if not archive.is_file():
-            continue
+    if archive := _bundle_archive_name(upload):
         try:
-            archive.unlink()
+            media_storage.delete(archive)
             plan.files_removed.append(archive)
         except OSError:
             plan.warnings.append(f"Could not remove bundle archive {archive}.")
