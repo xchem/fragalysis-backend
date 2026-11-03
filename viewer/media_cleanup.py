@@ -78,7 +78,7 @@ _TARGET_LOADER_PROBE_FIELDS = (
 )
 
 # Legacy rows carry these in a file field in place of a real path. See
-# viewer/management/commands/restore_v3_files_from_v2_archive.py.
+# the (since deleted) restore_v3_files_from_v2_archive command.
 _EMPTY_VALUES = frozenset(("", "None"))
 
 

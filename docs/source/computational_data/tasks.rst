@@ -239,25 +239,3 @@ database.
 
 .. autoclass:: viewer.tasks.process_compound_set
     :members:
-
-
-Celery task - validating Target data
---------------------------------------
-
-The first task that has to be completed when uploading a target set is validation of the data. This task checks the
-format of the folder structure provided to :code:`viewer.views.UploadTSetView` to make sure it is in the correct format.
-
-.. autoclass:: viewer.tasks.validate_target_set
-    :members:
-
-
-Celery task - processing Target data
--------------------------------------------------
-
-The second task that has to be completed when uploading a computed set is the upload itself. This task checks takes the
-output of :code:`viewer.tasks.validate_target_set` - the uploaded files must be validated before their data can be
-saved to the database through the :code:`viewer.views.UploadTaskView` into the relevant models specified in
-:ref:`Crystallographic data (Models) <crys-models>`.
-
-.. autoclass:: viewer.tasks.process_target_set
-    :members:

@@ -15,6 +15,10 @@ generate events.
 
 Suppression is best-effort on purpose: if the marker cannot be written the
 deletion still goes ahead and the log simply gets its usual noise.
+
+The watcher (and so this module) is for the filesystem media storage only. With
+S3 media storage there is no MEDIA_ROOT, the watcher is not started, and
+deletions_expected() does nothing (issue 1038).
 """
 
 import logging
@@ -23,6 +27,8 @@ from contextlib import contextmanager
 from pathlib import Path
 
 from django.conf import settings
+
+from viewer import media_storage
 
 logger = logging.getLogger(__name__)
 
@@ -42,6 +48,12 @@ def deletions_expected(reason: str):
     :param reason: recorded in the marker, so a stale one left by a crashed
         process says what was running when it was written.
     """
+    if media_storage.is_s3():
+        # The watcher runs only with the filesystem media storage
+        # (see launch-stack.sh and launch-worker.sh).
+        yield
+        return
+
     marker = _marker_path()
     created = False
     try:
