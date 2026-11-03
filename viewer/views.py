@@ -1110,7 +1110,7 @@ class ComputedSetView(
         zip_buffer = BytesIO()
 
         sdfs = models.ComputedSet.history.filter(
-            written_sdf_filename__isnull=False,
+            written_sdf_filename__isnull=False, id=computed_set.id
         )
         pdbs = computed_set.site_observations.all()
 
