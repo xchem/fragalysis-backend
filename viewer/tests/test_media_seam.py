@@ -26,6 +26,9 @@ _FILESYSTEM_ONLY = {
     # Quietens filewatcher.sh, which watches MEDIA_ROOT. It does nothing with S3
     # media storage, where the watcher is not started (see launch-stack.sh).
     "viewer/media_watcher.py",
+    # The data migration: it copies the filesystem media directory (MEDIA_ROOT
+    # by default) to and from the S3 bucket, whatever MEDIA_STORAGE is.
+    "viewer/management/commands/copy_media.py",
 }
 _MARKER = "media-seam: not media"
 
