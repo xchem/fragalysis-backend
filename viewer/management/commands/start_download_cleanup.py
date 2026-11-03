@@ -1,10 +1,11 @@
-"""Using the service status scheduler we install three tasks that run regularly to
-clean-up "out od date" DownloadLinks records.
+"""Using the service status scheduler we install tasks that run regularly to
+clean-up "out od date" DownloadLinks records, and old tmp/ media files.
 
 A soft removal marks records as "expired" and a hard removal removes the underlying
 files for "expired" records that have been expired for a significant time. The
 "lost task" removal expires in-progress records whose Celery task has crashed or
-been lost (so they will never finish).
+been lost (so they will never finish). The tmp/ expiry deletes media storage
+objects in tmp/ that are older than MEDIA_TMP_MAX_AGE_H hours.
 """
 import signal
 
@@ -17,12 +18,13 @@ from viewer.download_structures import (
     hard_erase_out_of_date_download_records,
     soft_erase_out_of_date_download_records,
 )
+from viewer.media_cleanup import expire_tmp_files
 
 _INTERVAL_S: int = settings.DOWNLOAD_CLEANUP_INTERVAL_M * 60
 
 
 class Command(BaseCommand):
-    help = "Periodically erase out-of-date download records (runs until terminated)"
+    help = "Periodically erase out-of-date download records and tmp/ media files (runs until terminated)"
 
     def handle(self, *args, **kwargs):
         del args, kwargs
@@ -47,6 +49,11 @@ class Command(BaseCommand):
         scheduler_module.add_service_job(
             'download_cleanup.expire_lost',
             expire_lost_download_records,
+            _INTERVAL_S,
+        )
+        scheduler_module.add_service_job(
+            'media_cleanup.expire_tmp',
+            expire_tmp_files,
             _INTERVAL_S,
         )
         scheduler_module.start()

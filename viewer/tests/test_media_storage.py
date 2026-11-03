@@ -29,6 +29,7 @@ _MEDIA_ENV = [
     "MEDIA_S3_SECRET_ACCESS_KEY",
     "MEDIA_S3_URL_EXPIRY_S",
     "MEDIA_TRANSFER_THREADS",
+    "MEDIA_TMP_MAX_AGE_H",
 ]
 
 
@@ -182,3 +183,11 @@ def test_s3_with_a_missing_bucket_fails_the_check(
 
     assert [e.id for e in errors] == ["viewer.E003"]
     assert "no-such-bucket" in errors[0].msg
+
+
+def test_tmp_objects_are_kept_for_48_hours_by_default(monkeypatch):
+    assert _load_settings(monkeypatch).MEDIA_TMP_MAX_AGE_H == 48
+
+
+def test_the_tmp_object_age_is_set_from_the_environment(monkeypatch):
+    assert _load_settings(monkeypatch, MEDIA_TMP_MAX_AGE_H="6").MEDIA_TMP_MAX_AGE_H == 6

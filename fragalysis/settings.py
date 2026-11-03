@@ -656,6 +656,14 @@ MEDIA_S3_URL_EXPIRY_S: int = int(os.environ.get("MEDIA_S3_URL_EXPIRY_S", "3600")
 # one at a time (30-75 ms each) but much faster in parallel. See #1038.
 MEDIA_TRANSFER_THREADS: int = int(os.environ.get("MEDIA_TRANSFER_THREADS", "16"))
 
+# The age (hours) after which objects in the media storage's tmp/ directory are
+# deleted (staged uploads, computed-set and Squonk job files, and what a failed
+# upload left behind). See viewer.media_cleanup.expire_tmp_files().
+# A start-up check refuses less than MEDIA_TMP_MIN_AGE_H, because tmp/ also holds
+# files that are in use for a short time (i.e. a bundle while it loads).
+MEDIA_TMP_MAX_AGE_H: int = int(os.environ.get("MEDIA_TMP_MAX_AGE_H", "48"))
+MEDIA_TMP_MIN_AGE_H: int = 1
+
 # The S3 storage options, built from the MEDIA_S3_* variables. The settings
 # build them whatever MEDIA_STORAGE is, because the copy_media command uses
 # them to copy an existing stack's files to (or from) the bucket.

@@ -1,13 +1,13 @@
-"""Report - and with ``--delete``, remove - orphaned files in the media directory.
+"""Report - and with ``--delete``, remove - orphaned files in the media storage.
 
 Two areas are covered, each cross-referenced against the database by
 ``viewer.media_cleanup``:
 
-* ``media/target_loader_data/`` - directories no ``Target.zip_archive`` names.
+* ``target_loader_data/`` - directories no ``Target.zip_archive`` names.
   The bulk of the debris: before target deletion was a feature, targets were
   removed by running commands in the Django shell, which left the whole
   per-target directory behind.
-* ``media/computed_set_data/`` - files no computed-set row points at.
+* ``computed_set_data/`` - files no computed-set row points at.
 
 Nothing is removed without ``--delete``. Run it without arguments first and read
 the report::
@@ -15,10 +15,14 @@ the report::
     python manage.py cleanup_media
     python manage.py cleanup_media --delete
 
-Symlinks, non-directories in ``target_loader_data/`` (the file watcher writes its
-log there) and anything resolving outside the area are never touched, and every
-removal is logged.
+Non-directories in ``target_loader_data/`` (the file watcher writes its log
+there), hidden entries and entries changed in the last ``--min-age-hours`` (an
+upload can still be in progress) are never touched, and every removal is logged.
+It works with either media storage (see ``viewer.media_storage``).
 """
+
+from datetime import timedelta
+from pathlib import PurePosixPath
 
 import humanize
 from django.conf import settings
@@ -35,6 +39,10 @@ from viewer.models import ComputedSet, SiteObservation, Target
 
 # Longer listings are truncated unless --list-all is given.
 _MAX_LISTED = 100
+
+# Entries changed more recently than this are left alone by default: the loader
+# stores an upload's files shortly before its Target is committed.
+_DEFAULT_MIN_AGE_H = 24
 
 
 class Command(BaseCommand):
@@ -62,6 +70,13 @@ class Command(BaseCommand):
             help="Skip the empty-database guard. Nothing else is relaxed.",
         )
         parser.add_argument(
+            "--min-age-hours",
+            type=int,
+            default=_DEFAULT_MIN_AGE_H,
+            help="Leave entries changed in the last N hours alone"
+            f" (default: {_DEFAULT_MIN_AGE_H}).",
+        )
+        parser.add_argument(
             "--list-all",
             action="store_true",
             help=f"List every entry instead of the first {_MAX_LISTED}.",
@@ -72,17 +87,13 @@ class Command(BaseCommand):
         delete = kwargs.get("delete", False)
         force = kwargs.get("force", False)
         list_all = kwargs.get("list_all", False)
+        min_age = timedelta(hours=kwargs.get("min_age_hours", _DEFAULT_MIN_AGE_H))
 
         only_loader = kwargs.get("target_loader_data", False)
         only_computed = kwargs.get("computed_set_data", False)
         # Neither flag means both areas.
         do_loader = only_loader or not only_computed
         do_computed = only_computed or not only_loader
-
-        media_root = settings.MEDIA_ROOT
-        if not media_root:
-            self.stdout.write(self.style.ERROR("MEDIA_ROOT is not set."))
-            return
 
         # A new FileField pointing at computed_set_data/ that media_cleanup
         # doesn't know about would make its files look orphaned.
@@ -99,9 +110,9 @@ class Command(BaseCommand):
 
         reports = []
         if do_loader:
-            reports.append(scan_target_loader_data())
+            reports.append(scan_target_loader_data(min_age))
         if do_computed:
-            reports.append(scan_computed_set_data())
+            reports.append(scan_computed_set_data(min_age))
 
         for report in reports:
             self._print_report(report, list_all=list_all)
@@ -177,14 +188,18 @@ class Command(BaseCommand):
         self._print_list(
             "orphans",
             [
-                f"{c.path.name}  {humanize.naturalsize(c.size_bytes, binary=True)}"
+                f"{PurePosixPath(c.name).name}"
+                f"  {humanize.naturalsize(c.size_bytes, binary=True)}"
                 for c in report.candidates
             ],
             list_all,
         )
         self._print_list(
             "skipped entries",
-            [f"{path.name}  ({reason})" for path, reason in report.skipped],
+            [
+                f"{PurePosixPath(name).name}  ({reason})"
+                for name, reason in report.skipped
+            ],
             list_all,
         )
         self._print_list("referenced but absent", report.missing, list_all)
