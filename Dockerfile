@@ -5,8 +5,7 @@ ENV PYTHONDONTWRITEBYTECODE=1
 
 USER root
 
-# Apply the Debian (trixie) security updates to the base image packages
-# and upgrade pip (the base image's pip has known vulnerabilities).
+# Apply the Debian (trixie) security updates to the base image packages.
 RUN apt-get update -y && \
     apt-get upgrade -y && \
     apt-get install --no-install-recommends -y \
@@ -20,8 +19,7 @@ RUN apt-get update -y && \
       rsync \
       texlive-fonts-recommended && \
     apt-get clean && \
-    rm -rf /var/lib/apt/lists/* && \
-    pip install --no-cache-dir --upgrade pip
+    rm -rf /var/lib/apt/lists/*
 
 # another stage for poetry installation. this ensures poetry won't end
 # up in final image where it's not needed
@@ -44,16 +42,20 @@ COPY poetry.lock pyproject.toml /
 # project's directory (.venv). This way the location is predictable.
 # Only the 'main' dependencies are installed - the unit tests run with pytest
 # on the host / CI runner (see run-unit-tests.sh), not inside this image.
-# Poetry does not manage the pip that virtualenv seeds into the venv,
-# so upgrade it explicitly (the seeded pip has known vulnerabilities).
+# The application does not need pip at runtime, and pip has known
+# vulnerabilities, so remove the pip that virtualenv seeds into the venv.
 RUN POETRY_VIRTUALENVS_IN_PROJECT=true poetry install --no-root --only main --no-directory && \
-    /.venv/bin/pip install --no-cache-dir --upgrade pip
+    /.venv/bin/python -m pip uninstall --yes pip
 
 # final stage. only copy the venv with installed packages and point
 # paths to it
 FROM python-base AS final
 
 COPY --from=poetry-base /.venv /.venv
+
+# Remove the system pip too (see the venv note above).
+# 'python -m ensurepip' can restore it if you need it.
+RUN /usr/local/bin/python -m pip uninstall --yes pip
 
 ENV PYTHONPATH="/.venv/lib/python3.13/site-packages/"
 ENV PATH=/.venv/bin:$PATH
