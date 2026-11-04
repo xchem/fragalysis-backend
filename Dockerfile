@@ -10,7 +10,6 @@ USER root
 RUN apt-get update -y && \
     apt-get upgrade -y && \
     apt-get install --no-install-recommends -y \
-      default-libmysqlclient-dev \
       nginx \
       pandoc \
       texlive-latex-base \
@@ -19,7 +18,6 @@ RUN apt-get update -y && \
       pigz \
       p7zip-full \
       rsync \
-      build-essential \
       texlive-fonts-recommended && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/* && \
@@ -28,6 +26,13 @@ RUN apt-get update -y && \
 # another stage for poetry installation. this ensures poetry won't end
 # up in final image where it's not needed
 FROM python-base AS poetry-base
+
+# The compiler tool chain is only needed to build wheels,
+# so it is installed here and does not go into the final image.
+RUN apt-get update -y && \
+    apt-get install --no-install-recommends -y build-essential && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/*
 
 ARG POETRY_VERSION=2.1.4
 RUN pip install --no-cache-dir poetry==${POETRY_VERSION}
