@@ -1,13 +1,14 @@
-FROM python:3.13.12-slim-trixie  AS python-base
+FROM python:3.13.18-slim-trixie  AS python-base
 
 ENV PYTHONUNBUFFERED=1
 ENV PYTHONDONTWRITEBYTECODE=1
 
 USER root
 
+# Apply the Debian (trixie) security updates to the base image packages.
 RUN apt-get update -y && \
+    apt-get upgrade -y && \
     apt-get install --no-install-recommends -y \
-      default-libmysqlclient-dev \
       nginx \
       pandoc \
       texlive-latex-base \
@@ -16,7 +17,6 @@ RUN apt-get update -y && \
       pigz \
       p7zip-full \
       rsync \
-      build-essential \
       texlive-fonts-recommended && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
@@ -25,9 +25,15 @@ RUN apt-get update -y && \
 # up in final image where it's not needed
 FROM python-base AS poetry-base
 
+# The compiler tool chain is only needed to build wheels,
+# so it is installed here and does not go into the final image.
+RUN apt-get update -y && \
+    apt-get install --no-install-recommends -y build-essential && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/*
+
 ARG POETRY_VERSION=2.1.4
-RUN pip install --no-cache-dir --upgrade pip && \
-    pip install --no-cache-dir poetry==${POETRY_VERSION}
+RUN pip install --no-cache-dir poetry==${POETRY_VERSION}
 
 WORKDIR /
 COPY poetry.lock pyproject.toml /
@@ -36,13 +42,20 @@ COPY poetry.lock pyproject.toml /
 # project's directory (.venv). This way the location is predictable.
 # Only the 'main' dependencies are installed - the unit tests run with pytest
 # on the host / CI runner (see run-unit-tests.sh), not inside this image.
-RUN POETRY_VIRTUALENVS_IN_PROJECT=true poetry install --no-root --only main --no-directory
+# The application does not need pip at runtime, and pip has known
+# vulnerabilities, so remove the pip that virtualenv seeds into the venv.
+RUN POETRY_VIRTUALENVS_IN_PROJECT=true poetry install --no-root --only main --no-directory && \
+    /.venv/bin/python -m pip uninstall --yes pip
 
 # final stage. only copy the venv with installed packages and point
 # paths to it
 FROM python-base AS final
 
 COPY --from=poetry-base /.venv /.venv
+
+# Remove the system pip too (see the venv note above).
+# 'python -m ensurepip' can restore it if you need it.
+RUN /usr/local/bin/python -m pip uninstall --yes pip
 
 ENV PYTHONPATH="/.venv/lib/python3.13/site-packages/"
 ENV PATH=/.venv/bin:$PATH

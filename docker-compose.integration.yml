@@ -108,6 +108,7 @@ services:
   # The test runner: drives the backend over HTTP and runs the integration test.
   # The production image carries only the 'main' dependencies, so install the
   # test toolchain (matching pyproject's test group) before running pytest.
+  # The image has no pip, so restore it with ensurepip first.
   test:
     image: ${BE_NAMESPACE:-xchem}/fragalysis-backend:${BE_IMAGE_TAG:-latest}
     container_name: integration_test
@@ -116,7 +117,8 @@ services:
     # the computed-set (RHS) upload resolves its ref_mols against site
     # observations the target load creates, so it cannot run before it.
     command: >-
-      sh -c "pip install --quiet pytest pytest-django pytest-cov &&
+      sh -c "python -m ensurepip --default-pip > /dev/null &&
+      python -m pip install --quiet pytest pytest-django pytest-cov &&
       python -m pytest
       viewer/tests/test_api_upload_target_experiments_async.py
       viewer/tests/test_viewer_upload_cset_async.py

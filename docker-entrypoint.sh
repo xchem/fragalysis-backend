@@ -1,7 +1,10 @@
 #!/bin/bash
 
-echo "+> pip list..."
-pip list
+# The image has no pip, so list the installed packages with importlib.metadata
+echo "+> Installed packages..."
+python -c 'from importlib.metadata import distributions
+for name, version in sorted((d.name, d.version) for d in distributions()):
+    print(name, version)'
 
 CONTAINER_ROLE=${CONTAINER_ROLE:-"stack"}
 echo "+> CONTAINER_ROLE is ${CONTAINER_ROLE}"
