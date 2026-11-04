@@ -1,11 +1,14 @@
-FROM python:3.13.12-slim-trixie  AS python-base
+FROM python:3.13.18-slim-trixie  AS python-base
 
 ENV PYTHONUNBUFFERED=1
 ENV PYTHONDONTWRITEBYTECODE=1
 
 USER root
 
+# Apply the Debian (trixie) security updates to the base image packages
+# and upgrade pip (the base image's pip has known vulnerabilities).
 RUN apt-get update -y && \
+    apt-get upgrade -y && \
     apt-get install --no-install-recommends -y \
       default-libmysqlclient-dev \
       nginx \
@@ -19,15 +22,15 @@ RUN apt-get update -y && \
       build-essential \
       texlive-fonts-recommended && \
     apt-get clean && \
-    rm -rf /var/lib/apt/lists/*
+    rm -rf /var/lib/apt/lists/* && \
+    pip install --no-cache-dir --upgrade pip
 
 # another stage for poetry installation. this ensures poetry won't end
 # up in final image where it's not needed
 FROM python-base AS poetry-base
 
 ARG POETRY_VERSION=2.1.4
-RUN pip install --no-cache-dir --upgrade pip && \
-    pip install --no-cache-dir poetry==${POETRY_VERSION}
+RUN pip install --no-cache-dir poetry==${POETRY_VERSION}
 
 WORKDIR /
 COPY poetry.lock pyproject.toml /
@@ -36,7 +39,10 @@ COPY poetry.lock pyproject.toml /
 # project's directory (.venv). This way the location is predictable.
 # Only the 'main' dependencies are installed - the unit tests run with pytest
 # on the host / CI runner (see run-unit-tests.sh), not inside this image.
-RUN POETRY_VIRTUALENVS_IN_PROJECT=true poetry install --no-root --only main --no-directory
+# Poetry does not manage the pip that virtualenv seeds into the venv,
+# so upgrade it explicitly (the seeded pip has known vulnerabilities).
+RUN POETRY_VIRTUALENVS_IN_PROJECT=true poetry install --no-root --only main --no-directory && \
+    /.venv/bin/pip install --no-cache-dir --upgrade pip
 
 # final stage. only copy the venv with installed packages and point
 # paths to it
