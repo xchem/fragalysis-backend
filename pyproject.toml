@@ -9,7 +9,7 @@ packages = [{include = "fragalysis_backend"}]
 
 [tool.poetry.dependencies]
 python = "^3.13.0"
-django = "^5.2"
+django = "^5.2.19"
 apscheduler = "^3.10"
 celery = "^5.5"
 django-bootstrap3 = "^25.2"
@@ -30,21 +30,21 @@ psycopg = { version = "^3.2", extras = ["binary", "pool"] }
 redis = "^7.0"
 shortuuid = "^1.0"
 sshtunnel = "^0.4"
-urllib3 = "^2.5"
+urllib3 = "^2.8"
 validators = "^0.35"
 django-celery-beat = "^2.8"
 django-celery-results = "^2.6"
 numpy = "^2.3"
 python-dateutil = "^2"
 pgvector = "^0.4"
-setuptools = "^80.9.0"
+setuptools = "^84.2"
 bcrypt = "^5.0"
-djangorestframework = "^3.16.1"
+djangorestframework = "^3.18.2"
 legacy-cgi = "^2.6.3"   # required by djangorestframwork
 django-prometheus = "^2.4"
 python-ipware = "^3.0.0"
 requests = "^2.32"   # viewer.target_blog image_url fetch
-pillow = "^12.2"   # TargetBlog.image (ImageField)
+pillow = "^13.0"   # TargetBlog.image (ImageField)
 
 
 # Specific (critical dependency) packages...
