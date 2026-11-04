@@ -7,9 +7,11 @@ boto3's managed, multipart transfers), copy objects inside the bucket, delete
 many objects in one request, and list every object under a prefix.
 """
 import datetime
+import logging
 
 import pytest
-from django.core.exceptions import SuspiciousFileOperation
+from boto3.exceptions import S3UploadFailedError
+from django.core.exceptions import ImproperlyConfigured, SuspiciousFileOperation
 from django.core.files.base import ContentFile
 
 from frag_s3_storage import S3Storage
@@ -74,6 +76,96 @@ def test_download_file_writes_the_object_to_a_local_file(located, tmp_path):
 def test_download_file_of_a_missing_file_raises_file_not_found(located, tmp_path):
     with pytest.raises(FileNotFoundError):
         located.download_file("missing.txt", tmp_path / "out.txt")
+
+
+# upload_file retries ---------------------------------------------------------
+
+
+@pytest.fixture
+def retrying(s3_client):  # pylint: disable=unused-argument
+    """An S3Storage that retries an upload at once (no delay)."""
+    return S3Storage(
+        bucket_name=BUCKET, region_name=REGION, upload_attempts=3, retry_delay_s=0
+    )
+
+
+def _fail_first(monkeypatch, storage, failures):
+    """Makes the client's first ``failures`` uploads fail. Returns the call log."""
+    real_upload = storage.client.upload_file
+    calls = []
+
+    def flaky_upload(*args, **kwargs):
+        calls.append(args)
+        if len(calls) <= failures:
+            raise S3UploadFailedError(
+                "An error occurred (SignatureDoesNotMatch) when calling"
+                " the PutObject operation: None"
+            )
+        return real_upload(*args, **kwargs)
+
+    monkeypatch.setattr(storage.client, "upload_file", flaky_upload)
+    return calls
+
+
+def test_upload_file_retries_a_failed_upload(retrying, monkeypatch, tmp_path):
+    local = tmp_path / "a.pdb"
+    local.write_bytes(b"ATOM\n")
+    calls = _fail_first(monkeypatch, retrying, failures=2)
+
+    assert retrying.upload_file(local, "a.pdb") == "a.pdb"
+
+    assert len(calls) == 3
+    assert retrying.open("a.pdb").read() == b"ATOM\n"
+
+
+def test_upload_file_raises_when_every_attempt_fails(retrying, monkeypatch, tmp_path):
+    local = tmp_path / "a.pdb"
+    local.write_bytes(b"ATOM\n")
+    calls = _fail_first(monkeypatch, retrying, failures=3)
+
+    with pytest.raises(S3UploadFailedError):
+        retrying.upload_file(local, "a.pdb")
+
+    assert len(calls) == 3
+    assert not retrying.exists("a.pdb")
+
+
+def test_upload_file_logs_a_warning_for_each_retry(
+    retrying, monkeypatch, tmp_path, caplog
+):
+    local = tmp_path / "a.pdb"
+    local.write_bytes(b"ATOM\n")
+    _fail_first(monkeypatch, retrying, failures=2)
+
+    with caplog.at_level(logging.WARNING, logger="frag_s3_storage.storage"):
+        retrying.upload_file(local, "a.pdb")
+
+    warnings = [r for r in caplog.records if r.levelno == logging.WARNING]
+    assert len(warnings) == 2
+    assert "SignatureDoesNotMatch" in warnings[0].getMessage()
+    assert "a.pdb" in warnings[0].getMessage()
+
+
+def test_upload_file_does_not_retry_a_missing_local_file(
+    retrying, monkeypatch, tmp_path
+):
+    calls = _fail_first(monkeypatch, retrying, failures=0)
+
+    with pytest.raises(FileNotFoundError):
+        retrying.upload_file(tmp_path / "missing.pdb", "a.pdb")
+
+    assert len(calls) == 1
+
+
+def test_upload_file_tries_three_times_by_default(storage):
+    assert storage.upload_attempts == 3
+
+
+def test_an_upload_attempts_value_below_one_is_refused(
+    s3_client,
+):  # pylint: disable=unused-argument
+    with pytest.raises(ImproperlyConfigured):
+        S3Storage(bucket_name=BUCKET, region_name=REGION, upload_attempts=0)
 
 
 # copy ------------------------------------------------------------------------

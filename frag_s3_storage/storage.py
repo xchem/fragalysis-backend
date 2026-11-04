@@ -22,16 +22,19 @@ the field's migration would then record them.
 This module must not import from the backend's apps. It depends only on
 Django and boto3, so that it can move to its own repository unchanged.
 """
+import logging
 import mimetypes
 import os
 import posixpath
 import tempfile
+import time
 from collections.abc import Iterable, Iterator
 from datetime import datetime
 from typing import IO, Any
 from urllib.parse import urljoin
 
 import boto3
+from boto3.exceptions import S3UploadFailedError
 from botocore.config import Config
 from botocore.exceptions import ClientError
 from django.conf import settings
@@ -41,6 +44,8 @@ from django.core.files.storage import Storage
 from django.utils import timezone
 from django.utils.deconstruct import deconstructible
 from django.utils.encoding import filepath_to_uri
+
+logger = logging.getLogger(__name__)
 
 # The S3 error codes for an object that does not exist.
 # head_object() reports "404", get_object() reports "NoSuchKey".
@@ -76,9 +81,18 @@ class S3Storage(Storage):
         url_expiry: int = 3600,
         url_base: str | None = None,
         max_pool_connections: int = 16,
+        upload_attempts: int = 3,
+        retry_delay_s: float = 1.0,
     ) -> None:
         if not bucket_name:
             raise ImproperlyConfigured("S3Storage needs a 'bucket_name' option")
+        if upload_attempts < 1:
+            raise ImproperlyConfigured("S3Storage needs 'upload_attempts' of 1 or more")
+        # boto3 does not retry a rejected request (i.e. a 403), and an S3 store
+        # can reject one request of many for no clear reason. One failed file
+        # then fails a whole target upload, so upload_file() tries again.
+        self.upload_attempts = upload_attempts
+        self.retry_delay_s = retry_delay_s
         self.bucket_name = bucket_name
         self.location = location.strip("/")
         self.url_expiry = url_expiry
@@ -210,14 +224,31 @@ class S3Storage(Storage):
     def upload_file(self, local_path: str | os.PathLike, name: str) -> str:
         """Uploads a local file to the name, and replaces any existing file.
 
-        boto3 uses a multipart upload for a large file.
+        boto3 uses a multipart upload for a large file. A failed upload is
+        tried again, up to ``upload_attempts`` times in all, with a longer
+        delay each time. The last failure is raised.
         """
         content_type = mimetypes.guess_type(name)[0] or "application/octet-stream"
+        extra_args = {"ContentType": content_type}
+        key = self._key(name)
+        for attempt in range(1, self.upload_attempts):
+            try:
+                self.client.upload_file(
+                    str(local_path), self.bucket_name, key, ExtraArgs=extra_args
+                )
+                return name
+            except S3UploadFailedError as error:
+                logger.warning(
+                    "Upload of '%s' failed (attempt %d of %d), trying again: %s",
+                    name,
+                    attempt,
+                    self.upload_attempts,
+                    error,
+                )
+                time.sleep(self.retry_delay_s * attempt)
+        # The last attempt raises its failure.
         self.client.upload_file(
-            str(local_path),
-            self.bucket_name,
-            self._key(name),
-            ExtraArgs={"ContentType": content_type},
+            str(local_path), self.bucket_name, key, ExtraArgs=extra_args
         )
         return name
 
