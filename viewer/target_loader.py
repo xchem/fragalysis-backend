@@ -33,6 +33,7 @@ from django.utils import timezone
 from rdkit import Chem
 
 from api.utils import deployment_mode_is_production
+from frag_s3_storage import S3UploadError
 from fragalysis.settings import TARGET_LOADER_MEDIA_DIRECTORY
 from viewer import media_storage
 from viewer.cache import clear_view_cache
@@ -4081,6 +4082,7 @@ def load_target(
             # The task should _always_ end successfully.
             # Any problem with the underlying data is transmitted in the report.
             logger.error(exc, exc_info=True)
+            report_store_failure(target_loader.report, exc)
             delete_stored_upload_files(target_loader)
             target_loader.report.final(
                 f"Failed to process '{target_loader.data_bundle}'", success=False
@@ -4088,6 +4090,20 @@ def load_target(
             return
         else:
             _save_target_experiment(target_loader)
+
+
+def report_store_failure(report: UploadReport, error: Exception) -> None:
+    """Tells the user (in the upload report) why the upload's files were not stored.
+
+    Only a failed S3 upload is reported here. Other failures are already in
+    the report, or are reported by the caller's final message.
+    """
+    if isinstance(error, S3UploadError):
+        report.log(
+            logging.ERROR,
+            f"Aborting upload - failed to write '{error.name}'"
+            f" to S3 bucket '{error.bucket}' ({error.code})",
+        )
 
 
 def store_upload_files(target_loader) -> None:
