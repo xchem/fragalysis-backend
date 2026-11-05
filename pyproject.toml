@@ -9,7 +9,7 @@ packages = [{include = "fragalysis_backend"}]
 
 [tool.poetry.dependencies]
 python = "^3.13.0"
-django = "^5.2.19"
+django = ">=5.2.19,<6.0.0"
 apscheduler = "^3.10"
 celery = "^5.5"
 django-bootstrap3 = "^25.2"
