@@ -10,7 +10,9 @@ its transaction stores the upload's files under
 Each storage test runs with both media storages (the ``media_backend`` fixture).
 """
 import hashlib
+import io
 import re
+import tarfile
 from pathlib import Path
 from types import SimpleNamespace
 from unittest import mock
@@ -20,11 +22,15 @@ from django.core.files.uploadedfile import SimpleUploadedFile
 from django.core.management import call_command
 from rdkit import Chem
 
+from frag_s3_storage import S3UploadError
 from viewer import media_storage
 from viewer.target_loader import (
     TargetLoader,
+    UploadReport,
     delete_stored_upload_files,
+    load_target,
     read_stored_mol,
+    report_store_failure,
     store_upload_files,
 )
 from viewer.utils import sanitize_directory_name
@@ -205,6 +211,66 @@ def test_delete_stored_upload_files_does_nothing_before_the_store(
     delete_stored_upload_files(loader)
 
     assert media_storage.exists("target_loader_data/Mpro_lb1/upload_2/a.pdb")
+
+
+# Explaining a failed store -------------------------------------------------------
+
+_ABORT = (
+    "ERROR: Aborting upload - failed to write"
+    " 'target_loader_data/Mpro_lb1/upload_2/a+b.ccp4'"
+    " to S3 bucket 'frag-media' (SignatureDoesNotMatch)"
+)
+
+
+def _s3_upload_error():
+    return S3UploadError(
+        "target_loader_data/Mpro_lb1/upload_2/a+b.ccp4",
+        "frag-media",
+        "SignatureDoesNotMatch",
+    )
+
+
+def test_a_failed_s3_store_is_explained_in_the_report():
+    report = UploadReport(task=None, proposal_ref="lb1")
+
+    report_store_failure(report, _s3_upload_error())
+
+    assert report.json() == [_ABORT]
+    assert report.failed
+
+
+def test_other_failures_add_nothing_to_the_report():
+    report = UploadReport(task=None, proposal_ref="lb1")
+
+    report_store_failure(report, ValueError("bad data"))
+
+    assert not report.json()
+
+
+def _stored_bundle() -> str:
+    """Stores a small bundle (one file in a Mpro/ directory). Returns its name."""
+    data = io.BytesIO()
+    with tarfile.open(fileobj=data, mode="w:gz") as tar:
+        content = b"meta"
+        info = tarfile.TarInfo("Mpro/upload_2/meta_aligner.yaml")
+        info.size = len(content)
+        tar.addfile(info, io.BytesIO(content))
+    return media_storage.store_bytes("tmp/uploads/u1/Mpro.tgz", data.getvalue())
+
+
+@pytest.mark.django_db
+def test_load_target_reports_a_failed_s3_store(media_backend, mocker):
+    mocker.patch.object(TargetLoader, "process_bundle")
+    mocker.patch(
+        "viewer.target_loader.store_upload_files", side_effect=_s3_upload_error()
+    )
+    final = mocker.patch.object(UploadReport, "final", autospec=True)
+
+    load_target(_stored_bundle(), proposal_ref="lb1")
+
+    report = final.call_args.args[0]
+    assert _ABORT in report.json()
+    assert final.call_args.kwargs == {"success": False}
 
 
 # Reading .mol files ---------------------------------------------------------------

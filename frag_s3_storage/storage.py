@@ -62,6 +62,33 @@ def _is_not_found(error: ClientError) -> bool:
     return error.response.get("Error", {}).get("Code") in _NOT_FOUND_CODES
 
 
+class S3UploadError(S3UploadFailedError):
+    """An upload that failed on every attempt.
+
+    It gives the storage name, the bucket and the S3 error code
+    (i.e. "SignatureDoesNotMatch"), so that a caller can tell the user.
+    The code is "unknown" if S3 did not give one.
+    """
+
+    def __init__(self, name: str, bucket: str, code: str) -> None:
+        super().__init__(f"Failed to upload '{name}' to bucket '{bucket}' ({code})")
+        self.name = name
+        self.bucket = bucket
+        self.code = code
+
+
+def _s3_error_code(error: S3UploadFailedError) -> str:
+    """The S3 error code of a failed upload, or "unknown".
+
+    boto3 raises S3UploadFailedError while it handles the S3 ClientError,
+    so the ClientError is the exception's context.
+    """
+    context = error.__context__
+    if isinstance(context, ClientError):
+        return context.response.get("Error", {}).get("Code") or "unknown"
+    return "unknown"
+
+
 @deconstructible(path="frag_s3_storage.S3Storage")
 class S3Storage(Storage):
     """Stores files as objects in an S3 bucket.
@@ -226,7 +253,7 @@ class S3Storage(Storage):
 
         boto3 uses a multipart upload for a large file. A failed upload is
         tried again, up to ``upload_attempts`` times in all, with a longer
-        delay each time. The last failure is raised.
+        delay each time. The last failure is raised as an S3UploadError.
         """
         content_type = mimetypes.guess_type(name)[0] or "application/octet-stream"
         extra_args = {"ContentType": content_type}
@@ -246,10 +273,14 @@ class S3Storage(Storage):
                     error,
                 )
                 time.sleep(self.retry_delay_s * attempt)
-        # The last attempt raises its failure.
-        self.client.upload_file(
-            str(local_path), self.bucket_name, key, ExtraArgs=extra_args
-        )
+        try:
+            self.client.upload_file(
+                str(local_path), self.bucket_name, key, ExtraArgs=extra_args
+            )
+        except S3UploadFailedError as error:
+            raise S3UploadError(
+                name, self.bucket_name, _s3_error_code(error)
+            ) from error
         return name
 
     def download_file(self, name: str, local_path: str | os.PathLike) -> None:
