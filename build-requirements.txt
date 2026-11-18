@@ -1,14 +1,11 @@
 # Requirements specifically used to build/test the backend.
-# These are not rquirements needed by the backend in order for it to run.
-pylint == 2.17.7
-pylint-django == 2.5.3
+# These are not requirements needed by the backend in order for it to run.
+#
+# The application's own dependencies (including Django) are managed by Poetry
+# (see pyproject.toml and poetry.lock). Do not pin them here.
+# The pre-commit hooks install their own tools (pylint, pylint-django etc.)
+# in isolated environments (see .pre-commit-config.yaml).
 pre-commit == 3.5.0
-
-# Poetry (required to build - see the Dockerfile)
-poetry == 1.7.1
-
-# Matching main requirements...
-Django==3.2.24
 
 # Others
 httpie == 3.2.1
