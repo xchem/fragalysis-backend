@@ -1,11 +1,15 @@
 import ast
 import datetime
 import logging
+import math
 import os
 import re
+import shutil
 import uuid
 import zipfile
+from functools import partial
 from pathlib import Path
+from tempfile import TemporaryDirectory
 from typing import Any, Dict, List, Optional, Tuple
 
 import numpy as np
@@ -93,36 +97,72 @@ def dataType(a_str: str) -> str:
     except (ValueError, SyntaxError):
         return "text"
     else:
-        if type(t) in [int, int, float, bool]:
-            # this doesn't work, does it? or am I missing something? seems ureachable
-            if t in [
-                True,
-                False,
-                "TRUE",
-                "FALSE",
-                "true",
-                "false",
-                "yes",
-                "no",
-                "YES",
-                "NO",
-                "Yes",
-                "No",
-                "Y",
-                "N",
-                "y",
-                "n",
-            ]:
-                return "boolean"
-            if type(t) is int or type(t) is int:
-                return "INT"
-            if type(t) is float:
-                return "float"
+        if type(t) is bool:
+            return "boolean"
+        if type(t) is int:
+            return "integer"
+        if type(t) is float:
+            return "float"
+        return "text"
 
-            # Can't get here?
-            assert False
-        else:
-            return "text"
+
+def value_data_type(value: Any) -> str:
+    """Data type of a single score value as read from the SDF"""
+    # RDKit has already turned numeric-looking values into int or float
+    if isinstance(value, bool):
+        return "boolean"
+    if isinstance(value, int):
+        return "integer"
+    if isinstance(value, float):
+        return "float"
+    return dataType(str(value))
+
+
+def column_data_type(values) -> Optional[str]:
+    """Data type of a whole score column, or None if it has no values"""
+    types = {value_data_type(v) for v in values}
+    if not types:
+        return None
+    if types == {"integer"}:
+        return "integer"
+    if types <= {"integer", "float"}:
+        return "float"
+    if types == {"boolean"}:
+        return "boolean"
+    return "text"
+
+
+def _fits(stored: str, new: str) -> bool:
+    """Can values of type new go into a property of type stored?"""
+    if stored == "float":
+        return new in ("float", "integer")
+    if stored == "integer":
+        return new == "integer"
+    # everything else is stored as text
+    return True
+
+
+def _preference(new: Optional[str], result_property: ResultProperty) -> int:
+    """Rank a property for values of type new, lowest first"""
+    stored = result_property.data_type.data_type
+    if stored == new:
+        return 0
+    if new is None:
+        # no values, any will do
+        return 1
+    if stored == "float" and new == "integer":
+        return 1
+    if _fits(stored, new):
+        # as text
+        return 2
+    return 3
+
+
+def is_missing(value: Any) -> bool:
+    """True for a score value that isn't there: blank, None or nan"""
+    if isinstance(value, float):
+        return math.isnan(value)
+    return value is None or str(value).strip().lower() in ("", "nan", "none")
 
 
 class PdbOps:
@@ -204,6 +244,10 @@ class MolOps:
 
         self.result_properties = {}
 
+        # Media files are written here during task() and only moved
+        # into MEDIA_ROOT once its transaction has committed
+        self.staging_root: Optional[Path] = None
+
         # This is now the third time the target is resolved. a bit
         # stupid. fix
         try:
@@ -249,7 +293,7 @@ class MolOps:
         pdb_fn = "_".join([zfile[pdb_code].split("/")[-1], uuid.uuid4().hex])
         pdb_field = Path(settings.COMPUTED_SET_MEDIA_DIRECTORY).joinpath(pdb_fn)
 
-        new_filename = Path(settings.MEDIA_ROOT).joinpath(pdb_field)
+        new_filename = self._staged_path(pdb_field)
         old_filename = Path(settings.MEDIA_ROOT).joinpath(pdb_fp)
 
         # there may be a case where 2 or more molfiles reference the
@@ -260,6 +304,39 @@ class MolOps:
             os.chmod(new_filename, 0o755)
 
         return str(pdb_field)
+
+    def _staged_path(self, relative) -> Path:
+        """Where a media file is written until the upload commits."""
+        assert self.staging_root, "media files are only written within task()"
+        path = self.staging_root.joinpath(relative)
+        path.parent.mkdir(parents=True, exist_ok=True)
+        return path
+
+    def _media_file(self, relative) -> Path:
+        """A media file, which may be one this upload has only staged so far."""
+        if self.staging_root:
+            staged = self.staging_root.joinpath(relative)
+            if staged.exists():
+                return staged
+        return Path(settings.MEDIA_ROOT).joinpath(relative)
+
+    def _publish_staged_files(self) -> None:
+        """Move the staged files into MEDIA_ROOT, at the same relative paths."""
+        assert self.staging_root
+        media_root = Path(settings.MEDIA_ROOT)
+        for staged in sorted(self.staging_root.rglob("*")):
+            if staged.is_file():
+                final = media_root.joinpath(staged.relative_to(self.staging_root))
+                final.parent.mkdir(parents=True, exist_ok=True)
+                shutil.move(staged, final)
+
+        # adjust permissions for any files created
+        set_directory_permissions(media_root.joinpath(self.virtual_root), 0o755)
+
+    def _remove_zip_files(self) -> None:
+        """Delete the PDBs PdbOps extracted that process_pdb did not move away."""
+        for path in (self.zfile or {}).values():
+            Path(settings.MEDIA_ROOT).joinpath(path).unlink(missing_ok=True)
 
     # use zfile object for pdb files uploaded in zip
     def get_site_observation(
@@ -296,62 +373,34 @@ class MolOps:
                     pdb_fn,
                 )
 
-        # pdb was not included, try to find the matching site observation
-        name = pdb_fn
-        site_obvs = None
-        try:
-            site_obvs = SiteObservation.objects.get(
-                code__contains=name,
-                experiment__experiment_upload__target__pk=target,
-                superseded=False,
-            )
-        except SiteObservation.DoesNotExist:
-            # Initial SiteObservation lookup failed.
-            logger.warning(
-                "Failed to get SiteObservation object (target=%s name=%s)",
-                compound_set.target.title,
-                name,
-            )
-            # Try alternatives.
-            # If all else fails then the site_obvs will be 'None'
-            qs = SiteObservation.objects.filter(
-                code__contains=name,
-                experiment__experiment_upload__target__pk=target,
-            )
-            if qs.exists():
-                logger.info(
-                    "Found SiteObservation containing name=%s qs=%s",
-                    name,
-                    qs,
+        # pdb was not included, find the one current site observation
+        # it names: exact code, then exact longcode, then a code
+        # containing the name. Anything else is reported, not guessed.
+        name = pdb_fn.removesuffix(".pdb")
+        current = SiteObservation.objects.filter(
+            experiment__experiment_upload__target__pk=target,
+            superseded=False,
+        )
+        for lookup in ("code", "longcode", "code__contains"):
+            matches = list(current.filter(**{lookup: name}).order_by("code"))
+            if len(matches) == 1:
+                return matches[0]
+            if matches:
+                codes = ", ".join(so.code for so in matches)
+                msg = (
+                    f'Molecule "{mol.GetProp("_Name")}": {property_name} "{name}"'
+                    + f" matches more than one observation ({codes})"
                 )
-            else:
-                alt_name = name.split(":")[0].split("_")[0]
-                qs = SiteObservation.objects.filter(
-                    code__contains=alt_name,
-                    experiment__experiment_upload__target__pk=target,
-                )
-                if qs.exists():
-                    logger.info(
-                        "Found SiteObservation containing alternative name=%s qs=%s",
-                        alt_name,
-                        qs,
-                    )
-            if qs.count() > 0:
-                logger.debug(
-                    "Found alternative (target=%s name=%s)",
-                    compound_set.target.title,
-                    name,
-                )
-                site_obvs = qs[0]
+                logger.error(msg)
+                raise IntegrityError(msg)
 
-        if not site_obvs:
-            logger.warning(
-                "No SiteObservation found (target=%s pdb_fn=%s)",
-                compound_set.target.title,
-                pdb_fn,
-            )
-
-        return site_obvs
+        msg = (
+            f'Molecule "{mol.GetProp("_Name")}": {property_name} "{name}"'
+            + f" matches no current observation of target {compound_set.target.title}"
+            + " and is not in the uploaded PDB files"
+        )
+        logger.error(msg)
+        raise IntegrityError(msg)
 
     def create_mol(self, inchi, target, name=None) -> Compound:
         # check for an existing compound, returning a Compound
@@ -385,32 +434,78 @@ class MolOps:
 
         return cpd
 
+    def set_result_properties(self, mols, score_descriptions, target) -> None:
+        """Find or create one ResultProperty per score for this upload.
+
+        The type is decided from all of the column's values, so a
+        missing value or an integer among floats doesn't split the
+        score into properties of different types.
+        """
+        mol_props = [m.GetPropsAsDict() for m in mols]
+        for name, description in score_descriptions.items():
+            if name in HEADER_MOL_FIELDS:
+                # set_props stores the description for these
+                values = [description]
+            else:
+                values = [props.get(name) for props in mol_props]
+            data_type = column_data_type(v for v in values if not is_missing(v))
+
+            # targets split by earlier uploads have more than one,
+            # prefer the one of the same type, then one the values fit
+            existing = list(
+                ResultProperty.objects.filter(
+                    result_property=name,
+                    unit__isnull=True,
+                    target=target,
+                )
+                .select_related("data_type")
+                .order_by("pk")
+            )
+            existing.sort(key=partial(_preference, data_type))
+            result_property = existing[0] if existing else None
+
+            if result_property is None:
+                result_property = ResultProperty.objects.create(
+                    result_property=name,
+                    unit=None,
+                    target=target,
+                    data_type=self.data_type_dict[data_type or "text"],
+                )
+            elif data_type and not _fits(
+                result_property.data_type.data_type, data_type
+            ):
+                msg = (
+                    f"Score '{name}' has {data_type} values, but earlier"
+                    + " uploads to this target stored it as"
+                    + f" {result_property.data_type.data_type}"
+                )
+                logger.error(msg)
+                raise IntegrityError(msg)
+
+            self.result_properties[name] = result_property
+
     def set_props(self, cpd, props, score_descriptions, computed_set) -> None:
         for property_name, val in score_descriptions.items():
-            # logger.debug("score_descriptions: %s", score_descriptions)
-            # logger.debug("property_name: %s", property_name)
-            # logger.debug("props: %s", props)
-            # logger.debug("sd.name, val: %s: %s", sd.name, val)
-
-            data_type = self.data_type_dict.get(
-                dataType(str(props[property_name])),
-                self.data_type_dict['text'],
-            )
-
-            try:
-                result_property = self.result_properties[property_name]
-            except KeyError:
-                result_property, _ = ResultProperty.objects.get_or_create(
-                    result_property=property_name,
-                    unit=None,
-                    target=computed_set.target,
-                    data_type=data_type,
-                )
-
             if property_name in HEADER_MOL_FIELDS:
                 value = val
             else:
-                value = props[property_name]
+                value = props.get(property_name)
+
+            if is_missing(value):
+                continue
+
+            if isinstance(value, float) and math.isinf(value):
+                # can't be returned as JSON
+                self.messages = add_warning(
+                    molecule_name=cpd.virtual_molecule_name,
+                    field=property_name,
+                    warning_string=f"Infinite value for {property_name} ignored.",
+                    validate_dict=self.messages,
+                )
+                continue
+
+            result_property = self.result_properties[property_name]
+            data_type = result_property.data_type.data_type
 
             result = Result(
                 raw_value=value,
@@ -419,11 +514,10 @@ class MolOps:
                 computed_set=computed_set,
             )
 
-            if data_type.data_type == 'float':
+            if data_type == 'float':
                 result.float_value = value
-            elif data_type.data_type == 'integer':
+            elif data_type == 'integer':
                 result.int_value = value
-
             else:
                 result.text_value = value
 
@@ -510,13 +604,11 @@ class MolOps:
             zfile_hashvals=zfile_hashvals,
         )
         if not ref_so:
-            logger.warning(
-                "Failed to get a Reference SiteObservation (%s) for %s, %s, %s",
-                ref_property,
-                mol,
-                target,
-                compound_set,
-            )
+            # without one the molecule would have no protein, crystal
+            # form site or conformer site
+            msg = f'Molecule "{molecule_name}": no reference for {ref_property}'
+            logger.error(msg)
+            raise IntegrityError(msg)
 
         # Need a ComputedMolecule before saving.
         # Check if anything exists already...
@@ -613,7 +705,7 @@ class MolOps:
         )
 
         new_so_mol = Chem.MolToMolBlock(mol)
-        sdf_filename = Path(settings.MEDIA_ROOT).joinpath(filename)
+        sdf_filename = self._staged_path(filename)
         with open(sdf_filename, "w", encoding='utf-8') as f:
             f.write(new_so_mol)
 
@@ -631,7 +723,7 @@ class MolOps:
 
         # existing_computed_molecules = []
         for so in qs:
-            filepath = Path(settings.MEDIA_ROOT).joinpath(str(so.virtual_ligand_mol))
+            filepath = self._media_file(str(so.virtual_ligand_mol))
             so_mol = Chem.MolFromMolFile(str(filepath))
             if so_mol:
                 # find distances between corresponding atoms of the
@@ -839,6 +931,10 @@ class MolOps:
     def task(self) -> tuple[ComputedSet, dict]:
         # Truncate submitted method (lower-case)?
         # truncated_submitter_method: str = "unspecified"
+        staging_parent = Path(settings.MEDIA_ROOT).joinpath("tmp")
+        staging_parent.mkdir(parents=True, exist_ok=True)
+        staging = TemporaryDirectory(dir=staging_parent)
+        self.staging_root = Path(staging.name)
         try:
             with transaction.atomic():
                 submitter_method: str = self.submitter_method
@@ -878,12 +974,6 @@ class MolOps:
                         f"{submitter_method}-{str(today)}-"
                         + f"{get_column_letter(new_ordinal)}"
                     )
-
-                    # cache properties for later
-                    self.result_properties = {
-                        k.result_property: k
-                        for k in ResultProperty.objects.filter(target=target)
-                    }
 
                     # now that I have a name, I can check whether this
                     # target already has this set
@@ -931,6 +1021,9 @@ class MolOps:
                 mols_to_process, score_descriptions = self.set_descriptions(
                     filename=sdf_filename, computed_set=computed_set
                 )
+                self.set_result_properties(
+                    mols_to_process, score_descriptions, computed_set.target
+                )
 
                 # Process the molecules
                 logger.info("%s mols_to_process=%s", computed_set, len(mols_to_process))
@@ -958,24 +1051,17 @@ class MolOps:
                     new_observation_tag=f"{computed_set.name} {datestr}",
                 )
 
-                # adjust permissions for any files created
-                set_directory_permissions(
-                    Path(settings.MEDIA_ROOT).joinpath(self.virtual_root),
-                    0o755,
-                )
+            # committed, so the files can go into place
+            self._publish_staged_files()
 
         except IntegrityError as exc:
-            # clean up previously written files. this is not ideal,
-            # they should be written to a tempdir or something, like
-            # in target loader. TODO for later
-            try:
-                for p in self.zfile.values():
-                    Path(p).unlink()
-            except AttributeError:
-                # zfile is None, nothing to do
-                pass
-
             raise ValueError(exc.args[0]) from exc
+
+        finally:
+            # whatever went wrong, nothing written is left behind
+            staging.cleanup()
+            self.staging_root = None
+            self._remove_zip_files()
 
         # assuming no errors, write the files
 

@@ -11,7 +11,7 @@ set will arrive once a real target archive is committed and loaded via the
 # only - both are standard pytest patterns that pylint misreads.
 # pylint: disable=redefined-outer-name,unused-argument
 from contextlib import contextmanager
-from typing import Callable, Iterable
+from typing import Any, Callable, Iterable
 from unittest import mock
 
 import pytest
@@ -144,15 +144,33 @@ def mock_tas_users(monkeypatch) -> Callable[..., None]:
     usernames, or - by passing ``error`` - report that the membership could not
     be determined (the authenticator answers 503 rather than an empty set when
     ISPyB is unreachable, and the endpoint must not blur the two).
+
+    ``members`` (``TasAuthMember`` objects) supplies the users' names. Without
+    it the members are the ``users`` without names - what the client reports
+    for an authenticator that is older than 1.6.0.
     """
 
-    def _set(users: Iterable[str] = (), error: str | None = None) -> None:
+    def _set(
+        users: Iterable[str] = (),
+        error: str | None = None,
+        members: Iterable[ta_auth_connector.TasAuthMember] | None = None,
+    ) -> None:
         user_set = set(users)
+        if members is None:
+            member_list = [
+                ta_auth_connector.TasAuthMember(login=login)
+                for login in sorted(user_set)
+            ]
+        else:
+            member_list = list(members)
+            user_set |= {member.login for member in member_list}
+        if error:
+            user_set, member_list = set(), []
         monkeypatch.setattr(
             ta_auth_connector,
             "get_auth_users",
             lambda tas: ta_auth_connector.TasAuthUsersGetResponse(
-                users=set(user_set), error=error
+                users=set(user_set), error=error, members=list(member_list)
             ),
         )
 
@@ -241,6 +259,25 @@ def mock_neo4j(monkeypatch) -> Callable[..., None]:
         )
 
     return _set
+
+
+@pytest.fixture
+def driver_calls(monkeypatch) -> list[tuple[tuple[Any, ...], dict[str, Any]]]:
+    """Record each neo4j ``GraphDatabase.driver`` call, returning a fake driver.
+
+    Unlike :func:`mock_neo4j` this leaves ``fragutils`` building the driver, so
+    tests can check the connection URI and auth handed to neo4j.
+    """
+    from neo4j import GraphDatabase
+
+    calls: list[tuple[tuple[Any, ...], dict[str, Any]]] = []
+
+    def _driver(*args, **kwargs):
+        calls.append((args, kwargs))
+        return _FakeNeo4jDriver(None)
+
+    monkeypatch.setattr(GraphDatabase, "driver", _driver)
+    return calls
 
 
 @pytest.fixture

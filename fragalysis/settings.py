@@ -166,6 +166,9 @@ LOGIN_REDIRECT_URL = "/viewer/react/landing"
 LOGOUT_REDIRECT_URL = "/viewer/react/landing"
 
 MIDDLEWARE = [
+    # First, so every response (including errors) gets the header.
+    # The frontend's Moorhen viewer requires cross-origin isolation.
+    "fragalysis.middleware.CrossOriginEmbedderPolicyMiddleware",
     "django_prometheus.middleware.PrometheusBeforeMiddleware",
     "django.middleware.security.SecurityMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
@@ -631,8 +634,13 @@ NEOMODEL_NEO4J_BOLT_URL: str = os.environ.get(
 )
 
 # The graph (neo4j) database settings.
-# The query provides the graph endpoint, typically a service in a kubernetes namespace
-# like 'graph.graph-a.svc' and the 'auth' provides the graph username and password.
+# The query provides the graph endpoint, either a bare hostname,
+# typically a service in a kubernetes namespace like 'graph.graph-a.svc'
+# (connected to using plain 'bolt://<hostname>:7687'), or a complete URI,
+# which is used unchanged. Use a URI for a graph that requires an encrypted
+# connection, e.g. 'bolt+s://graph-x.xchem-dev.diamond.ac.uk:7687'
+# (a TLS certificate is issued for a hostname, so use the hostname, not an IP).
+# The 'auth' provides the graph username and password.
 NEO4J_QUERY: str = os.environ.get("NEO4J_QUERY", "neo4j")
 NEO4J_AUTH: str = os.environ.get("NEO4J_AUTH", "neo4j/neo4j")
 
@@ -718,6 +726,30 @@ if os.environ.get("SQUONK2_REFRESH_SHOULD_RETRIEVE_RESULTS") == "Yes":
     SQUONK2_REFRESH_SHOULD_RETRIEVE_RESULTS = True
 
 TARGET_LOADER_MEDIA_DIRECTORY: str = "target_loader_data"
+
+# Limits on the image accepted for a target's blog card (viewer.models.TargetBlog).
+# Uploads over either limit are rejected with a 400. The blog's own full-size
+# images are currently 1500x1000, so the pixel limit allows twice that on
+# either side.
+TARGET_BLOG_IMAGE_MAX_BYTES: int = 10 * 1024 * 1024
+TARGET_BLOG_IMAGE_MAX_SIDE_PX: int = 3000
+# Instead of uploading the blog card's image, a user can give its URL
+# ('image_url') and the backend downloads it. Only URLs on these hosts
+# (comma-separated) are fetched. Any member of a target's proposal can set the
+# URL, so this allow-list is what stops the backend being made to fetch from
+# the cluster's internal network. An empty value disables 'image_url'.
+TARGET_BLOG_IMAGE_URL_ALLOWED_HOSTS: str = os.environ.get(
+    "TARGET_BLOG_IMAGE_URL_ALLOWED_HOSTS", "openbind.uk"
+)
+TARGET_BLOG_IMAGE_URL_ALLOWED_HOSTS_LIST: List[str] = [
+    host.strip().lower()
+    for host in TARGET_BLOG_IMAGE_URL_ALLOWED_HOSTS.split(",")
+    if host.strip()
+]
+# How long (in seconds) to wait for the image server before giving up.
+TARGET_BLOG_IMAGE_URL_TIMEOUT_S: int = int(
+    os.environ.get("TARGET_BLOG_IMAGE_URL_TIMEOUT_S", "10")
+)
 
 # A warning messages issued by the f/e.
 # Used, if set, to populate the 'target_warning_message' context variable

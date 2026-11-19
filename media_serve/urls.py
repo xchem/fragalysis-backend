@@ -14,5 +14,10 @@ urlpatterns = [
     re_path(
         r"^computed_set_data/(?P<file_path>.+)", views.cspdb_download, name="get_cspdb"
     ),
+    path(
+        "target_blog/<int:blog_id>/",
+        views.target_blog_image,
+        name="get_target_blog_image",
+    ),
     re_path(r"^pdbs/(?P<file_path>.+)", views.file_download, name="get_file"),
 ]

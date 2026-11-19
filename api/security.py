@@ -259,7 +259,7 @@ class UploadTASAuthorisationFailure:
 
 
 def check_upload_tas_authorisation(
-    request, target_access_string
+    request, target_access_string, allow_loader_role: bool = True
 ) -> Optional[UploadTASAuthorisationFailure]:
     """Authorise an upload/validate request against `target_access_string`.
 
@@ -269,7 +269,8 @@ def check_upload_tas_authorisation(
 
     A user holding the UserRole.LOADER_ROLE role bypasses the target-access
     membership check; the bypass is logged as a warning naming the user and
-    the role.
+    the role. Pass `allow_loader_role=False` where the role has no business
+    (it exists for automated uploads).
     """
     if not settings.AUTHENTICATE_UPLOAD:
         return None
@@ -304,7 +305,7 @@ def check_upload_tas_authorisation(
     if not user.is_authenticated:
         return UploadTASAuthorisationFailure(login_required=True)
 
-    if user_has_loader_role(user):
+    if allow_loader_role and user_has_loader_role(user):
         logger.warning(
             'User "%s" bypassing target-access authorisation for "%s" '
             'via the "%s" role',

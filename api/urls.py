@@ -12,6 +12,7 @@ router = DefaultRouter()
 # Register the basic data
 router.register("compounds", viewer_views.CompoundView, "compounds")
 router.register("targets", viewer_views.TargetView, "targets")
+router.register("target-blogs", viewer_views.TargetBlogView, "target-blogs")
 router.register("projects", viewer_views.ProjectView)
 router.register("session-projects", viewer_views.SessionProjectView)
 router.register("snapshots", viewer_views.SnapshotView)
@@ -32,7 +33,6 @@ router.register("compound-sets", viewer_views.ComputedSetView)
 # )
 
 # Get the derived data
-router.register("molimg", viewer_views.MolImageView, "molimg")
 router.register("vector", viewer_views.VectorsView, "vector")
 router.register("graph", viewer_views.GraphView, "graph")
 router.register("cmpdimg", viewer_views.CompoundImageView, "cmpdimg")

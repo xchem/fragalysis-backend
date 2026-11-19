@@ -32,9 +32,6 @@ a version of the standard DRF (see :ref:`RESTful API (Views) <api-intro>`) :code
 - :code:`viewer.views.MoleculeView`: This view is used to retrieve 2D information about molecules - the properties in the
   view are displayed on each ligand card on the LHS.
 
-- :code:`viewer.views.MolImageView`: This view is used to retreive the 2D image created by the loader, and display it on
-  the LHS
-
 - :code:`viewer.views.CompoundView`: This view is used to obtain the 3D coordinates for a molecule, and display them in
   the central 3D viewer on a target specific page when the 'L' button on a specific ligand card in the hit navigator is
   turned on.
@@ -62,9 +59,6 @@ View details
     :members:
 
 .. autoclass:: viewer.views.MoleculeView
-    :members:
-
-.. autoclass:: viewer.views.MolImageView
     :members:
 
 .. autoclass:: viewer.views.CompoundView

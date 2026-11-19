@@ -209,7 +209,7 @@ jobs:
       # exactly which lines are untested. Uploaded even when pytest fails the
       # gate, so a low total can be investigated.
       if: ${{ !cancelled() }}
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v7
       with:
         name: coverage-html
         path: htmlcov/

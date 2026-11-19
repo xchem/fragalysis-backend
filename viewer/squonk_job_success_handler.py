@@ -13,7 +13,6 @@ from viewer.tasks import (
     erase_compound_set_job_material,
     process_compound_set,
     process_compound_set_job_file,
-    validate_compound_set,
 )
 
 logger = get_task_logger(__name__)
@@ -86,7 +85,6 @@ def job_success_handler(
     }
     task_upload = (
         process_compound_set_job_file.s(task_params)
-        | validate_compound_set.s()
         | process_compound_set.s()
         | erase_compound_set_job_material.s(job_request_id=jr.id)
     ).apply_async()
