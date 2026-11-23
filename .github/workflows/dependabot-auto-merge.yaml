@@ -8,9 +8,10 @@ name: dependabot auto-merge
 # severity. GitHub then merges the pull request when the required checks pass.
 # A pull request below the minimum severity stays open for manual review.
 #
-# 'pull_request_target' runs this file from the BASE branch, so this file
-# must be on 'security'. The job never checks out the pull request code.
-# It checks out only the base branch, to get the severity script.
+# GitHub runs a 'pull_request_target' workflow from the DEFAULT branch
+# ('staging'), not from the pull request's base branch. Thus this file and the
+# severity script are used from 'staging'. The job never checks out the pull
+# request code. It checks out only the default branch, to get the script.
 
 # ---------------
 # Control secrets
@@ -47,10 +48,11 @@ jobs:
     - name: Get Dependabot metadata
       id: metadata
       uses: dependabot/fetch-metadata@v3
-    - name: Checkout (base branch)
+    - name: Checkout (default branch)
+      # No 'ref': for 'pull_request_target' this is the default branch, the
+      # same branch as this workflow file.
       uses: actions/checkout@v6
       with:
-        ref: ${{ github.event.pull_request.base.ref }}
         persist-credentials: false
     - name: Get open Dependabot alerts
       env:
