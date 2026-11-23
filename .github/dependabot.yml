@@ -28,6 +28,14 @@ updates:
   target-branch: security
   schedule:
     interval: daily
+  # 'security' is a patch branch of 'production'. Accept only patch versions
+  # of the Python base image (e.g. 3.13.x). A new Python minor or major version
+  # is a planned change on 'staging', not a patch.
+  ignore:
+  - dependency-name: python
+    update-types:
+    - version-update:semver-major
+    - version-update:semver-minor
 
 - package-ecosystem: github-actions
   directory: /

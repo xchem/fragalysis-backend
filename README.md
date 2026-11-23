@@ -361,11 +361,13 @@ The **check back-merge** workflow fails a pull request to `production` if
 `production` has a commit that is not in the pull request's branch. This stops
 a release from `staging` before a back-merge is done.
 
-### Workflow files on two branches
-`dependabot.yml` and **build security (daily)** must be on `staging`. The
-auto-merge workflow runs from `security`, because `pull_request_target` runs the
-workflow file from the base branch. Normal releases copy all of these files to
-`production`, and step 4 or 5 copies them to `security`.
+### Where the workflow files must be
+GitHub reads `dependabot.yml` and runs the **build security (daily)** and
+**dependabot auto-merge** workflows only from `staging`, the default branch.
+(GitHub runs a `pull_request_target` workflow from the default branch, not
+from the pull request's base branch.) `security` needs only the
+`workflow_dispatch` trigger in `build-dev.yaml`, so that the daily build can
+start **build dev** on it.
 
 ## Design documents
 As the application has evolved several design documents have been written detailing
