@@ -1,0 +1,36 @@
+---
+# Dependabot configuration (issue #1088).
+#
+# Dependabot reads this file only from the default branch ('staging').
+#
+# Version updates go to the 'security' branch, a patch branch of 'production'.
+# The 'dependabot auto-merge' workflow merges the pull requests that fix an
+# open alert at or above a minimum severity. See the "Security patches"
+# section of README.md for the release flow.
+#
+# Note: GitHub ignores 'target-branch' for Dependabot *security* updates.
+# Those always target the default branch.
+
+version: 2
+
+updates:
+
+- package-ecosystem: pip
+  # The Poetry pyproject.toml and poetry.lock
+  directory: /
+  target-branch: security
+  schedule:
+    interval: daily
+  open-pull-requests-limit: 10
+
+- package-ecosystem: docker
+  directory: /
+  target-branch: security
+  schedule:
+    interval: daily
+
+- package-ecosystem: github-actions
+  directory: /
+  target-branch: security
+  schedule:
+    interval: weekly
