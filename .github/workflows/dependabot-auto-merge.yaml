@@ -1,0 +1,86 @@
+---
+name: dependabot auto-merge
+
+# Issue #1088.
+#
+# Enables auto-merge on a Dependabot pull request against the 'security' branch
+# when an open Dependabot alert for an updated package is at or above a minimum
+# severity. GitHub then merges the pull request when the required checks pass.
+# A pull request below the minimum severity stays open for manual review.
+#
+# 'pull_request_target' runs this file from the BASE branch, so this file
+# must be on 'security'. The job never checks out the pull request code.
+# It checks out only the base branch, to get the severity script.
+
+# ---------------
+# Control secrets
+# ---------------
+#
+# DEPENDABOT_ALERTS_TOKEN   required - a fine-grained PAT (or GitHub App token)
+#                           with "Dependabot alerts: Read-only" on this
+#                           repository. The default GITHUB_TOKEN cannot read
+#                           Dependabot alerts. Dependabot-triggered runs get
+#                           Dependabot secrets, so store it as a Dependabot
+#                           secret (Settings -> Secrets -> Dependabot).
+#
+# ---------
+# Variables
+# ---------
+#
+# DEPENDABOT_AUTO_MERGE_MIN_SEVERITY  optional - low, medium, high or critical
+#                                     (default high)
+
+on:
+  pull_request_target:
+    branches:
+    - 'security'
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  auto-merge:
+    runs-on: ubuntu-latest
+    if: github.event.pull_request.user.login == 'dependabot[bot]'
+    steps:
+    - name: Get Dependabot metadata
+      id: metadata
+      uses: dependabot/fetch-metadata@v3
+    - name: Checkout (base branch)
+      uses: actions/checkout@v6
+      with:
+        ref: ${{ github.event.pull_request.base.ref }}
+        persist-credentials: false
+    - name: Get open Dependabot alerts
+      env:
+        GH_TOKEN: ${{ secrets.DEPENDABOT_ALERTS_TOKEN }}
+      run: |
+        if [ -z "${GH_TOKEN}" ]; then
+          echo "::error::The DEPENDABOT_ALERTS_TOKEN secret is not set"
+          exit 1
+        fi
+        gh api --paginate \
+          "repos/${{ github.repository }}/dependabot/alerts?state=open&per_page=100" \
+          --jq '.[]' | jq --slurp . > alerts.json
+        echo "Open alerts: $(jq length alerts.json)"
+    - name: Decide
+      id: decide
+      env:
+        DEPENDENCIES: ${{ steps.metadata.outputs.dependency-names }}
+        MIN_SEVERITY: ${{ vars.DEPENDABOT_AUTO_MERGE_MIN_SEVERITY || 'high' }}
+      run: |
+        MERGE=$(python3 .github/scripts/dependabot_alert_severity.py \
+          --alerts alerts.json \
+          --dependencies "${DEPENDENCIES}" \
+          --min-severity "${MIN_SEVERITY}")
+        echo "Dependencies: ${DEPENDENCIES}"
+        echo "Minimum severity: ${MIN_SEVERITY}"
+        echo "Merge: ${MERGE}"
+        echo "merge=${MERGE}" >> "$GITHUB_OUTPUT"
+    - name: Enable auto-merge
+      if: steps.decide.outputs.merge == 'true'
+      env:
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        PR_URL: ${{ github.event.pull_request.html_url }}
+      run: gh pr merge --auto --squash "${PR_URL}"

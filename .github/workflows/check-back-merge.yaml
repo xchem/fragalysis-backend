@@ -1,0 +1,41 @@
+---
+name: check back-merge
+
+# Issue #1088.
+#
+# A patch released from the 'security' branch goes into 'production' and must
+# then be merged back into 'staging'. This check fails a release pull request
+# (staging -> production) if 'production' has a commit that is not in the
+# pull request's branch, i.e. a back-merge is missing.
+
+on:
+  pull_request:
+    branches:
+    - 'production'
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v6
+      with:
+        ref: ${{ github.event.pull_request.head.sha }}
+        fetch-depth: 0
+        persist-credentials: false
+    - name: Check that production is in the pull request branch
+      env:
+        BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        HEAD_REF: ${{ github.event.pull_request.head.ref }}
+      run: |
+        if git merge-base --is-ancestor "${BASE_SHA}" HEAD; then
+          echo "OK - production is in '${HEAD_REF}'"
+        else
+          echo "::error::'production' has commits that are not in '${HEAD_REF}'."
+          echo "::error::Merge 'production' into '${HEAD_REF}' (the back-merge) first."
+          git log --oneline HEAD.."${BASE_SHA}"
+          exit 1
+        fi

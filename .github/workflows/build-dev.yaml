@@ -34,6 +34,9 @@ on:
     - 'coverage-badge'
     tags-ignore:
     - '**'
+  # Lets 'build security (daily)' start this build on the 'security' branch
+  # (issue #1088).
+  workflow_dispatch:
 
 env:
   # The following 'defaults' are used in the 'Initialise workflow variables' step,
@@ -111,6 +114,9 @@ jobs:
       run: |
         pip install --requirement build-requirements.txt
         pre-commit run --all-files
+    - name: Test the workflow scripts
+      # Standard-library tests for the scripts in .github/scripts (issue #1088)
+      run: python -m unittest discover -s .github/scripts
     - name: Set up Python (unit tests)
       uses: actions/setup-python@v6
       with:
