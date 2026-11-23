@@ -146,7 +146,7 @@ jobs:
       with:
         dockerfile: Dockerfile
     - name: Set up Python
-      uses: actions/setup-python@v6
+      uses: actions/setup-python@v7
       with:
         python-version: '3.13'
     - name: Run pre-commit (all files)
@@ -154,7 +154,7 @@ jobs:
         pip install --requirement build-requirements.txt
         pre-commit run --all-files
     - name: Set up Python (unit tests)
-      uses: actions/setup-python@v6
+      uses: actions/setup-python@v7
       with:
         python-version: '3.13'
     - name: Install Poetry
