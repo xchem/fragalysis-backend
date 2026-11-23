@@ -310,6 +310,63 @@ state of the repository as it stands with...
 
     pre-commit run --all-files
 
+## Security patches
+The `security` branch is a patch branch of `production` (issue #1088).
+Dependabot dependency updates collect on `security`. We can release them to
+`production` when we need to, independently of the state of `staging`.
+
+### How updates reach `security`
+- `.github/dependabot.yml` (read only from `staging`, the default branch) sends
+  Dependabot *version*-update pull requests to `security`. GitHub ignores
+  `target-branch` for Dependabot *security* updates, so those still target
+  `staging`.
+- The **dependabot auto-merge** workflow enables auto-merge on a pull request
+  when an open Dependabot alert for an updated package is at or above a
+  minimum severity. The pull request merges (squashed) when its required checks
+  pass. A pull request below the minimum severity stays open for manual review.
+- The **build security (daily)** workflow starts the **build dev** workflow on
+  `security` each day. To see the result, filter the **build dev** runs by the
+  `security` branch.
+
+### Configuration
+- Secret `DEPENDABOT_ALERTS_TOKEN` (a **Dependabot** secret): a fine-grained
+  personal access token, or a GitHub App token, with
+  "Dependabot alerts: Read-only" on this repository. The default `GITHUB_TOKEN`
+  cannot read Dependabot alerts.
+- Variable `DEPENDABOT_AUTO_MERGE_MIN_SEVERITY`: `low`, `medium`, `high` or
+  `critical` (default `high`).
+- Repository setting "Allow auto-merge" must be on.
+- The `security` branch protection must require the **build** check, so that
+  auto-merge waits for the tests. It must not require a linear history (see
+  step 5 below).
+
+### Releasing a patch
+1. Open a pull request from `security` to `production`. Merge it with a
+   **merge commit** (not a squash).
+2. Tag `production` with the next production release number. The tag starts
+   the **build production** workflow.
+3. Open a pull request from `production` to `staging` (the back-merge). If
+   `staging` changed dependencies, fix the `poetry.lock` conflicts with
+   `poetry lock`.
+4. Fast-forward `security` to `production`:
+
+        git fetch origin
+        git push origin origin/production:refs/heads/security
+
+5. After a normal `staging` → `production` release, update `security` again.
+   If `security` has no unreleased patches, fast-forward it (as in step 4).
+   If it has unreleased patches, merge `production` into `security`.
+
+The **check back-merge** workflow fails a pull request to `production` if
+`production` has a commit that is not in the pull request's branch. This stops
+a release from `staging` before a back-merge is done.
+
+### Workflow files on two branches
+`dependabot.yml` and **build security (daily)** must be on `staging`. The
+auto-merge workflow runs from `security`, because `pull_request_target` runs the
+workflow file from the base branch. Normal releases copy all of these files to
+`production`, and step 4 or 5 copies them to `security`.
+
 ## Design documents
 As the application has evolved several design documents have been written detailing
 improvements. These may be useful for background reading on why decisions have been made.
