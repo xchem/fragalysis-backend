@@ -1,0 +1,32 @@
+---
+name: build security (daily)
+
+# Issue #1088.
+#
+# Builds and tests the 'security' branch each day. GitHub runs 'schedule'
+# triggers only from the default branch, so this file must be on 'staging'.
+# It starts the 'build dev' workflow on the 'security' branch, so the daily
+# build is the same as the build for a push to 'security'.
+# The result is in the Actions tab: filter the 'build dev' runs by the
+# 'security' branch. A failure of the dispatched run does not send an e-mail.
+
+on:
+  schedule:
+  # Every day at 05:30 (UTC)
+  - cron: '30 5 * * *'
+  workflow_dispatch:
+
+permissions:
+  actions: write
+
+jobs:
+  dispatch:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Start 'build dev' on the security branch
+      env:
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: |
+        gh workflow run build-dev.yaml \
+          --repo "${{ github.repository }}" \
+          --ref security
