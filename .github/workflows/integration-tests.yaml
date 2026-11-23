@@ -43,7 +43,7 @@ jobs:
       UNIT_TEST_DATA_IDENTIFIER: ${{ inputs.unit_test_data_identifier }}
     steps:
     - name: Checkout
-      uses: actions/checkout@v6
+      uses: actions/checkout@v7
     - name: Run the integration test
       # Brings up database, redis, backend and celery_worker (the test service
       # waits for the backend to be healthy via depends_on), runs the test, then
