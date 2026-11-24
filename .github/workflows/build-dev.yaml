@@ -107,7 +107,7 @@ jobs:
       with:
         dockerfile: Dockerfile
     - name: Set up Python
-      uses: actions/setup-python@v6
+      uses: actions/setup-python@v7
       with:
         python-version: '3.13'
     - name: Run pre-commit (all files)
@@ -118,7 +118,7 @@ jobs:
       # Standard-library tests for the scripts in .github/scripts (issue #1088)
       run: python -m unittest discover -s .github/scripts
     - name: Set up Python (unit tests)
-      uses: actions/setup-python@v6
+      uses: actions/setup-python@v7
       with:
         python-version: '3.13'
     - name: Install Poetry
