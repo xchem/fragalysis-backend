@@ -140,7 +140,7 @@ jobs:
         echo "unit_test_bucket_and_path=${{ env.UNIT_TEST_BUCKET_AND_PATH }}" >> $GITHUB_OUTPUT
         echo "unit_test_data_identifier=${{ env.UNIT_TEST_DATA_IDENTIFIER }}" >> $GITHUB_OUTPUT
     - name: Checkout
-      uses: actions/checkout@v6
+      uses: actions/checkout@v7
     - name: Lint Dockerfile
       uses: hadolint/hadolint-action@v3.3.0
       with:

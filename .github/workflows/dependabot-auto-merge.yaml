@@ -48,7 +48,7 @@ jobs:
       id: metadata
       uses: dependabot/fetch-metadata@v3
     - name: Checkout (base branch)
-      uses: actions/checkout@v6
+      uses: actions/checkout@v7
       with:
         ref: ${{ github.event.pull_request.base.ref }}
         persist-credentials: false
